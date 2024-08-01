@@ -1,0 +1,85 @@
+%%%% Starting test dsl-parser-tests
+Group begin: dsl-parser-tests
+Test begin:
+  test-name: "Valid program parsing"
+  source-file: "test-dsl-parser.scm"
+  source-line: 7
+  source-form: (test-equal "Valid program parsing" (quote ((mov eax 42) (add eax ebx) (ret))) (parse-dsl (quote (program (mov eax 42) (add eax ebx) (ret)))))
+Test end:
+  result-kind: pass
+  actual-value: ((mov eax 42) (add eax ebx) (ret))
+  expected-value: ((mov eax 42) (add eax ebx) (ret))
+Test begin:
+  test-name: "All supported instructions"
+  source-file: "test-dsl-parser.scm"
+  source-line: 12
+  source-form: (test-equal "All supported instructions" (quote ((mov eax 42) (add ecx edx) (sub esi edi) (mul ebx) (div ecx) (push eax) (pop edx) (ret))) (parse-dsl (quote (program (mov eax 42) (add ecx edx) (sub esi edi) (mul ebx) (div ecx) (push eax) (pop edx) (ret)))))
+Test end:
+  result-kind: pass
+  actual-value: ((mov eax 42) (add ecx edx) (sub esi edi) (mul ebx) (div ecx) (push eax) (pop edx) (ret))
+  expected-value: ((mov eax 42) (add ecx edx) (sub esi edi) (mul ebx) (div ecx) (push eax) (pop edx) (ret))
+Test begin:
+  test-name: "Invalid program format"
+  source-file: "test-dsl-parser.scm"
+  source-line: 25
+  source-form: (test-error "Invalid program format" #t (parse-dsl (quote (not-a-program (mov eax 42)))))
+Test end:
+  result-kind: pass
+  actual-error: (misc-error #f "Invalid program format ~S" ((not-a-program (mov eax 42))) #f)
+  expected-error: #t
+Test begin:
+  test-name: "Invalid instruction"
+  source-file: "test-dsl-parser.scm"
+  source-line: 30
+  source-form: (test-error "Invalid instruction" #t (parse-dsl (quote (program (invalid-instruction eax 42)))))
+Test end:
+  result-kind: pass
+  actual-error: (misc-error #f "Invalid instruction ~S" ((invalid-instruction eax 42)) #f)
+  expected-error: #t
+Test begin:
+  test-name: "Invalid instruction format"
+  source-file: "test-dsl-parser.scm"
+  source-line: 35
+  source-form: (test-error "Invalid instruction format" #t (parse-dsl (quote (program (mov)))))
+Test end:
+  result-kind: pass
+  actual-error: (misc-error #f "Invalid instruction ~S" ((mov)) #f)
+  expected-error: #t
+Test begin:
+  test-name: "Empty program"
+  source-file: "test-dsl-parser.scm"
+  source-line: 40
+  source-form: (test-equal "Empty program" (quote ()) (parse-dsl (quote (program))))
+Test end:
+  result-kind: pass
+  actual-value: ()
+  expected-value: ()
+Test begin:
+  test-name: "Single instruction program"
+  source-file: "test-dsl-parser.scm"
+  source-line: 45
+  source-form: (test-equal "Single instruction program" (quote ((ret))) (parse-dsl (quote (program (ret)))))
+Test end:
+  result-kind: pass
+  actual-value: ((ret))
+  expected-value: ((ret))
+Test begin:
+  test-name: "Instruction with immediate value"
+  source-file: "test-dsl-parser.scm"
+  source-line: 50
+  source-form: (test-equal "Instruction with immediate value" (quote ((mov eax 42))) (parse-dsl (quote (program (mov eax 42)))))
+Test end:
+  result-kind: pass
+  actual-value: ((mov eax 42))
+  expected-value: ((mov eax 42))
+Test begin:
+  test-name: "Instruction with register operands"
+  source-file: "test-dsl-parser.scm"
+  source-line: 55
+  source-form: (test-equal "Instruction with register operands" (quote ((add eax ebx))) (parse-dsl (quote (program (add eax ebx)))))
+Test end:
+  result-kind: pass
+  actual-value: ((add eax ebx))
+  expected-value: ((add eax ebx))
+Group end: dsl-parser-tests
+# of expected passes      9
