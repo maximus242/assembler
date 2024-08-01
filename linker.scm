@@ -8,12 +8,12 @@
 (define (create-program-header offset vaddr size flags)
   (let ((header (make-bytevector 56 0)))
     (bytevector-u32-set! header 0 1 (endianness little)) ; Type (LOAD)
-    (bytevector-u32-set! header 4 flags (endianness little)) ; Flags
     (bytevector-u64-set! header 8 offset (endianness little)) ; Offset
     (bytevector-u64-set! header 16 vaddr (endianness little)) ; Virtual address
     (bytevector-u64-set! header 24 vaddr (endianness little)) ; Physical address
     (bytevector-u64-set! header 32 size (endianness little)) ; File size
     (bytevector-u64-set! header 40 size (endianness little)) ; Memory size
+    (bytevector-u32-set! header 4 flags (endianness little)) ; Flags
     (bytevector-u64-set! header 48 #x1000 (endianness little)) ; Alignment
     header))
 
@@ -142,8 +142,8 @@
        (let* ((name (car section))
               (data (cdr section))
               (addr (cdr (assoc name symbol-addresses)))
-              (offset (- addr data-vaddr)))
-         (bytevector-copy! data 0 full-executable (+ data-offset offset) (bytevector-length data))))
+              (file-offset (- addr data-vaddr)))
+         (bytevector-copy! data 0 full-executable (+ data-offset file-offset) (bytevector-length data))))
      data-sections)
     
     ;; Write the full executable to file
