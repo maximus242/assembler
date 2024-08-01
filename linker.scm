@@ -77,14 +77,10 @@
           resolved-code))))
 
 (define (link-code assembled-code symbol-addresses)
-  (let* ((code-length (bytevector-length assembled-code))
-         (headers-size 120)  ; ELF header (64) + Program header (56)
-         (code-base-address #x401000)
-         (data-base-address #x402000)
-         (symbol-table (make-hash-table))
+  (let* ((symbol-table (make-hash-table))
          (reg-to-symbol-map (make-hash-table)))
     
-    ;; Populate symbol table with virtual addresses
+    ;; Populate symbol table with provided addresses
     (for-each (lambda (addr-pair)
                 (hash-set! symbol-table (car addr-pair) (cdr addr-pair)))
               symbol-addresses)
@@ -117,16 +113,18 @@
          (data-size (apply + (map (lambda (x) (bytevector-length (cdr x))) data-sections)))
          (code-offset #x1000)
          (data-offset #x2000)
-         (program-header-code (create-program-header code-offset #x401000 code-size 5)) ; R-X
-         (program-header-data (create-program-header data-offset #x402000 data-size 6)) ; RW-
+         (code-vaddr #x401000)
+         (data-vaddr #x402000)
+         (total-size (+ data-offset data-size))
+         (program-header-code (create-program-header code-offset code-vaddr code-size 5)) ; R-X
+         (program-header-data (create-program-header data-offset data-vaddr (- total-size data-offset) 6)) ; RW-
          (headers-size (+ (bytevector-length elf-header)
                           (* 2 (bytevector-length program-header-code))))
-         (file-size (+ data-offset data-size))
-         (full-executable (make-bytevector file-size 0)))
+         (full-executable (make-bytevector total-size 0)))
     
     (format #t "Linked code size: ~a bytes~%" code-size)
     (format #t "Data size: ~a bytes~%" data-size)
-    (format #t "Total file size: ~a bytes~%" file-size)
+    (format #t "Total file size: ~a bytes~%" total-size)
     
     ;; Copy ELF header
     (bytevector-copy! elf-header 0 full-executable 0 (bytevector-length elf-header))
@@ -139,15 +137,14 @@
     (bytevector-copy! linked-code 0 full-executable code-offset code-size)
     
     ;; Add data sections
-    (let loop ((sections data-sections)
-               (offset data-offset))
-      (if (null? sections)
-          'done
-          (let* ((data-section (car sections))
-                 (data (cdr data-section))
-                 (size (bytevector-length data)))
-            (bytevector-copy! data 0 full-executable offset size)
-            (loop (cdr sections) (+ offset size)))))
+    (for-each 
+     (lambda (section)
+       (let* ((name (car section))
+              (data (cdr section))
+              (addr (cdr (assoc name symbol-addresses)))
+              (offset (- addr data-vaddr)))
+         (bytevector-copy! data 0 full-executable (+ data-offset offset) (bytevector-length data))))
+     data-sections)
     
     ;; Write the full executable to file
     (call-with-output-file output-file
@@ -158,4 +155,4 @@
     (list (bytevector-length elf-header)
           (bytevector-length program-header-code)
           headers-size
-          file-size)))
+          total-size)))

@@ -21,9 +21,9 @@
 
 (define symbol-addresses
   '((buffer1 . #x402000)
-    (buffer2 . #x403000)
-    (result . #x405000)
-    (multiplier . #x408000)))
+    (buffer2 . #x402020)
+    (result . #x402040)
+    (multiplier . #x402060)))
 
 ;; Your existing code remains the same
 (define example-code
