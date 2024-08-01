@@ -1,7 +1,6 @@
 (use-modules (assembler))
 (use-modules (linker))
 (use-modules (rnrs bytevectors))
-
 ;; Define data
 (define buffer1
   (u8-list->bytevector
@@ -13,7 +12,6 @@
      0 0 192 64   ; 6.0
      0 0 224 64   ; 7.0
      0 0 0 65)))  ; 8.0
-
 (define buffer2
   (u8-list->bytevector
    '(0 0 0 63     ; 0.5
@@ -24,11 +22,9 @@
      0 0 224 63   ; 1.75
      0 0 0 64     ; 2.0
      0 0 16 64))) ; 2.25
-
 (define multiplier
   (u8-list->bytevector
    (apply append (make-list 8 '(0 0 0 64))))) ; 2.0 repeated 8 times
-
 (define example-code
   '((mov.imm32 rdi buffer1)
     (mov.imm32 rsi buffer2)
@@ -44,21 +40,16 @@
     (mov.imm32 eax 60)
     (xor edi edi)
     (syscall)))
-
 (define assembled-code (assemble example-code))
-
 ;; Define symbol addresses
 (define symbol-addresses
-  '((buffer1 . #x1000)
-    (buffer2 . #x2000)
-    (result . #x3000)
-    (multiplier . #x4000)))
-
+  '((buffer1 . #x402000)
+    (buffer2 . #x403000)
+    (result . #x404000)
+    (multiplier . #x405000)))
 (define linked-code (link-code assembled-code symbol-addresses))
-
 ;; Create a result buffer
 (define result (make-bytevector 32 0))
-
 (create-executable linked-code 
                    "my_executable"
                    `((buffer1 . ,buffer1)
@@ -66,5 +57,4 @@
                      (result . ,result)
                      (multiplier . ,multiplier))
                    symbol-addresses)  ; Add this line to pass symbol-addresses
-
 (display "Executable created: my_executable\n")
