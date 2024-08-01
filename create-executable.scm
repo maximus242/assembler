@@ -19,12 +19,11 @@
 
 (define result (make-bytevector 32 0))
 
-;; Define symbol addresses
 (define symbol-addresses
-  '((buffer1 . #x400000)
-    (buffer2 . #x400020)
-    (result . #x400040)
-    (multiplier . #x400060)))
+  '((buffer1 . #x402000)
+    (buffer2 . #x403000)
+    (result . #x405000)
+    (multiplier . #x408000)))
 
 ;; Your existing code remains the same
 (define example-code
