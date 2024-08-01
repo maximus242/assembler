@@ -1,50 +1,70 @@
-(use-modules ((linker) #:prefix linker:))
+(use-modules (assembler))
+(use-modules (linker))
 (use-modules (rnrs bytevectors))
-(use-modules (ice-9 regex))
 
-(define (hex-string->bytevector hex-string)
+;; Define data
+(define buffer1
   (u8-list->bytevector
-    (map (lambda (hex-byte)
-           (string->number hex-byte 16))
-         (filter (lambda (s) (not (string-null? s)))
-                 (string-split (regexp-substitute/global
-                                 #f ";.*$" hex-string 'pre)
-                               #\space)))))
+   '(0 0 128 63   ; 1.0
+     0 0 0 64     ; 2.0
+     0 0 64 64    ; 3.0
+     0 0 128 64   ; 4.0
+     0 0 160 64   ; 5.0
+     0 0 192 64   ; 6.0
+     0 0 224 64   ; 7.0
+     0 0 0 65)))  ; 8.0
 
-(define (bytevector->hex-string bv)
-  (string-join (map (lambda (byte)
-                      (format #f "~2,'0x" byte))
-                    (bytevector->u8-list bv))
-               " "))
+(define buffer2
+  (u8-list->bytevector
+   '(0 0 0 63     ; 0.5
+     0 0 64 63    ; 0.75
+     0 0 128 63   ; 1.0
+     0 0 160 63   ; 1.25
+     0 0 192 63   ; 1.5
+     0 0 224 63   ; 1.75
+     0 0 0 64     ; 2.0
+     0 0 16 64))) ; 2.25
 
-;; Example input code (you can modify this as needed)
-(define assembled-code 
-  #vu8(
-    #x48 #x31 #xFF                      ; xor rdi, rdi (set exit code to 0)
-    #x48 #xC7 #xC0 #x3C #x00 #x00 #x00  ; mov rax, 60 (sys_exit)
-    #x0F #x05                           ; syscall
-  ))
+(define multiplier
+  (u8-list->bytevector
+   (apply append (make-list 8 '(0 0 0 64))))) ; 2.0 repeated 8 times
 
-(display "Input code size: ")
-(display (bytevector-length assembled-code))
-(newline)
+(define example-code
+  '((mov.imm32 rdi buffer1)
+    (mov.imm32 rsi buffer2)
+    (mov.imm32 rdx result)
+    (vmovaps ymm0 (rdi))
+    (vmovaps ymm1 (rsi))
+    (vaddps ymm2 ymm0 ymm1)
+    (vmovaps ymm3 (multiplier))
+    (vfmadd132ps ymm2 ymm2 ymm3)
+    (vmovaps (rdx) ymm2)
+    (vxorps ymm2 ymm2 ymm2)
+    (vmovaps (rdx) ymm2)
+    (mov.imm32 eax 60)
+    (xor edi edi)
+    (syscall)))
 
-(display "Input code: ")
-(display (bytevector->hex-string assembled-code))
-(newline)
+(define assembled-code (assemble example-code))
 
-;; Link the code
-(define linked-code (linker:link assembled-code))
+;; Define symbol addresses
+(define symbol-addresses
+  '((buffer1 . #x1000)
+    (buffer2 . #x2000)
+    (result . #x3000)
+    (multiplier . #x4000)))
 
-(display "Linked code size: ")
-(display (bytevector-length linked-code))
-(newline)
+(define linked-code (link-code assembled-code symbol-addresses))
 
-(display "Linked code: ")
-(display (bytevector->hex-string linked-code))
-(newline)
+;; Create a result buffer
+(define result (make-bytevector 32 0))
 
-;; Create the executable
-(linker:create-executable linked-code "my_executable")
+(create-executable linked-code 
+                   "my_executable"
+                   `((buffer1 . ,buffer1)
+                     (buffer2 . ,buffer2)
+                     (result . ,result)
+                     (multiplier . ,multiplier))
+                   symbol-addresses)  ; Add this line to pass symbol-addresses
 
-(display "Executable 'my_executable' created successfully.\n")
+(display "Executable created: my_executable\n")

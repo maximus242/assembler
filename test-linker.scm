@@ -11,10 +11,17 @@
 (define (bytevector->hex-string bv)
   (string-join (map byte->hex-string (bytevector->u8-list bv)) " "))
 
+(define symbol-addresses
+  '((buffer1 . #x1000)
+    (buffer2 . #x2000)
+    (result . #x3000)
+    (multiplier . #x4000)))
+
 (define (test-link name input expected)
   (format #t "~%Test: ~a~%" name)
   (format #t "Input:    ~a~%" (bytevector->hex-string input))
-  (let ((result (link input)))
+  (format #t "Symbol addresses: ~a~%" symbol-addresses)
+  (let ((result (link-code input symbol-addresses)))
     (format #t "Result:   ~a~%" (bytevector->hex-string result))
     (format #t "Expected: ~a~%" (bytevector->hex-string expected))
     (if (equal? result expected)
