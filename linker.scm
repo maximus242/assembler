@@ -113,19 +113,19 @@
                                            #x00 #x00 ; Section header entry size (0, as we're omitting section headers)
                                            #x00 #x00 ; Number of section headers (0, as we're omitting section headers)
                                            #x00 #x00))) ; Section header string table index (0, as we're omitting section headers)
-         (program-header-code (create-program-header #x1000 #x401000 (bytevector-length linked-code) 5)) ; R-X
-         (program-header-data (create-program-header #x2000 #x402000 
-                                                     (apply + (map (lambda (x) (bytevector-length (cdr x))) data-sections))
-                                                     6)) ; RW-
-         (headers-size (+ (bytevector-length elf-header)
-                          (* 2 (bytevector-length program-header-code))))
+         (code-size (bytevector-length linked-code))
+         (data-size (apply + (map (lambda (x) (bytevector-length (cdr x))) data-sections)))
          (code-offset #x1000)
          (data-offset #x2000)
-         (file-size (+ data-offset (apply + (map (lambda (x) (bytevector-length (cdr x))) data-sections))))
+         (program-header-code (create-program-header code-offset #x401000 code-size 5)) ; R-X
+         (program-header-data (create-program-header data-offset #x402000 data-size 6)) ; RW-
+         (headers-size (+ (bytevector-length elf-header)
+                          (* 2 (bytevector-length program-header-code))))
+         (file-size (+ data-offset data-size))
          (full-executable (make-bytevector file-size 0)))
     
-    (format #t "Linked code size: ~a bytes~%" (bytevector-length linked-code))
-    (format #t "Data size: ~a bytes~%" (- file-size data-offset))
+    (format #t "Linked code size: ~a bytes~%" code-size)
+    (format #t "Data size: ~a bytes~%" data-size)
     (format #t "Total file size: ~a bytes~%" file-size)
     
     ;; Copy ELF header
@@ -136,7 +136,7 @@
     (bytevector-copy! program-header-data 0 full-executable 120 (bytevector-length program-header-data))
     
     ;; Copy linked code
-    (bytevector-copy! linked-code 0 full-executable code-offset (bytevector-length linked-code))
+    (bytevector-copy! linked-code 0 full-executable code-offset code-size)
     
     ;; Add data sections
     (let loop ((sections data-sections)
