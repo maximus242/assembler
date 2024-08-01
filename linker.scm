@@ -48,7 +48,7 @@
                                          ((6) 'buffer2)
                                          ((2) 'result)
                                          (else #f)))
-                          (symbol-address (and symbol-name (get-symbol symbol-table symbol-name))))
+                          (symbol-address (and symbol-name (hash-ref symbol-table symbol-name))))
                      (format #t "  Resolving symbol: ~a -> ~a~%" 
                              (or symbol-name "#f") 
                              (if symbol-address 
@@ -68,7 +68,7 @@
                       (imm (bytevector-u32-ref code imm-offset (endianness little))))
                  (format #t "  VMOVAPS: displacement=~x~%" imm)
                  (when (= imm 0) ; Possible symbolic reference
-                   (let ((symbol-address (get-symbol symbol-table 'multiplier)))
+                   (let ((symbol-address (hash-ref symbol-table 'multiplier)))
                      (format #t "    Resolving multiplier -> ~a~%" 
                              (if symbol-address 
                                  (format #f "~x" symbol-address)
@@ -88,14 +88,9 @@
          (symbol-table (make-hash-table)))
     
     ;; Populate symbol table with virtual addresses
-    (let loop ((addresses symbol-addresses)
-               (current-address data-base-address))
-      (if (null? addresses)
-          'done
-          (let* ((symbol (caar addresses))
-                 (size (cdar addresses)))
-            (hash-set! symbol-table symbol current-address)
-            (loop (cdr addresses) (+ current-address size)))))
+    (for-each (lambda (addr-pair)
+                (hash-set! symbol-table (car addr-pair) (cdr addr-pair)))
+              symbol-addresses)
     
     (resolve-references assembled-code symbol-table)))
 
