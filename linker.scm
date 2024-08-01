@@ -26,7 +26,7 @@
 (define (get-symbol table name)
   (hash-ref table name))
 
-(define (resolve-references code symbol-table)
+(define (resolve-references code symbol-table reg-to-symbol-map)
   (let* ((code-length (bytevector-length code))
          (resolved-code (bytevector-copy code)))
     (let loop ((offset 0))
@@ -43,11 +43,7 @@
                       (imm (bytevector-u32-ref code imm-offset (endianness little))))
                  (format #t "  MOV imm32: reg=~a, imm=~x~%" reg imm)
                  (when (= imm 0) ; Possible symbolic reference
-                   (let* ((symbol-name (case reg
-                                         ((7) 'buffer1)
-                                         ((6) 'buffer2)
-                                         ((2) 'result)
-                                         (else #f)))
+                   (let* ((symbol-name (hash-ref reg-to-symbol-map reg))
                           (symbol-address (and symbol-name (hash-ref symbol-table symbol-name))))
                      (format #t "  Resolving symbol: ~a -> ~a~%" 
                              (or symbol-name "#f") 
@@ -85,14 +81,20 @@
          (headers-size 120)  ; ELF header (64) + Program header (56)
          (code-base-address #x401000)
          (data-base-address #x402000)
-         (symbol-table (make-hash-table)))
+         (symbol-table (make-hash-table))
+         (reg-to-symbol-map (make-hash-table)))
     
     ;; Populate symbol table with virtual addresses
     (for-each (lambda (addr-pair)
                 (hash-set! symbol-table (car addr-pair) (cdr addr-pair)))
               symbol-addresses)
     
-    (resolve-references assembled-code symbol-table)))
+    ;; Set up register to symbol mapping
+    (hash-set! reg-to-symbol-map 7 'buffer1)
+    (hash-set! reg-to-symbol-map 6 'buffer2)
+    (hash-set! reg-to-symbol-map 2 'result)
+    
+    (resolve-references assembled-code symbol-table reg-to-symbol-map)))
 
 (define (create-executable linked-code output-file data-sections symbol-addresses)
   (let* ((elf-header (bytevector-copy #vu8(#x7f #x45 #x4c #x46 ; ELF magic number
