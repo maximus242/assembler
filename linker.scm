@@ -95,27 +95,27 @@
 (define (create-executable linked-code output-file data-sections symbol-addresses)
   (let* ((code-size (bytevector-length linked-code))
          (data-size (apply + (map (lambda (x) (bytevector-length (cdr x))) data-sections)))
-         (total-size (+ #x2000 code-size data-size)) ; Start at 0x2000 for simplicity
+         (total-size (+ #x2000 code-size data-size)) ; Include the gap before code
          (elf-header (make-bytevector 64 0)))
     
-    ;; Create ELF header
-    (bytevector-copy! #vu8(#x7f #x45 #x4c #x46 #x02 #x01 #x01 #x00) 0 elf-header 0 8) ; ELF magic number and class
-    (bytevector-u16-set! elf-header 16 2 (endianness little)) ; e_type (ET_EXEC)
-    (bytevector-u16-set! elf-header 18 #x3e (endianness little)) ; e_machine (EM_X86_64)
-    (bytevector-u32-set! elf-header 20 1 (endianness little)) ; e_version
+    ;; Create ELF header (mostly unchanged)
+    (bytevector-copy! #vu8(#x7f #x45 #x4c #x46 #x02 #x01 #x01 #x00) 0 elf-header 0 8)
+    (bytevector-u16-set! elf-header 16 2 (endianness little))
+    (bytevector-u16-set! elf-header 18 #x3e (endianness little))
+    (bytevector-u32-set! elf-header 20 1 (endianness little))
     (bytevector-u64-set! elf-header 24 #x400000 (endianness little)) ; e_entry
-    (bytevector-u64-set! elf-header 32 64 (endianness little)) ; e_phoff
-    (bytevector-u64-set! elf-header 40 0 (endianness little)) ; e_shoff
-    (bytevector-u32-set! elf-header 48 0 (endianness little)) ; e_flags
-    (bytevector-u16-set! elf-header 52 64 (endianness little)) ; e_ehsize
-    (bytevector-u16-set! elf-header 54 56 (endianness little)) ; e_phentsize
-    (bytevector-u16-set! elf-header 56 1 (endianness little))  ; e_phnum (1 program header)
-    (bytevector-u16-set! elf-header 58 0 (endianness little))  ; e_shentsize
-    (bytevector-u16-set! elf-header 60 0 (endianness little))  ; e_shnum
-    (bytevector-u16-set! elf-header 62 0 (endianness little))  ; e_shstrndx
+    (bytevector-u64-set! elf-header 32 64 (endianness little))
+    (bytevector-u64-set! elf-header 40 0 (endianness little))
+    (bytevector-u32-set! elf-header 48 0 (endianness little))
+    (bytevector-u16-set! elf-header 52 64 (endianness little))
+    (bytevector-u16-set! elf-header 54 56 (endianness little))
+    (bytevector-u16-set! elf-header 56 1 (endianness little))
+    (bytevector-u16-set! elf-header 58 0 (endianness little))
+    (bytevector-u16-set! elf-header 60 0 (endianness little))
+    (bytevector-u16-set! elf-header 62 0 (endianness little))
 
     ;; Create program header
-    (define program-header (create-program-header #x2000 #x400000 (+ code-size data-size)))
+    (define program-header (create-program-header 0 #x400000 total-size))
 
     ;; Create full executable
     (let ((full-executable (make-bytevector total-size 0)))
@@ -141,6 +141,19 @@
           (put-bytevector port full-executable)))
       
       (chmod output-file #o755) ; Make the file executable
+
+      ;; Logging (unchanged)
+      (format #t "Executable created: ~a\n" output-file)
+      (format #t "Code size: ~a bytes\n" code-size)
+      (format #t "Data size: ~a bytes\n" data-size)
+      (format #t "Total size: ~a bytes\n" total-size)
+      (format #t "Entry point: 0x400000\n")
+      (for-each (lambda (section)
+                  (format #t "Section ~a at address 0x~x, size ~a bytes\n"
+                          (car section)
+                          (cdr (assoc (car section) symbol-addresses))
+                          (bytevector-length (cdr section))))
+                data-sections)
     )
   )
 )
