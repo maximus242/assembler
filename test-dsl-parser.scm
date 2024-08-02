@@ -83,5 +83,16 @@
   '((vmovaps ymm0 (mem rdi)))
   (parse-dsl '(program (vmovaps ymm0 (rdi)))))
 
+;; Test label instruction
+(run-test "Label instruction"
+  '((label my_function)
+    (mov rax 0)
+    (ret))
+  (parse-dsl
+   '(program
+     (label my_function)
+     (mov rax 0)
+     (ret))))
+
 (newline)
 (display "All tests completed.\n")

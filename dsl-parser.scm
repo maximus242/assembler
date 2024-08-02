@@ -6,7 +6,10 @@
 (define (valid-instruction? inst)
   (and (list? inst)
        (> (length inst) 0)
-       (symbol? (car inst))))
+       (or (symbol? (car inst))
+           (and (= (length inst) 2)
+                (eq? (car inst) 'label)
+                (symbol? (cadr inst))))))
 
 (define (parse-operand op)
   (cond
@@ -17,6 +20,7 @@
 
 (define (parse-instruction inst)
   (match inst
+    (('label name) `(label ,name))
     (('mov dest src) `(mov ,(parse-operand dest) ,(parse-operand src)))
     (('mov.imm32 dest src) `(mov.imm32 ,(parse-operand dest) ,(parse-operand src)))
     (('add dest src) `(add ,(parse-operand dest) ,(parse-operand src)))
