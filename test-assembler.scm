@@ -82,5 +82,31 @@
       #x48 #x31 #xFF            ; xor edi, edi
       #x0F #x05))))             ; syscall
 
+;; Test label and instructions
+(test-assemble "Label and instructions"
+               '((label start)
+                 (mov.imm32 rax 1)
+                 (label loop)
+                 (add rax rax)
+                 (syscall))
+               #vu8(#x48 #xC7 #xC0 #x01 #x00 #x00 #x00
+                    #x48 #x01 #xC0
+                    #x0F #x05))
+
+;; Test label positions
+(let* ((instructions '((label start)
+                       (mov.imm32 rax 1)
+                       (label loop)
+                       (add rax rax)
+                       (syscall)))
+       (result (assemble instructions))
+       (label-pos (get-label-positions)))
+  (if (and (= (hash-ref label-pos 'start) 0)
+           (= (hash-ref label-pos 'loop) 7))
+      (format #t "PASS: Label positions~%")
+      (format #t "FAIL: Label positions~%  Expected: start=0, loop=7~%  Actual: start=~a, loop=~a~%"
+              (hash-ref label-pos 'start)
+              (hash-ref label-pos 'loop))))
+
 (newline)
 (display "All tests completed.\n")

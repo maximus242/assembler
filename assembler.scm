@@ -2,7 +2,7 @@
   #:use-module (ice-9 match)
   #:use-module (ice-9 binary-ports)
   #:use-module (rnrs bytevectors)
-  #:export (assemble))
+  #:export (assemble get-label-positions))
 
 (define (register->code reg)
   (case reg
@@ -96,8 +96,12 @@
         (src2-code (ymm-register->code src2)))
     (u8-list->bytevector (list #xC5 #xF4 #x57 (logior #xC0 (ash dest-code 3) src2-code)))))
 
+(define (encode-label name)
+  (cons name (make-bytevector 0)))
+
 (define (encode-instruction inst)
   (match inst
+    (('label name) (encode-label name))
     (('mov dest src) (encode-mov dest src))
     (('mov.imm32 reg imm) (encode-mov-imm32 reg imm))
     (('add dest src) (encode-add dest src))
@@ -121,8 +125,31 @@
      bvs)
     result))
 
+(define label-positions (make-hash-table))
+
 (define (assemble instructions)
-  (apply bytevector-append (map encode-instruction instructions)))
+  (hash-clear! label-positions)
+  (let* ((encoded-instructions (map encode-instruction instructions))
+         (current-position 0))
+    ;; First pass: collect label positions
+    (for-each
+     (lambda (encoded-inst)
+       (if (pair? encoded-inst)
+           (begin
+             (hash-set! label-positions (car encoded-inst) current-position)
+             (set! current-position (+ current-position (bytevector-length (cdr encoded-inst)))))
+           (set! current-position (+ current-position (bytevector-length encoded-inst)))))
+     encoded-instructions)
+    ;; Second pass: resolve labels and concatenate bytevectors
+    (apply bytevector-append
+           (map (lambda (encoded-inst)
+                  (if (pair? encoded-inst)
+                      (cdr encoded-inst)
+                      encoded-inst))
+                encoded-instructions))))
+
+(define (get-label-positions)
+  label-positions)
 
 (define (integer->bytevector n size)
   (let ((bv (make-bytevector size 0)))
