@@ -115,8 +115,16 @@
          (data-size (apply + (map (lambda (x) (bytevector-length (cdr x))) data-sections)))
          (highest-address (apply max (map cdr symbol-addresses)))
          (total-size (- (+ highest-address data-size) #x400000))
-         (elf-header (make-bytevector 64 0)))
-    
+         (elf-header (make-bytevector 64 0))
+         (symbol-table (create-symbol-table symbol-addresses))
+         (symbol-table-size (bytevector-length symbol-table))
+         (string-table (create-string-table symbol-addresses))
+         (string-table-size (bytevector-length string-table))
+         (section-header-table (create-section-header-table 
+                                 total-size 
+                                 symbol-table-size 
+                                 string-table-size)))
+
     ;; Create ELF header
     (bytevector-copy! #vu8(#x7f #x45 #x4c #x46 #x02 #x01 #x01 #x00) 0 elf-header 0 8)
     (bytevector-u16-set! elf-header 16 2 (endianness little))
@@ -133,15 +141,19 @@
     (bytevector-u16-set! elf-header 60 0 (endianness little))
     (bytevector-u16-set! elf-header 62 0 (endianness little))
 
-    ;; Create program header with updated size
-    (define program-header (create-program-header 0 #x400000 total-size))
+    ;; Update ELF header with section information
+    (bytevector-u16-set! elf-header 58 4 (endianness little)) ; e_shnum (4 sections: null, .text, .symtab, .strtab)
+    (bytevector-u64-set! elf-header 40 (- total-size (* 4 64)) (endianness little)) ; e_shoff
 
     ;; Create full executable
-    (let ((full-executable (make-bytevector total-size 0)))
+    (let ((full-executable (make-bytevector (+ total-size 
+                                               symbol-table-size 
+                                               string-table-size 
+                                               (* 4 64)) 0)))
       ;; Copy ELF header
       (bytevector-copy! elf-header 0 full-executable 0 64)
       ;; Copy program header
-      (bytevector-copy! program-header 0 full-executable 64 56)
+      (bytevector-copy! (create-program-header 0 #x400000 total-size) 0 full-executable 64 56)
       ;; Copy linked code
       (bytevector-copy! linked-code 0 full-executable #x1000 code-size)
       ;; Copy data sections
@@ -154,6 +166,17 @@
            (bytevector-copy! data 0 full-executable address size)))
        data-sections)
       
+      ;; Copy symbol table
+      (bytevector-copy! symbol-table 0 full-executable total-size symbol-table-size)
+      
+      ;; Copy string table
+      (bytevector-copy! string-table 0 full-executable (+ total-size symbol-table-size) string-table-size)
+      
+      ;; Copy section header table
+      (bytevector-copy! section-header-table 0 full-executable 
+                        (+ total-size symbol-table-size string-table-size) 
+                        (* 4 64))
+
       (format #t "Writing executable to file: ~a~%" output-file)
       ;; Write the full executable to file
       (call-with-output-file output-file
@@ -175,4 +198,110 @@
                           (bytevector-length (cdr section))))
                 data-sections)
     )
+
+    ;; Display symbol table contents
+    (display-symbol-table symbol-table string-table)
   ))
+
+(define (create-symbol-table symbol-addresses)
+  (let* ((symbol-count (length symbol-addresses))
+         (table-size (* symbol-count 24))  ; Each symbol entry is 24 bytes
+         (table (make-bytevector table-size 0))
+         (string-table-offset 1))  ; Start at 1 to account for null byte at beginning of string table
+    (format #t "Creating symbol table with ~a symbols~%" symbol-count)
+    (let loop ((symbols symbol-addresses)
+               (index 0)
+               (str-offset 1))
+      (if (null? symbols)
+          (begin
+            (format #t "Symbol table created. Size: ~a bytes~%" (bytevector-length table))
+            table)
+          (let* ((symbol (car symbols))
+                 (name (symbol->string (car symbol)))
+                 (address (cdr symbol)))
+            (bytevector-u32-set! table (* index 24) str-offset (endianness little))  ; st_name
+            (bytevector-u8-set! table (+ (* index 24) 4) 1)  ; st_info (1 = STT_OBJECT)
+            (bytevector-u8-set! table (+ (* index 24) 5) 0)  ; st_other
+            (bytevector-u16-set! table (+ (* index 24) 6) 0 (endianness little))  ; st_shndx
+            (bytevector-u64-set! table (+ (* index 24) 8) address (endianness little))  ; st_value
+            (bytevector-u64-set! table (+ (* index 24) 16) 0 (endianness little))  ; st_size
+            (format #t "Added symbol: ~a, address: 0x~x, offset in string table: ~a~%" 
+                    name address str-offset)
+            (loop (cdr symbols)
+                  (+ index 1)
+                  (+ str-offset (string-length name) 1)))))))
+
+(define (create-string-table symbol-addresses)
+  (let* ((names (map (lambda (pair) (symbol->string (car pair))) symbol-addresses))
+         (total-length (+ 1 (apply + (map (lambda (name) (+ (string-length name) 1)) names))))
+         (table (make-bytevector total-length 0)))
+    (let loop ((names names)
+               (offset 1))
+      (if (null? names)
+          table
+          (let ((name (car names)))
+            (bytevector-copy! (string->utf8 name) 0 table offset (string-length name))
+            (loop (cdr names) (+ offset (string-length name) 1)))))))
+
+(define (create-section-header-table total-size symbol-table-size string-table-size)
+  (let* ((header-size 64)
+         (num-headers 4)
+         (table-size (* header-size num-headers))
+         (table (make-bytevector table-size 0)))
+    ;; NULL section
+    (create-section-header table 0 0 0 0 0 0 0 0 0 0 0)
+    ;; .text section
+    (create-section-header table header-size 1 1 6 #x400000 #x1000 total-size 0 0 #x1000 0)
+    ;; .symtab section
+    (create-section-header table (* 2 header-size) 11 2 3 (+ #x400000 total-size) total-size symbol-table-size 3 0 8 24)
+    ;; .strtab section
+    (create-section-header table (* 3 header-size) 19 3 3 (+ #x400000 total-size symbol-table-size) (+ total-size symbol-table-size) string-table-size 0 0 1 0)
+    table))
+
+(define (create-section-header table offset name type flags addr file-offset size link info addralign entsize)
+  (bytevector-u32-set! table (+ offset 0) name (endianness little))
+  (bytevector-u32-set! table (+ offset 4) type (endianness little))
+  (bytevector-u64-set! table (+ offset 8) flags (endianness little))
+  (bytevector-u64-set! table (+ offset 16) addr (endianness little))
+  (bytevector-u64-set! table (+ offset 24) file-offset (endianness little))
+  (bytevector-u64-set! table (+ offset 32) size (endianness little))
+  (bytevector-u32-set! table (+ offset 40) link (endianness little))
+  (bytevector-u32-set! table (+ offset 44) info (endianness little))
+  (bytevector-u64-set! table (+ offset 48) addralign (endianness little))
+  (bytevector-u64-set! table (+ offset 56) entsize (endianness little)))
+
+(define (display-symbol-table symbol-table string-table)
+  (format #t "Symbol Table Contents:~%")
+  (format #t "------------------------~%")
+  (let ((symbol-count (/ (bytevector-length symbol-table) 24)))
+    (do ((i 0 (+ i 1)))
+        ((= i symbol-count))
+      (let* ((name-offset (bytevector-u32-ref symbol-table (* i 24) (endianness little)))
+             (info (bytevector-u8-ref symbol-table (+ (* i 24) 4)))
+             (other (bytevector-u8-ref symbol-table (+ (* i 24) 5)))
+             (shndx (bytevector-u16-ref symbol-table (+ (* i 24) 6) (endianness little)))
+             (value (bytevector-u64-ref symbol-table (+ (* i 24) 8) (endianness little)))
+             (size (bytevector-u64-ref symbol-table (+ (* i 24) 16) (endianness little)))
+             (name (utf8->string (bytevector-slice string-table name-offset 
+                                                   (bytevector-index string-table 0 name-offset)))))
+        (format #t "Symbol ~a:~%" i)
+        (format #t "  Name: ~a~%" name)
+        (format #t "  Value: 0x~x~%" value)
+        (format #t "  Size: ~a~%" size)
+        (format #t "  Info: 0x~x~%" info)
+        (format #t "  Other: 0x~x~%" other)
+        (format #t "  Section index: ~a~%~%" shndx)))))
+
+;; Helper function to slice a bytevector
+(define (bytevector-slice bv start end)
+  (let ((result (make-bytevector (- end start))))
+    (bytevector-copy! bv start result 0 (- end start))
+    result))
+
+;; Helper function to find the index of a byte in a bytevector
+(define (bytevector-index bv byte start)
+  (let loop ((i start))
+    (cond
+     ((= i (bytevector-length bv)) #f)
+     ((= (bytevector-u8-ref bv i) byte) i)
+     (else (loop (+ i 1))))))
