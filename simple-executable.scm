@@ -49,15 +49,15 @@
 (define linked-code (link-code assembled-code symbol-addresses label-positions))
 
 ;; Create the executable
-(create-executable 
+(create-shared-library 
  linked-code 
- "simple_executable"
  `((buffer1 . ,buffer1)
    (buffer2 . ,buffer2)
    (result . ,result)
    (multiplier . ,multiplier))
+ "output.so"
  symbol-addresses
- label-positions)  ; Add this line
+ label-positions)
 
 ;; Add logging
 (display "Logging information:\n")
@@ -65,4 +65,4 @@
 (display (string-append "buffer2 address: " (number->string (cdr (assoc 'buffer2 symbol-addresses))) "\n"))
 (display (string-append "result address: " (number->string (cdr (assoc 'result symbol-addresses))) "\n"))
 (display (string-append "multiplier address: " (number->string (cdr (assoc 'multiplier symbol-addresses))) "\n"))
-(display "Executable created: simple_executable\n")
+(display "Executable created: output.so\n")
