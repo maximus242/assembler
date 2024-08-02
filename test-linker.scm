@@ -43,16 +43,16 @@
      #x48 #xC7 #xC6 #x00 #x00 #x00 #x00  ; mov.imm32 rsi, buffer2
      #x48 #xC7 #xC2 #x00 #x00 #x00 #x00)) ; mov.imm32 rdx, result
   (u8-list->bytevector
-   '(#x48 #xC7 #xC7 #x00 #x20 #x40 #x00  ; mov.imm32 rdi, 0x402000 (buffer1)
-     #x48 #xC7 #xC6 #x20 #x20 #x40 #x00  ; mov.imm32 rsi, 0x402020 (buffer2)
-     #x48 #xC7 #xC2 #x40 #x20 #x40 #x00))) ; mov.imm32 rdx, 0x402040 (result)
+   '(#x48 #xC7 #xC7 #x00 #x30 #x40 #x00  ; mov.imm32 rdi, 0x403000 (buffer1)
+     #x48 #xC7 #xC6 #x20 #x30 #x40 #x00  ; mov.imm32 rsi, 0x403020 (buffer2)
+     #x48 #xC7 #xC2 #x40 #x30 #x40 #x00))) ; mov.imm32 rdx, 0x403040 (result)
 
 ;; Test 2: vmovaps instruction with symbolic reference
 (test-link "vmovaps with symbolic reference"
   (u8-list->bytevector
    '(#xC5 #xFC #x28 #x05 #x00 #x00 #x00 #x00)) ; vmovaps ymm0, [multiplier]
   (u8-list->bytevector
-   '(#xC5 #xFC #x28 #x05 #x60 #x20 #x40 #x00))) ; vmovaps ymm0, [0x402060]
+   '(#xC5 #xFC #x28 #x05 #x60 #x30 #x40 #x00))) ; vmovaps ymm0, [0x403060]
 
 ;; Test 3: Mixed instructions
 (test-link "Mixed instructions"
@@ -63,10 +63,10 @@
      #x48 #xC7 #xC2 #x00 #x00 #x00 #x00  ; mov.imm32 rdx, result
      #xC5 #xFC #x29 #x02))               ; vmovaps [rdx], ymm0
   (u8-list->bytevector
-   '(#x48 #xC7 #xC7 #x00 #x20 #x40 #x00  ; mov.imm32 rdi, 0x402000 (buffer1)
+   '(#x48 #xC7 #xC7 #x00 #x30 #x40 #x00  ; mov.imm32 rdi, 0x403000 (buffer1)
      #xC5 #xFC #x28 #x07                 ; vmovaps ymm0, [rdi]
-     #xC5 #xFC #x28 #x05 #x60 #x20 #x40 #x00  ; vmovaps ymm1, [0x402060] (multiplier)
-     #x48 #xC7 #xC2 #x40 #x20 #x40 #x00  ; mov.imm32 rdx, 0x402040 (result)
+     #xC5 #xFC #x28 #x05 #x60 #x30 #x40 #x00  ; vmovaps ymm1, [0x403060] (multiplier)
+     #x48 #xC7 #xC2 #x40 #x30 #x40 #x00  ; mov.imm32 rdx, 0x403040 (result)
      #xC5 #xFC #x29 #x02)))              ; vmovaps [rdx], ymm0
 
 ;; Test 4: Unresolved reference (should not change)

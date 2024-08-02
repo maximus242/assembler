@@ -19,20 +19,28 @@
 
 (define result (make-bytevector 32 0))
 
+;; Update symbol addresses with proper alignment
 (define symbol-addresses
-  '((buffer1 . #x403000)
-    (buffer2 . #x403020)
-    (result . #x403040)
-    (multiplier . #x403060)))
+  '((buffer1 . #x404000)
+    (buffer2 . #x404040)
+    (result . #x404080)
+    (multiplier . #x4040C0)))
 
-;; Simplest possible code: just exit the program
+;; Updated code without vmulps
 (define example-code
   '((mov.imm32 rdi buffer1)
     (mov.imm32 rsi buffer2)
     (mov.imm32 rdx result)
     (vmovaps ymm0 (rdi))
-    (mov.imm32 eax 60)  ; 60 is the syscall number for exit
-    (xor edi edi)       ; 0 exit status
+    (vmovaps ymm1 (rsi))
+    (vaddps ymm2 ymm0 ymm1)
+    (vmovaps ymm3 (multiplier))
+    (vfmadd132ps ymm2 ymm2 ymm3)
+    (vmovaps (rdx) ymm2)
+    (vxorps ymm2 ymm2 ymm2)
+    (vmovaps (rdx) ymm2)
+    (mov.imm32 eax 60)       ; 60 is the syscall number for exit
+    (xor edi edi)            ; 0 exit status
     (syscall)))
 
 (define assembled-code (assemble example-code))
@@ -54,5 +62,4 @@
 (display (string-append "buffer2 address: " (number->string (cdr (assoc 'buffer2 symbol-addresses))) "\n"))
 (display (string-append "result address: " (number->string (cdr (assoc 'result symbol-addresses))) "\n"))
 (display (string-append "multiplier address: " (number->string (cdr (assoc 'multiplier symbol-addresses))) "\n"))
-
 (display "Executable created: simple_executable\n")

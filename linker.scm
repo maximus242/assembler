@@ -32,7 +32,11 @@
 
 (define (resolve-references code symbol-table reg-to-symbol-map)
   (let* ((code-length (bytevector-length code))
-         (resolved-code (bytevector-copy code)))
+         (resolved-code (bytevector-copy code))
+         (code-base-address #x401000)
+         (program-base-address #x400000))
+    (format #t "Starting to resolve references. Code length: ~a~%" code-length)
+    (format #t "Symbol table: ~a~%" symbol-table)
     (let loop ((offset 0))
       (if (< offset code-length)
           (let ((instruction (bytevector-u8-ref code offset)))
@@ -56,6 +60,8 @@
                                  "#f"))
                      (when symbol-address
                        (bytevector-u32-set! resolved-code imm-offset symbol-address (endianness little)))))
+                 (format #t "  After MOV resolution: ~x~%" 
+                         (bytevector-u32-ref resolved-code imm-offset (endianness little)))
                  (loop (+ offset 7))))
               
               ; Handle VMOVAPS
@@ -66,28 +72,38 @@
                     (= (bytevector-u8-ref code (+ offset 3)) #x05))
                (let* ((imm-offset (+ offset 4))
                       (imm (bytevector-u32-ref code imm-offset (endianness little))))
-                 (format #t "  VMOVAPS: displacement=~x~%" imm)
-                 (when (= imm 0) ; Possible symbolic reference
-                   (let ((symbol-address (alist-ref 'multiplier symbol-table)))
-                     (format #t "    Resolving multiplier -> ~a~%" 
-                             (if symbol-address 
-                                 (format #f "~x" symbol-address)
-                                 "#f"))
-                     (when symbol-address
-                       (bytevector-u32-set! resolved-code imm-offset symbol-address (endianness little)))))
+                 (format #t "  VMOVAPS: original displacement=~x~%" imm)
+                 (let ((symbol-address (alist-ref 'multiplier symbol-table)))
+                   (when symbol-address
+                     (let* ((instruction-end (+ offset 8))
+                            (next-instruction-address (+ instruction-end code-base-address))
+                            (target-offset (- symbol-address next-instruction-address)))
+                       (format #t "    Resolving multiplier -> ~x~%" symbol-address)
+                       (format #t "    Instruction end: ~x~%" instruction-end)
+                       (format #t "    Next instruction address: ~x~%" next-instruction-address)
+                       (format #t "    Target offset: ~x~%" target-offset)
+                       (bytevector-u32-set! resolved-code imm-offset target-offset (endianness little)))))
+                 (format #t "  After VMOVAPS resolution: ~x~%" 
+                         (bytevector-u32-ref resolved-code imm-offset (endianness little)))
                  (loop (+ offset 8))))
               
               (else (loop (+ offset 1)))))
-          resolved-code))))
+          (begin
+            (format #t "Finished resolving references.~%")
+            resolved-code)))))
 
 (define (link-code assembled-code symbol-addresses)
   (let ((reg-to-symbol-map '((7 . buffer1) (6 . buffer2) (2 . result))))
     (resolve-references assembled-code symbol-addresses reg-to-symbol-map)))
 
 (define (create-executable linked-code output-file data-sections symbol-addresses)
+  (format #t "Creating executable. Linked code size: ~a~%" (bytevector-length linked-code))
+  (format #t "Data sections: ~a~%" data-sections)
+  (format #t "Symbol addresses: ~a~%" symbol-addresses)
   (let* ((code-size (bytevector-length linked-code))
          (data-size (apply + (map (lambda (x) (bytevector-length (cdr x))) data-sections)))
-         (total-size (+ #x3000 code-size data-size)) ; Start at 0x3000 for simplicity
+         (highest-address (apply max (map cdr symbol-addresses)))
+         (total-size (- (+ highest-address data-size) #x400000))
          (elf-header (make-bytevector 64 0)))
     
     ;; Create ELF header
@@ -106,7 +122,7 @@
     (bytevector-u16-set! elf-header 60 0 (endianness little))
     (bytevector-u16-set! elf-header 62 0 (endianness little))
 
-    ;; Create program header
+    ;; Create program header with updated size
     (define program-header (create-program-header 0 #x400000 total-size))
 
     ;; Create full executable
@@ -118,15 +134,16 @@
       ;; Copy linked code
       (bytevector-copy! linked-code 0 full-executable #x1000 code-size)
       ;; Copy data sections
-      (let ((data-offset #x3000))
-        (for-each 
-         (lambda (section)
-           (let* ((data (cdr section))
-                  (size (bytevector-length data)))
-             (bytevector-copy! data 0 full-executable data-offset size)
-             (set! data-offset (+ data-offset size))))
-         data-sections))
+      (for-each 
+       (lambda (section)
+         (let* ((section-name (car section))
+                (data (cdr section))
+                (size (bytevector-length data))
+                (address (- (cdr (assoc section-name symbol-addresses)) #x400000)))
+           (bytevector-copy! data 0 full-executable address size)))
+       data-sections)
       
+      (format #t "Writing executable to file: ~a~%" output-file)
       ;; Write the full executable to file
       (call-with-output-file output-file
         (lambda (port)
@@ -147,5 +164,4 @@
                           (bytevector-length (cdr section))))
                 data-sections)
     )
-  )
-)
+  ))
