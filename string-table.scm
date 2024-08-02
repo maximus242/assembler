@@ -35,4 +35,4 @@
                #t
                (and (= (char->integer (string-ref str i))
                        (bytevector-u8-ref bv (+ offset i)))
-                    (loop (+ i 1))))))))
+                    (loop (+ i 1))))))))  ; <- Add one more closing parenthesis here
