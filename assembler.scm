@@ -14,6 +14,14 @@
     ((rbp ebp) 5)
     ((rsi esi) 6)
     ((rdi edi) 7)
+    ((r8 r8d) 8)
+    ((r9 r9d) 9)
+    ((r10 r10d) 10)
+    ((r11 r11d) 11)
+    ((r12 r12d) 12)
+    ((r13 r13d) 13)
+    ((r14 r14d) 14)
+    ((r15 r15d) 15)
     (else (error "Unknown register" reg))))
 
 (define (ymm-register->code reg)
@@ -99,9 +107,50 @@
 (define (encode-label name)
   (cons name (make-bytevector 0)))
 
+(define (register->number reg)
+  (if (number? reg)
+      reg  ; If it's already a number, return it as is
+      (case reg
+        ((rax eax) 0)
+        ((rcx ecx) 1)
+        ((rdx edx) 2)
+        ((rbx ebx) 3)
+        ((rsp esp) 4)
+        ((rbp ebp) 5)
+        ((rsi esi) 6)
+        ((rdi edi) 7)
+        ((r8 r8d) 8)
+        ((r9 r9d) 9)
+        ((r10 r10d) 10)
+        ((r11 r11d) 11)
+        ((r12 r12d) 12)
+        ((r13 r13d) 13)
+        ((r14 r14d) 14)
+        ((r15 r15d) 15)
+        (else (error "Unknown register" reg)))))
+
+(define (encode-mod-rm-sib mod-rm reg rm)
+  (u8-list->bytevector 
+   (list (logior (ash mod-rm 6) 
+                 (ash (register->number reg) 3) 
+                 (register->number rm)))))
+
+(define (encode-lea instruction)
+  (match instruction
+    (('lea dest ('rip label))
+     (let* ((opcode #x8D)
+            (mod-rm #x05)
+            (rex-prefix #x48)
+            (displacement 0)) ; This will be filled in during linking
+       (bytevector-append
+        (u8-list->bytevector (list rex-prefix opcode))
+        (encode-mod-rm-sib 0 dest 5)  ; Use 0 for mod, and 5 for rm (RIP-relative)
+        (integer->bytevector displacement 4))))
+    (_ (error "Unsupported lea instruction" instruction))))
+
 (define (encode-instruction inst)
   (match inst
-    (('label name) (encode-label name))
+    (('label name) '()) ; Labels don't generate any machine code
     (('mov dest src) (encode-mov dest src))
     (('mov.imm32 reg imm) (encode-mov-imm32 reg imm))
     (('add dest src) (encode-add dest src))
@@ -111,6 +160,7 @@
     (('vaddps dest src1 src2) (encode-vaddps dest src1 src2))
     (('vfmadd132ps dest src1 src2) (encode-vfmadd132ps dest src1 src2))
     (('vxorps dest src1 src2) (encode-vxorps dest src1 src2))
+    (('lea dest src) (encode-lea inst))
     (_ (error "Unsupported instruction" inst))))
 
 (define (bytevector-append . bvs)
@@ -133,20 +183,14 @@
          (current-position 0))
     ;; First pass: collect label positions
     (for-each
-     (lambda (encoded-inst)
-       (if (pair? encoded-inst)
-           (begin
-             (hash-set! label-positions (car encoded-inst) current-position)
-             (set! current-position (+ current-position (bytevector-length (cdr encoded-inst)))))
+     (lambda (inst encoded-inst)
+       (if (eq? (car inst) 'label)
+           (hash-set! label-positions (cadr inst) current-position)
            (set! current-position (+ current-position (bytevector-length encoded-inst)))))
-     encoded-instructions)
+     instructions encoded-instructions)
     ;; Second pass: resolve labels and concatenate bytevectors
     (apply bytevector-append
-           (map (lambda (encoded-inst)
-                  (if (pair? encoded-inst)
-                      (cdr encoded-inst)
-                      encoded-inst))
-                encoded-instructions))))
+           (filter bytevector? encoded-instructions))))
 
 (define (get-label-positions)
   label-positions)

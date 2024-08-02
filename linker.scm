@@ -3,7 +3,15 @@
   #:use-module (ice-9 format)
   #:use-module (rnrs bytevectors)
   #:use-module (ice-9 binary-ports)
-  #:export (link-code create-shared-library))
+  #:use-module (rnrs io ports) ; For put-bytevector
+  #:export (link-code create-shared-object))
+
+(define (create-program-headers code data-sections)
+  (let* ((code-size (bytevector-length code))
+         (data-size (apply + (map (lambda (pair) (bytevector-length (cdr pair))) data-sections)))
+         (total-size (+ code-size data-size))
+         (header (create-program-header #x1000 #x400000 total-size)))
+    header))
 
 (define (create-program-header offset vaddr size)
   (let ((header (make-bytevector 56 0)))
@@ -128,14 +136,20 @@
             (format #t "Finished resolving references.~%")
             resolved-code)))))
 
-(define (link-code assembled-code symbol-addresses label-positions)
-  (let* ((symbols (append (map car symbol-addresses) (hash-map->list cons label-positions)))
-         (available-registers '(7 6 2 1 0 3 4 5))  ; Add more if needed
-         (reg-to-symbol-map 
-          (map cons 
-               (take available-registers (min (length symbols) (length available-registers)))
-               symbols)))
-    (resolve-references assembled-code symbol-addresses label-positions reg-to-symbol-map)))
+(define (link-code code symbol-addresses label-positions)
+  (let ((linked-code (bytevector-copy code))
+        (code-offset 0))
+    (for-each
+     (lambda (inst)
+       (when (eq? (car inst) 'lea)
+         (let* ((label (caddr (cadr inst)))
+                (target-address (cdr (assoc label symbol-addresses)))
+                (instruction-end (+ code-offset 7))
+                (next-instruction-address (+ code-offset 7))
+                (displacement (- target-address next-instruction-address)))
+           (bytevector-u32-set! linked-code (+ code-offset 3) displacement (native-endianness)))))
+     (disassemble code))
+    linked-code))
 
 ; Helper function to implement 'take' functionality
 (define (take lst n)
@@ -165,85 +179,55 @@
     (bytevector-u16-set! header 62 0 (endianness little))   ; Section header string table index
     header))
 
-(define (create-shared-library code data-sections output-file symbol-addresses label-positions)
-  (format #t "Creating shared library. Linked code size: ~a~%" (bytevector-length code))
-  (format #t "Data sections: ~a~%" data-sections)
-  (format #t "Symbol addresses: ~a~%" symbol-addresses)
-  (format #t "Output file: ~a~%" output-file)
-  
-  (let* ((elf-header-size (bytevector-length (create-elf-header 0)))
-         (program-header-size 56)
-         (headers-size (+ elf-header-size program-header-size))
-         (content-offset (align-to headers-size 4096))
-         (vaddr-base #x400000)
-         (entry-point (+ vaddr-base content-offset))
+(define (write-bytevector bv port)
+  (put-bytevector port bv))
+
+(define (create-shared-object code data-sections output-file symbol-addresses label-positions)
+  (let* ((entry-point #x400000) ; Assuming code starts at 0x400000
          (elf-header (create-elf-header entry-point))
-         (code-size (bytevector-length code))
-         (data-size (apply + (map (lambda (x) (bytevector-length (cdr x))) data-sections)))
-         (total-content-size (+ code-size data-size))
-         (program-header (create-program-header 
-                          content-offset
-                          (+ vaddr-base content-offset)
-                          total-content-size))
-         (total-size (+ content-offset total-content-size))
-         (full-library (make-bytevector total-size 0)))
+         (program-headers (create-program-headers code data-sections))
+         (symbol-table (create-symbol-table symbol-addresses))
+         (string-table (create-string-table symbol-addresses))
+         (relocation-table (create-relocation-table symbol-addresses))
+         (dynamic-symbol-table (create-dynamic-symbol-table symbol-addresses))
+         (dynamic-section (create-dynamic-section 
+                           (bytevector-length symbol-table)
+                           (bytevector-length dynamic-symbol-table)
+                           (bytevector-length relocation-table)))
+         (section-headers (create-section-header-table 
+                           (bytevector-length code)
+                           (apply + (map (lambda (pair) (bytevector-length (cdr pair))) data-sections))
+                           (bytevector-length symbol-table)
+                           (bytevector-length string-table)
+                           (bytevector-length relocation-table)
+                           (bytevector-length dynamic-symbol-table)
+                           (bytevector-length dynamic-section))))
     
-    (format #t "ELF header size: ~a bytes~%" elf-header-size)
-    (format #t "Program header size: ~a bytes~%" program-header-size)
-    (format #t "Code size: ~a bytes~%" code-size)
-    (format #t "Data size: ~a bytes~%" data-size)
-    (format #t "Total size: ~a bytes~%" total-size)
+    (call-with-output-file output-file
+      (lambda (port)
+        (write-bytevector elf-header port)
+        (write-bytevector program-headers port)
+        (write-bytevector section-headers port)
+        (write-bytevector code port)
+        (for-each (lambda (pair) (write-bytevector (cdr pair) port)) data-sections)
+        (write-bytevector symbol-table port)
+        (write-bytevector string-table port)
+        (write-bytevector relocation-table port)
+        (write-bytevector dynamic-symbol-table port)
+        (write-bytevector dynamic-section port)))
     
-    ; Debug output for program header
-    (format #t "Program header contents:~%")
-    (format #t "  p_type: ~a~%" (bytevector-u32-ref program-header 0 (endianness little)))
-    (format #t "  p_flags: ~a~%" (bytevector-u32-ref program-header 4 (endianness little)))
-    (format #t "  p_offset: ~a~%" (bytevector-u64-ref program-header 8 (endianness little)))
-    (format #t "  p_vaddr: ~a~%" (bytevector-u64-ref program-header 16 (endianness little)))
-    (format #t "  p_filesz: ~a~%" (bytevector-u64-ref program-header 32 (endianness little)))
-    
-    ; Copy ELF header
-    (bytevector-copy! elf-header 0 full-library 0 elf-header-size)
-    
-    ; Copy program header
-    (bytevector-copy! program-header 0 full-library elf-header-size program-header-size)
-    
-    ; Copy code
-    (bytevector-copy! code 0 full-library content-offset code-size)
-    
-    ; Copy data sections
-    (let loop ((sections data-sections)
-               (offset (+ content-offset code-size)))
-      (if (null? sections)
-          'done
-          (let* ((section (car sections))
-                 (data (cdr section))
-                 (size (bytevector-length data)))
-            (bytevector-copy! data 0 full-library offset size)
-            (loop (cdr sections) (+ offset size)))))
-    
-    ; Write the full library to the output file
-    (if (string? output-file)
-        (begin
-          (format #t "Writing shared library to file: ~a~%" output-file)
-          (call-with-output-file output-file
-            (lambda (port)
-              (put-bytevector port full-library)))
-          (chmod output-file #o755)) ; Make the file executable
-        (format #t "Error: Invalid output file name. Expected a string, got: ~a~%" output-file))
+    (format #t "Shared object created: ~a~%" output-file)
+    (format #t "ELF header size: ~a bytes~%" (bytevector-length elf-header))
+    (format #t "Program headers size: ~a bytes~%" (bytevector-length program-headers))
+    (format #t "Section headers size: ~a bytes~%" (bytevector-length section-headers))
+    (format #t "Code size: ~a bytes~%" (bytevector-length code))
+    (format #t "Symbol table size: ~a bytes~%" (bytevector-length symbol-table))
+    (format #t "String table size: ~a bytes~%" (bytevector-length string-table))
+    (format #t "Relocation table size: ~a bytes~%" (bytevector-length relocation-table))
+    (format #t "Dynamic symbol table size: ~a bytes~%" (bytevector-length dynamic-symbol-table))
+    (format #t "Dynamic section size: ~a bytes~%" (bytevector-length dynamic-section))))
 
-    (let* ((adjusted-symbol-addresses
-            (map (lambda (pair)
-                   (cons (car pair) (+ (cdr pair) base-address-difference)))
-                 symbol-addresses)))
-      (format #t "Logging information:~%")
-      (for-each (lambda (pair)
-                  (format #t "~a address: ~x~%" (car pair) (cdr pair)))
-                adjusted-symbol-addresses)
-      (format #t "Executable created: ~a~%" output-file))
-
-    full-library)) ; Return the full library bytevector
-
+;; Helper functions to create various parts of the ELF file
 (define (create-symbol-table symbol-addresses)
   (let* ((symbol-count (length symbol-addresses))
          (table-size (* symbol-count 24))  ; Each symbol entry is 24 bytes

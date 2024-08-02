@@ -19,23 +19,24 @@
 
 (define result (make-bytevector 32 0))
 
-;; Update symbol addresses with proper alignment
+;; Define symbol addresses (these will be relative to the start of .data section)
 (define symbol-addresses
-  '((buffer1 . #x404000)
-    (buffer2 . #x404040)
-    (result . #x404080)
-    (multiplier . #x4040C0)))
+  '((buffer1 . 0)
+    (buffer2 . 32)
+    (result . 64)
+    (multiplier . 96)))
 
-;; Updated code without vmulps
+;; Updated code using RIP-relative addressing
 (define example-code
-  '((label test_function)
-    (mov.imm32 rdi buffer1)
-    (mov.imm32 rsi buffer2)
-    (mov.imm32 rdx result)
+  '((label _start)
+    (lea rdi (rip buffer1))
+    (lea rsi (rip buffer2))
+    (lea rdx (rip result))
     (vmovaps ymm0 (rdi))
     (vmovaps ymm1 (rsi))
     (vaddps ymm2 ymm0 ymm1)
-    (vmovaps ymm3 (multiplier))
+    (lea r8 (rip multiplier))
+    (vmovaps ymm3 (r8))
     (vfmadd132ps ymm2 ymm2 ymm3)
     (vmovaps (rdx) ymm2)
     (vxorps ymm2 ymm2 ymm2)
@@ -46,11 +47,10 @@
 
 (define assembled-code (assemble example-code))
 (define label-positions (get-label-positions))
-(define linked-code (link-code assembled-code symbol-addresses label-positions))
 
-;; Create the executable
-(create-shared-library 
- linked-code 
+;; Create the shared object file
+(create-shared-object
+ assembled-code
  `((buffer1 . ,buffer1)
    (buffer2 . ,buffer2)
    (result . ,result)
@@ -60,9 +60,8 @@
  label-positions)
 
 ;; Add logging
-(display "Logging information:\n")
-(display (string-append "buffer1 address: " (number->string (cdr (assoc 'buffer1 symbol-addresses))) "\n"))
-(display (string-append "buffer2 address: " (number->string (cdr (assoc 'buffer2 symbol-addresses))) "\n"))
-(display (string-append "result address: " (number->string (cdr (assoc 'result symbol-addresses))) "\n"))
-(display (string-append "multiplier address: " (number->string (cdr (assoc 'multiplier symbol-addresses))) "\n"))
-(display "Executable created: output.so\n")
+(display "Shared object file created: output.so\n")
+(display "Label positions:\n")
+(hash-for-each (lambda (label pos)
+                 (format #t "  ~a: 0x~x\n" label pos))
+               label-positions)
