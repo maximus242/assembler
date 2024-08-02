@@ -158,7 +158,7 @@
          (code-offset #x1000)
          (data-offset (align-to (+ code-offset code-size) #x1000))
          (dynamic-offset (align-to (+ data-offset data-size) #x1000))
-         (dynsym-offset (align-to (+ dynamic-offset dynamic-section-size) #x1000))
+         (dynsym-offset (align-to (+ dynamic-offset 1000) #x1000)) ; Estimate dynamic section size
          (dynstr-offset (+ dynsym-offset dynamic-symbol-table-size))
          (rela-offset (+ dynstr-offset strtab-size))
          
@@ -173,16 +173,19 @@
          (dynamic-section-size (bytevector-length dynamic-section))
          (section-headers-offset (align-to (+ rela-offset relocation-table-size) #x1000))
          (num-sections 14)
-         (section-headers (create-section-headers code-offset code-size
-                                                  data-offset data-size
-                                                  dynamic-offset dynamic-section-size
-                                                  dynsym-offset dynamic-symbol-table-size
-                                                  dynstr-offset strtab-size
-                                                  rela-offset relocation-table-size
-                                                  section-headers-offset))
-         (program-headers (create-program-headers code-offset code-size
-                                                  data-offset data-size
-                                                  dynamic-offset dynamic-section-size))
+         (section-headers (create-section-headers 
+                           code-size
+                           data-size
+                           symtab-size
+                           strtab-size
+                           shstrtab-size
+                           dynamic-symbol-table-size
+                           relocation-table-size
+                           dynamic-section-size))
+         (program-headers (create-program-headers 
+                           code-size
+                           data-size
+                           dynamic-section-size))
          (program-headers-size (bytevector-length program-headers))
          (num-program-headers (/ program-headers-size 56))
          (section-headers-size (* num-sections 64))
