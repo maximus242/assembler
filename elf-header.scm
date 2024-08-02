@@ -2,8 +2,9 @@
   #:use-module (rnrs bytevectors)
   #:export (create-elf-header))
 
-(define (create-elf-header entry-point program-headers-size section-headers-size 
-                           section-headers-offset num-program-headers num-section-headers)
+(define (create-elf-header entry-point program-headers-offset program-headers-size 
+                           section-headers-offset num-program-headers num-section-headers
+                           file-size)
   (let ((header (make-bytevector 64 0)))
     (bytevector-u32-set! header 0 #x464c457f (endianness little))  ; ELF magic number
     (bytevector-u8-set! header 4 2)  ; 64-bit format
@@ -15,7 +16,7 @@
     (bytevector-u16-set! header 18 #x3e (endianness little))  ; Machine: AMD x86-64
     (bytevector-u32-set! header 20 1 (endianness little))  ; Version: Current
     (bytevector-u64-set! header 24 entry-point (endianness little))  ; Entry point address
-    (bytevector-u64-set! header 32 64 (endianness little))  ; Program header offset
+    (bytevector-u64-set! header 32 program-headers-offset (endianness little))  ; Program header offset
     (bytevector-u64-set! header 40 section-headers-offset (endianness little))  ; Section header offset
     (bytevector-u32-set! header 48 0 (endianness little))  ; Flags
     (bytevector-u16-set! header 52 64 (endianness little))  ; Size of this header
@@ -23,5 +24,5 @@
     (bytevector-u16-set! header 56 num-program-headers (endianness little))   ; Number of program headers
     (bytevector-u16-set! header 58 64 (endianness little))   ; Size of section headers
     (bytevector-u16-set! header 60 num-section-headers (endianness little))   ; Number of section headers
-    (bytevector-u16-set! header 62 (- num-section-headers 1) (endianness little))   ; Section header string table index (point to .shstrtab)
+    (bytevector-u16-set! header 62 (- num-section-headers 1) (endianness little))   ; Section header string table index
     header))
