@@ -26,6 +26,10 @@
 (define (get-symbol table name)
   (hash-ref table name))
 
+(define (alist-ref key alist)
+  (let ((pair (assoc key alist)))
+    (and pair (cdr pair))))
+
 (define (resolve-references code symbol-table reg-to-symbol-map)
   (let* ((code-length (bytevector-length code))
          (resolved-code (bytevector-copy code)))
@@ -43,8 +47,8 @@
                       (imm (bytevector-u32-ref code imm-offset (endianness little))))
                  (format #t "  MOV imm32: reg=~a, imm=~x~%" reg imm)
                  (when (= imm 0) ; Possible symbolic reference
-                   (let* ((symbol-name (hash-ref reg-to-symbol-map reg))
-                          (symbol-address (and symbol-name (hash-ref symbol-table symbol-name))))
+                   (let* ((symbol-name (alist-ref reg reg-to-symbol-map))
+                          (symbol-address (and symbol-name (alist-ref symbol-name symbol-table))))
                      (format #t "  Resolving symbol: ~a -> ~a~%" 
                              (or symbol-name "#f") 
                              (if symbol-address 
@@ -64,7 +68,7 @@
                       (imm (bytevector-u32-ref code imm-offset (endianness little))))
                  (format #t "  VMOVAPS: displacement=~x~%" imm)
                  (when (= imm 0) ; Possible symbolic reference
-                   (let ((symbol-address (hash-ref symbol-table 'multiplier)))
+                   (let ((symbol-address (alist-ref 'multiplier symbol-table)))
                      (format #t "    Resolving multiplier -> ~a~%" 
                              (if symbol-address 
                                  (format #f "~x" symbol-address)
@@ -77,33 +81,21 @@
           resolved-code))))
 
 (define (link-code assembled-code symbol-addresses)
-  (let* ((symbol-table (make-hash-table))
-         (reg-to-symbol-map (make-hash-table)))
-    
-    ;; Populate symbol table with provided addresses
-    (for-each (lambda (addr-pair)
-                (hash-set! symbol-table (car addr-pair) (cdr addr-pair)))
-              symbol-addresses)
-    
-    ;; Set up register to symbol mapping
-    (hash-set! reg-to-symbol-map 7 'buffer1)
-    (hash-set! reg-to-symbol-map 6 'buffer2)
-    (hash-set! reg-to-symbol-map 2 'result)
-    
-    (resolve-references assembled-code symbol-table reg-to-symbol-map)))
+  (let ((reg-to-symbol-map '((7 . buffer1) (6 . buffer2) (2 . result))))
+    (resolve-references assembled-code symbol-addresses reg-to-symbol-map)))
 
 (define (create-executable linked-code output-file data-sections symbol-addresses)
   (let* ((code-size (bytevector-length linked-code))
          (data-size (apply + (map (lambda (x) (bytevector-length (cdr x))) data-sections)))
-         (total-size (+ #x2000 code-size data-size)) ; Include the gap before code
+         (total-size (+ #x3000 code-size data-size)) ; Start at 0x3000 for simplicity
          (elf-header (make-bytevector 64 0)))
     
-    ;; Create ELF header (mostly unchanged)
+    ;; Create ELF header
     (bytevector-copy! #vu8(#x7f #x45 #x4c #x46 #x02 #x01 #x01 #x00) 0 elf-header 0 8)
     (bytevector-u16-set! elf-header 16 2 (endianness little))
     (bytevector-u16-set! elf-header 18 #x3e (endianness little))
     (bytevector-u32-set! elf-header 20 1 (endianness little))
-    (bytevector-u64-set! elf-header 24 #x400000 (endianness little)) ; e_entry
+    (bytevector-u64-set! elf-header 24 #x401000 (endianness little)) ; e_entry
     (bytevector-u64-set! elf-header 32 64 (endianness little))
     (bytevector-u64-set! elf-header 40 0 (endianness little))
     (bytevector-u32-set! elf-header 48 0 (endianness little))
@@ -124,9 +116,9 @@
       ;; Copy program header
       (bytevector-copy! program-header 0 full-executable 64 56)
       ;; Copy linked code
-      (bytevector-copy! linked-code 0 full-executable #x2000 code-size)
+      (bytevector-copy! linked-code 0 full-executable #x1000 code-size)
       ;; Copy data sections
-      (let ((data-offset (+ #x2000 code-size)))
+      (let ((data-offset #x3000))
         (for-each 
          (lambda (section)
            (let* ((data (cdr section))
@@ -142,14 +134,14 @@
       
       (chmod output-file #o755) ; Make the file executable
 
-      ;; Logging (unchanged)
-      (format #t "Executable created: ~a\n" output-file)
-      (format #t "Code size: ~a bytes\n" code-size)
-      (format #t "Data size: ~a bytes\n" data-size)
-      (format #t "Total size: ~a bytes\n" total-size)
-      (format #t "Entry point: 0x400000\n")
+      ;; Logging
+      (format #t "Executable created: ~a~%" output-file)
+      (format #t "Code size: ~a bytes~%" code-size)
+      (format #t "Data size: ~a bytes~%" data-size)
+      (format #t "Total size: ~a bytes~%" total-size)
+      (format #t "Entry point: 0x401000~%")
       (for-each (lambda (section)
-                  (format #t "Section ~a at address 0x~x, size ~a bytes\n"
+                  (format #t "Section ~a at address 0x~x, size ~a bytes~%"
                           (car section)
                           (cdr (assoc (car section) symbol-addresses))
                           (bytevector-length (cdr section))))

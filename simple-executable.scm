@@ -18,11 +18,12 @@
    (apply append (make-list 8 '(0 0 0 64)))))
 
 (define result (make-bytevector 32 0))
+
 (define symbol-addresses
-  '((buffer1 . #x402000)
-    (buffer2 . #x402020)
-    (result . #x402040)
-    (multiplier . #x402060)))
+  '((buffer1 . #x403000)
+    (buffer2 . #x403020)
+    (result . #x403040)
+    (multiplier . #x403060)))
 
 ;; Simplest possible code: just exit the program
 (define example-code
