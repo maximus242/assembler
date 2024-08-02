@@ -158,7 +158,16 @@
          (num-sections 14)
          (section-headers (create-section-headers code-size data-size symtab-size strtab-size shstrtab-size
                                                   dynamic-symbol-table-size relocation-table-size dynamic-section-size))
-         (elf-header (create-elf-header #x1000 section-headers-offset num-sections))
+         (program-headers (create-program-headers code-size data-size dynamic-section-size))
+         (program-headers-size (bytevector-length program-headers))
+         (num-program-headers (/ program-headers-size 56))  ; Each program header is 56 bytes
+         (section-headers-size (* num-sections 64))  ; Each section header is 64 bytes
+         (elf-header (create-elf-header entry-point 
+                                        program-headers-size 
+                                        section-headers-size
+                                        section-headers-offset 
+                                        num-program-headers 
+                                        num-sections))
          (program-headers (create-program-headers code-size data-size dynamic-section-size))
          (total-size (+ section-headers-offset (bytevector-length section-headers))))
 

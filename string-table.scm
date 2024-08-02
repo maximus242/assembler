@@ -23,10 +23,16 @@
   (let loop ((offset 0))
     (if (>= offset (bytevector-length string-table))
         #f  ; String not found
-        (let* ((remaining (bytevector-length string-table))
-               (str-length (string-length name))
-               (compare-length (min str-length (- remaining offset)))
-               (substr (utf8->string (bytevector-copy string-table offset compare-length))))
-          (if (string=? name substr)
-              offset
-              (loop (+ offset 1 (string-length substr)))))))
+        (if (string-match? name string-table offset)
+            offset
+            (loop (+ offset 1))))))
+
+(define (string-match? str bv offset)
+  (let ((str-len (string-length str)))
+    (and (<= (+ offset str-len) (bytevector-length bv))
+         (let loop ((i 0))
+           (if (= i str-len)
+               #t
+               (and (= (char->integer (string-ref str i))
+                       (bytevector-u8-ref bv (+ offset i)))
+                    (loop (+ i 1))))))))
