@@ -17,7 +17,23 @@
             (loop (cdr names) (+ offset (string-length name) 1)))))))
 
 (define (create-section-header-string-table)
-  (string->utf8 "\0.text\0.data\0.symtab\0.strtab\0.shstrtab\0"))
+  (string->utf8 
+   (string-append
+    "\0"                ; Null section
+    ".text\0"           ; Code section
+    ".data\0"           ; Data section
+    ".bss\0"            ; Uninitialized data section
+    ".rodata\0"         ; Read-only data section
+    ".symtab\0"         ; Symbol table
+    ".strtab\0"         ; String table
+    ".shstrtab\0"       ; Section header string table
+    ".rela.text\0"      ; Relocation entries for .text
+    ".rela.data\0"      ; Relocation entries for .data
+    ".init\0"           ; Initialization code
+    ".fini\0"           ; Termination code
+    ".dynamic\0"        ; Dynamic linking information
+    ".dynsym\0"         ; Dynamic linking symbol table
+    ".dynstr\0")))      ; Dynamic linking string table
 
 (define (string-table-offset name string-table)
   (let loop ((offset 0))
