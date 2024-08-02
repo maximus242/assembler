@@ -94,11 +94,18 @@
 
 (define (link-code assembled-code symbol-addresses)
   (let* ((symbols (map car symbol-addresses))
+         (available-registers '(7 6 2 1 0 3 4 5))  ; Add more if needed
          (reg-to-symbol-map 
-          (list (cons 7 (car symbols))
-                (cons 6 (cadr symbols))
-                (cons 2 (caddr symbols)))))
+          (map cons 
+               (take available-registers (min (length symbols) (length available-registers)))
+               symbols)))
     (resolve-references assembled-code symbol-addresses reg-to-symbol-map)))
+
+; Helper function to implement 'take' functionality
+(define (take lst n)
+  (if (or (null? lst) (= n 0))
+      '()
+      (cons (car lst) (take (cdr lst) (- n 1)))))
 
 (define (create-executable linked-code output-file data-sections symbol-addresses)
   (format #t "Creating executable. Linked code size: ~a~%" (bytevector-length linked-code))
