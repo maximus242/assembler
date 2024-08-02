@@ -93,7 +93,11 @@
             resolved-code)))))
 
 (define (link-code assembled-code symbol-addresses)
-  (let ((reg-to-symbol-map '((7 . buffer1) (6 . buffer2) (2 . result))))
+  (let* ((symbols (map car symbol-addresses))
+         (reg-to-symbol-map 
+          (list (cons 7 (car symbols))
+                (cons 6 (cadr symbols))
+                (cons 2 (caddr symbols)))))
     (resolve-references assembled-code symbol-addresses reg-to-symbol-map)))
 
 (define (create-executable linked-code output-file data-sections symbol-addresses)
