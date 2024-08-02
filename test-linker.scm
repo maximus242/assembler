@@ -21,7 +21,10 @@
   (format #t "~%Test: ~a~%" name)
   (format #t "Input:    ~a~%" (bytevector->hex-string input))
   (format #t "Symbol addresses: ~a~%" symbol-addresses)
-  (let ((result (link-code input symbol-addresses)))
+  (let* ((label-positions (make-hash-table))
+         (result (link-code input symbol-addresses label-positions)))
+    (hash-set! label-positions 'label1 7)  ; Set label1 to offset 7 (after the jump and two nops)
+    (format #t "Label positions: ~a~%" label-positions)
     (format #t "Result:   ~a~%" (bytevector->hex-string result))
     (format #t "Expected: ~a~%" (bytevector->hex-string expected))
     (if (equal? result expected)
@@ -35,6 +38,7 @@
                 (when (not (= result-byte expected-byte))
                   (format #t "Mismatch at offset ~a: result=~x, expected=~x~%" i result-byte expected-byte)))
               (loop (+ i 1))))))))
+
 
 ;; Test 1: Simple mov.imm32 instructions
 (test-link "Simple mov.imm32 instructions"
@@ -75,6 +79,25 @@
    '(#x48 #xC7 #xC0 #x42 #x00 #x00 #x00)) ; mov.imm32 rax, 0x42
   (u8-list->bytevector
    '(#x48 #xC7 #xC0 #x42 #x00 #x00 #x00))) ; mov.imm32 rax, 0x42
+
+;; Add this new test case for labels
+(test-link "Labels and jumps"
+  (u8-list->bytevector
+   '(#xE9 #x00 #x00 #x00 #x00  ; jmp label1 (placeholder)
+     #x90                      ; nop (represents some code)
+     #x90                      ; nop (represents some code)
+     #x48 #xC7 #xC0 #x3C #x00 #x00 #x00  ; mov rax, 60 (exit syscall)
+     #x48 #x31 #xFF            ; xor rdi, rdi
+     #x0F #x05))               ; syscall
+  (u8-list->bytevector
+   '(#xE9 #x05 #x00 #x00 #x00  ; jmp to label1 (5 bytes forward)
+     #x90                      ; nop (represents some code)
+     #x90                      ; nop (represents some code)
+     #x48 #xC7 #xC0 #x3C #x00 #x00 #x00  ; mov rax, 60 (exit syscall)
+     #x48 #x31 #xFF            ; xor rdi, rdi
+     #x0F #x05)))              ; syscall
+(newline)
+(display "All tests completed.\n")
 
 (newline)
 (display "All tests completed.\n")

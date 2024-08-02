@@ -30,19 +30,20 @@
   (let ((pair (assoc key alist)))
     (and pair (cdr pair))))
 
-(define (resolve-references code symbol-table reg-to-symbol-map)
+(define (resolve-references code symbol-table label-positions reg-to-symbol-map)
   (let* ((code-length (bytevector-length code))
          (resolved-code (bytevector-copy code))
          (code-base-address #x401000)
          (program-base-address #x400000))
     (format #t "Starting to resolve references. Code length: ~a~%" code-length)
     (format #t "Symbol table: ~a~%" symbol-table)
+    (format #t "Label positions: ~a~%" label-positions)
     (let loop ((offset 0))
       (if (< offset code-length)
           (let ((instruction (bytevector-u8-ref code offset)))
             (format #t "Offset: ~a, Instruction: ~x~%" offset instruction)
             (cond
-              ; Handle MOV immediate
+              ; Handle MOV immediate (could be a symbol or label reference)
               ((and (= instruction #x48)
                     (< (+ offset 6) code-length)
                     (= (bytevector-u8-ref code (+ offset 1)) #xC7))
@@ -50,16 +51,21 @@
                       (imm-offset (+ offset 3))
                       (imm (bytevector-u32-ref code imm-offset (endianness little))))
                  (format #t "  MOV imm32: reg=~a, imm=~x~%" reg imm)
-                 (when (= imm 0) ; Possible symbolic reference
+                 (when (= imm 0) ; Possible symbolic reference or label
                    (let* ((symbol-name (alist-ref reg reg-to-symbol-map))
-                          (symbol-address (and symbol-name (alist-ref symbol-name symbol-table))))
-                     (format #t "  Resolving symbol: ~a -> ~a~%" 
+                          (symbol-address (and symbol-name (or (alist-ref symbol-name symbol-table)
+                                                               (hash-ref label-positions symbol-name)))))
+                     (format #t "  Resolving symbol/label: ~a -> ~a~%" 
                              (or symbol-name "#f") 
                              (if symbol-address 
                                  (format #f "~x" symbol-address)
                                  "#f"))
                      (when symbol-address
-                       (bytevector-u32-set! resolved-code imm-offset symbol-address (endianness little)))))
+                       (bytevector-u32-set! resolved-code imm-offset 
+                                            (if (hash-ref label-positions symbol-name)
+                                                (+ symbol-address code-base-address)
+                                                symbol-address)
+                                            (endianness little)))))
                  (format #t "  After MOV resolution: ~x~%" 
                          (bytevector-u32-ref resolved-code imm-offset (endianness little)))
                  (loop (+ offset 7))))
@@ -87,19 +93,42 @@
                          (bytevector-u32-ref resolved-code imm-offset (endianness little)))
                  (loop (+ offset 8))))
               
+              ; Handle potential label references in other instructions (e.g., jumps, calls)
+              ((and (or (= instruction #xE8) ; CALL
+                        (= instruction #xE9)) ; JMP
+                    (< (+ offset 4) code-length))
+               (let* ((imm-offset (+ offset 1))
+                      (imm (bytevector-s32-ref code imm-offset (endianness little))))
+                 (format #t "  CALL/JMP: original offset=~x~%" imm)
+                 (when (= imm 0) ; Possible label reference
+                   (let* ((label-name (alist-ref offset reg-to-symbol-map))
+                          (label-position (and label-name (hash-ref label-positions label-name))))
+                     (when label-position
+                       (let* ((instruction-end (+ offset 5))
+                              (next-instruction-address (+ instruction-end code-base-address))
+                              (target-offset (- (+ label-position code-base-address) next-instruction-address)))
+                         (format #t "    Resolving label ~a -> ~x~%" label-name label-position)
+                         (format #t "    Instruction end: ~x~%" instruction-end)
+                         (format #t "    Next instruction address: ~x~%" next-instruction-address)
+                         (format #t "    Target offset: ~x~%" target-offset)
+                         (bytevector-s32-set! resolved-code imm-offset target-offset (endianness little))))))
+                 (format #t "  After CALL/JMP resolution: ~x~%" 
+                         (bytevector-s32-ref resolved-code imm-offset (endianness little)))
+                 (loop (+ offset 5))))
+              
               (else (loop (+ offset 1)))))
           (begin
             (format #t "Finished resolving references.~%")
             resolved-code)))))
 
-(define (link-code assembled-code symbol-addresses)
-  (let* ((symbols (map car symbol-addresses))
+(define (link-code assembled-code symbol-addresses label-positions)
+  (let* ((symbols (append (map car symbol-addresses) (hash-map->list cons label-positions)))
          (available-registers '(7 6 2 1 0 3 4 5))  ; Add more if needed
          (reg-to-symbol-map 
           (map cons 
                (take available-registers (min (length symbols) (length available-registers)))
                symbols)))
-    (resolve-references assembled-code symbol-addresses reg-to-symbol-map)))
+    (resolve-references assembled-code symbol-addresses label-positions reg-to-symbol-map)))
 
 ; Helper function to implement 'take' functionality
 (define (take lst n)
@@ -107,7 +136,7 @@
       '()
       (cons (car lst) (take (cdr lst) (- n 1)))))
 
-(define (create-executable linked-code output-file data-sections symbol-addresses)
+(define (create-executable linked-code output-file data-sections symbol-addresses label-positions)
   (format #t "Creating executable. Linked code size: ~a~%" (bytevector-length linked-code))
   (format #t "Data sections: ~a~%" data-sections)
   (format #t "Symbol addresses: ~a~%" symbol-addresses)

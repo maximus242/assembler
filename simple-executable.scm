@@ -28,7 +28,8 @@
 
 ;; Updated code without vmulps
 (define example-code
-  '((mov.imm32 rdi buffer1)
+  '((label start)
+    (mov.imm32 rdi buffer1)
     (mov.imm32 rsi buffer2)
     (mov.imm32 rdx result)
     (vmovaps ymm0 (rdi))
@@ -44,7 +45,8 @@
     (syscall)))
 
 (define assembled-code (assemble example-code))
-(define linked-code (link-code assembled-code symbol-addresses))
+(define label-positions (get-label-positions))
+(define linked-code (link-code assembled-code symbol-addresses label-positions))
 
 ;; Create the executable
 (create-executable 
@@ -54,7 +56,8 @@
    (buffer2 . ,buffer2)
    (result . ,result)
    (multiplier . ,multiplier))
- symbol-addresses)
+ symbol-addresses
+ label-positions)  ; Add this line
 
 ;; Add logging
 (display "Logging information:\n")
