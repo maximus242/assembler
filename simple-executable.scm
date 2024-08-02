@@ -28,7 +28,7 @@
 
 ;; Updated code without vmulps
 (define example-code
-  '((label start)
+  '((label test_function)
     (mov.imm32 rdi buffer1)
     (mov.imm32 rsi buffer2)
     (mov.imm32 rdx result)
