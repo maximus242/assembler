@@ -147,40 +147,51 @@
          (strtab-size (bytevector-length strtab))
          (shstrtab (create-section-header-string-table))
          (shstrtab-size (bytevector-length shstrtab))
-         (section-headers-offset (align-to (+ #x2000 code-size data-size symtab-size strtab-size shstrtab-size) 16))
-         (num-sections 6)  ; .text, .data, .symtab, .strtab, .shstrtab, and a null section
-         (section-headers (create-section-headers code-size data-size symtab-size strtab-size shstrtab-size))
-         (elf-header (create-elf-header entry-point section-headers-offset num-sections))
-         (program-headers (create-program-headers code-size data-size))
+         (dynamic-symbol-table (create-dynamic-symbol-table symbol-addresses))
+         (dynamic-symbol-table-size (bytevector-length dynamic-symbol-table))
+         (relocation-table (create-relocation-table symbol-addresses))
+         (relocation-table-size (bytevector-length relocation-table))
+         (dynamic-section (create-dynamic-section symtab-size dynamic-symbol-table-size relocation-table-size))
+         (dynamic-section-size (bytevector-length dynamic-section))
+         (section-headers-offset (align-to (+ #x2000 code-size data-size symtab-size strtab-size shstrtab-size 
+                                              dynamic-symbol-table-size relocation-table-size dynamic-section-size) 16))
+         (num-sections 14)
+         (section-headers (create-section-headers code-size data-size symtab-size strtab-size shstrtab-size
+                                                  dynamic-symbol-table-size relocation-table-size dynamic-section-size))
+         (elf-header (create-elf-header #x1000 section-headers-offset num-sections))
+         (program-headers (create-program-headers code-size data-size dynamic-section-size))
          (total-size (+ section-headers-offset (bytevector-length section-headers))))
+
+    (format #t "Section headers offset: 0x~x~%" section-headers-offset)
+    (format #t "Section headers size: ~a bytes~%" (bytevector-length section-headers))
 
     (call-with-output-file output-file
       (lambda (port)
         (write-bytevector elf-header port)
         (write-bytevector program-headers port)
-        (write-bytevector (make-bytevector (max 0 (- #x2000 (+ (bytevector-length elf-header) (bytevector-length program-headers)))) 0) port)
+        (write-bytevector (make-bytevector (- #x1000 (+ (bytevector-length elf-header) (bytevector-length program-headers))) 0) port)
         (write-bytevector code port)
-        (write-bytevector (make-bytevector (align-to code-size 16) 0) port)  ; Align to 16 bytes
+        (write-bytevector (make-bytevector (- #x2000 (+ #x1000 code-size)) 0) port)
         (for-each (lambda (pair) (write-bytevector (cdr pair) port)) data-sections)
-        (write-bytevector (make-bytevector (align-to data-size 16) 0) port)  ; Align to 16 bytes
         (write-bytevector symtab port)
-        (write-bytevector (make-bytevector (align-to symtab-size 16) 0) port)  ; Align to 16 bytes
         (write-bytevector strtab port)
-        (write-bytevector (make-bytevector (align-to strtab-size 16) 0) port)  ; Align to 16 bytes
         (write-bytevector shstrtab port)
-        (let ((padding-size (max 0 (- section-headers-offset (+ #x2000 (align-to code-size 16) (align-to data-size 16) (align-to symtab-size 16) (align-to strtab-size 16) shstrtab-size)))))
-          (when (> padding-size 0)
-            (write-bytevector (make-bytevector padding-size 0) port)))
+        (write-bytevector dynamic-symbol-table port)
+        (write-bytevector relocation-table port)
+        (write-bytevector dynamic-section port)
+        (let ((current-position (port-position port)))
+          (when (< current-position section-headers-offset)
+            (write-bytevector (make-bytevector (- section-headers-offset current-position) 0) port)))
+        
+        (format #t "Writing section headers at offset: 0x~x~%" (port-position port))
         (write-bytevector section-headers port)))
 
     (format #t "Shared object created: ~a~%" output-file)
     (format #t "Total file size: ~a bytes~%" total-size)))
 
-
-
 (define (create-relocation-table symbol-addresses)
   (let* ((reloc-count (length symbol-addresses))
-         (table-size (* reloc-count 24))  ; Each Elf64_Rela entry is 24 bytes
+         (table-size (* reloc-count 24))
          (table (make-bytevector table-size 0)))
     (let loop ((symbols symbol-addresses)
                (index 0))
@@ -224,7 +235,7 @@
                   (+ str-offset (string-length name) 1)))))))
 
 (define (create-dynamic-section symbol-table-size dynamic-symbol-table-size relocation-table-size)
-  (let* ((entry-count 7)
+  (let* ((entry-count 10)
          (table-size (* entry-count 16))
          (table (make-bytevector table-size 0)))
     (bytevector-u64-set! table 0 5 (endianness little))  ; DT_STRTAB
@@ -232,11 +243,17 @@
     (bytevector-u64-set! table 16 6 (endianness little))  ; DT_SYMTAB
     (bytevector-u64-set! table 24 0 (endianness little))  ; Address of .dynsym (to be filled later)
     (bytevector-u64-set! table 32 10 (endianness little))  ; DT_STRSZ
-    (bytevector-u64-set! table 40 0 (endianness little))  ; Size of .dynstr (to be filled later)
+    (bytevector-u64-set! table 40 symbol-table-size (endianness little))  ; Size of .dynstr
     (bytevector-u64-set! table 48 11 (endianness little))  ; DT_SYMENT
     (bytevector-u64-set! table 56 24 (endianness little))  ; Size of one symbol table entry
-    (bytevector-u64-set! table 64 0 (endianness little))  ; DT_NULL
-    (bytevector-u64-set! table 72 0 (endianness little))
+    (bytevector-u64-set! table 64 17 (endianness little))  ; DT_RELA
+    (bytevector-u64-set! table 72 0 (endianness little))  ; Address of .rela.dyn (to be filled later)
+    (bytevector-u64-set! table 80 18 (endianness little))  ; DT_RELASZ
+    (bytevector-u64-set! table 88 relocation-table-size (endianness little))  ; Size of .rela.dyn
+    (bytevector-u64-set! table 96 19 (endianness little))  ; DT_RELAENT
+    (bytevector-u64-set! table 104 24 (endianness little))  ; Size of one relocation entry
+    (bytevector-u64-set! table 112 0 (endianness little))  ; DT_NULL
+    (bytevector-u64-set! table 120 0 (endianness little))
     table))
 
 (define (display-symbol-table symbol-table string-table)

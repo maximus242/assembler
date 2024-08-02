@@ -1,72 +1,69 @@
 (define-module (section-headers)
   #:use-module (rnrs bytevectors)
+  #:use-module (utils)
+  #:use-module (string-table)
   #:export (create-section-headers))
 
-(define (create-section-headers code-size data-size symtab-size strtab-size shstrtab-size)
-  (let* ((num-sections 6)  ; .text, .data, .symtab, .strtab, .shstrtab, and a null section
-         (section-header-size 64)
-         (headers (make-bytevector (* num-sections section-header-size) 0)))
-    ;; Null section
-    (bytevector-u32-set! headers 0 0 (endianness little))
+(define (create-section-header name type addr offset size link info align entsize string-table)
+  (let ((header (make-bytevector 64 0)))
+    (bytevector-u32-set! header 0 (string-table-offset name string-table) (endianness little))
+    (bytevector-u32-set! header 4 type (endianness little))
+    (bytevector-u64-set! header 8 addr (endianness little))
+    (bytevector-u64-set! header 16 offset (endianness little))
+    (bytevector-u64-set! header 24 size (endianness little))
+    (bytevector-u32-set! header 32 link (endianness little))
+    (bytevector-u32-set! header 36 info (endianness little))
+    (bytevector-u64-set! header 40 align (endianness little))
+    (bytevector-u64-set! header 48 entsize (endianness little))
+    header))
+
+(define (create-section-headers code-size data-size symtab-size strtab-size shstrtab-size
+                                dynamic-symbol-table-size relocation-table-size dynamic-section-size)
+  (let* ((string-table (create-section-header-string-table))
+         (null-header (create-section-header "" 0 0 0 0 0 0 0 0 string-table))
+         (text-offset #x1000)
+         (text-header (create-section-header ".text" 1 text-offset text-offset code-size 0 0 16 0 string-table))
+         (data-offset (+ text-offset (align-to code-size #x1000)))
+         (data-header (create-section-header ".data" 1 data-offset data-offset data-size 0 0 16 0 string-table))
+         (symtab-offset (+ data-offset (align-to data-size #x1000)))
+         (symtab-header (create-section-header ".symtab" 2 0 symtab-offset symtab-size 0 0 8 24 string-table))
+         (strtab-offset (+ symtab-offset symtab-size))
+         (strtab-header (create-section-header ".strtab" 3 0 strtab-offset strtab-size 0 0 1 0 string-table))
+         (shstrtab-offset (+ strtab-offset strtab-size))
+         (shstrtab-header (create-section-header ".shstrtab" 3 0 shstrtab-offset shstrtab-size 0 0 1 0 string-table))
+         (dynsym-offset (+ shstrtab-offset shstrtab-size))
+         (dynsym-header (create-section-header ".dynsym" 11 0 dynsym-offset dynamic-symbol-table-size 0 0 8 24 string-table))
+         (rela-offset (+ dynsym-offset dynamic-symbol-table-size))
+         (rela-header (create-section-header ".rela.dyn" 4 0 rela-offset relocation-table-size 0 0 8 24 string-table))
+         (dynamic-offset (+ rela-offset relocation-table-size))
+         (dynamic-header (create-section-header ".dynamic" 6 dynamic-offset dynamic-offset dynamic-section-size 0 0 8 16 string-table)))
+    (bytevector-append
+     null-header
+     text-header
+     data-header
+     symtab-header
+     strtab-header
+     shstrtab-header
+     dynsym-header
+     rela-header
+     dynamic-header)))
+
+(define (create-section-header-string-table)
+  (let ((table (make-bytevector 1 0)))  ; Start with null byte
+    (define (add-string! str)
+      (let* ((utf8 (string->utf8 str))
+             (new-size (+ (bytevector-length table) (bytevector-length utf8) 1)))
+        (let ((new-table (make-bytevector new-size 0)))
+          (bytevector-copy! table 0 new-table 0 (bytevector-length table))
+          (bytevector-copy! utf8 0 new-table (bytevector-length table) (bytevector-length utf8))
+          (set! table new-table))))
     
-    ;; .text section
-    (bytevector-u32-set! headers 64 1 (endianness little))  ; sh_name
-    (bytevector-u32-set! headers 68 1 (endianness little))  ; sh_type (SHT_PROGBITS)
-    (bytevector-u64-set! headers 72 6 (endianness little))  ; sh_flags (SHF_ALLOC | SHF_EXECINSTR)
-    (bytevector-u64-set! headers 80 #x1000 (endianness little))  ; sh_addr
-    (bytevector-u64-set! headers 88 #x1000 (endianness little))  ; sh_offset
-    (bytevector-u64-set! headers 96 code-size (endianness little))  ; sh_size
-    (bytevector-u32-set! headers 104 0 (endianness little))  ; sh_link
-    (bytevector-u32-set! headers 108 0 (endianness little))  ; sh_info
-    (bytevector-u64-set! headers 112 16 (endianness little))  ; sh_addralign
-    (bytevector-u64-set! headers 120 0 (endianness little))  ; sh_entsize
-    
-    ;; .data section
-    (bytevector-u32-set! headers 128 7 (endianness little))  ; sh_name
-    (bytevector-u32-set! headers 132 1 (endianness little))  ; sh_type (SHT_PROGBITS)
-    (bytevector-u64-set! headers 136 3 (endianness little))  ; sh_flags (SHF_ALLOC | SHF_WRITE)
-    (bytevector-u64-set! headers 144 (+ #x1000 code-size) (endianness little))  ; sh_addr
-    (bytevector-u64-set! headers 152 (+ #x1000 code-size) (endianness little))  ; sh_offset
-    (bytevector-u64-set! headers 160 data-size (endianness little))  ; sh_size
-    (bytevector-u32-set! headers 168 0 (endianness little))  ; sh_link
-    (bytevector-u32-set! headers 172 0 (endianness little))  ; sh_info
-    (bytevector-u64-set! headers 176 8 (endianness little))  ; sh_addralign
-    (bytevector-u64-set! headers 184 0 (endianness little))  ; sh_entsize
-    
-    ;; .symtab section
-    (bytevector-u32-set! headers 192 13 (endianness little))  ; sh_name
-    (bytevector-u32-set! headers 196 2 (endianness little))  ; sh_type (SHT_SYMTAB)
-    (bytevector-u64-set! headers 200 0 (endianness little))  ; sh_flags
-    (bytevector-u64-set! headers 208 0 (endianness little))  ; sh_addr
-    (bytevector-u64-set! headers 216 (+ #x2000 code-size data-size) (endianness little))  ; sh_offset
-    (bytevector-u64-set! headers 224 symtab-size (endianness little))  ; sh_size
-    (bytevector-u32-set! headers 232 4 (endianness little))  ; sh_link (index of .strtab)
-    (bytevector-u32-set! headers 236 5 (endianness little))  ; sh_info (one greater than the symbol table index of the last local symbol)
-    (bytevector-u64-set! headers 240 8 (endianness little))  ; sh_addralign
-    (bytevector-u64-set! headers 248 24 (endianness little))  ; sh_entsize (size of a symbol table entry)
-    
-    ;; .strtab section
-    (bytevector-u32-set! headers 256 21 (endianness little))  ; sh_name
-    (bytevector-u32-set! headers 260 3 (endianness little))  ; sh_type (SHT_STRTAB)
-    (bytevector-u64-set! headers 264 0 (endianness little))  ; sh_flags
-    (bytevector-u64-set! headers 272 0 (endianness little))  ; sh_addr
-    (bytevector-u64-set! headers 280 (+ #x2000 code-size data-size symtab-size) (endianness little))  ; sh_offset
-    (bytevector-u64-set! headers 288 strtab-size (endianness little))  ; sh_size
-    (bytevector-u32-set! headers 296 0 (endianness little))  ; sh_link
-    (bytevector-u32-set! headers 300 0 (endianness little))  ; sh_info
-    (bytevector-u64-set! headers 304 1 (endianness little))  ; sh_addralign
-    (bytevector-u64-set! headers 312 0 (endianness little))  ; sh_entsize
-    
-    ;; .shstrtab section
-    (bytevector-u32-set! headers 320 29 (endianness little))  ; sh_name
-    (bytevector-u32-set! headers 324 3 (endianness little))  ; sh_type (SHT_STRTAB)
-    (bytevector-u64-set! headers 328 0 (endianness little))  ; sh_flags
-    (bytevector-u64-set! headers 336 0 (endianness little))  ; sh_addr
-    (bytevector-u64-set! headers 344 (+ #x2000 code-size data-size symtab-size strtab-size) (endianness little))  ; sh_offset
-    (bytevector-u64-set! headers 352 shstrtab-size (endianness little))  ; sh_size
-    (bytevector-u32-set! headers 360 0 (endianness little))  ; sh_link
-    (bytevector-u32-set! headers 364 0 (endianness little))  ; sh_info
-    (bytevector-u64-set! headers 368 1 (endianness little))  ; sh_addralign
-    (bytevector-u64-set! headers 376 0 (endianness little))  ; sh_entsize
-    
-    headers))
+    (add-string! ".text")
+    (add-string! ".data")
+    (add-string! ".symtab")
+    (add-string! ".strtab")
+    (add-string! ".shstrtab")
+    (add-string! ".dynsym")
+    (add-string! ".rela.dyn")
+    (add-string! ".dynamic")
+    table))

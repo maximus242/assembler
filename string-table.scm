@@ -1,7 +1,8 @@
 (define-module (string-table)
   #:use-module (rnrs bytevectors)
   #:export (create-string-table
-            create-section-header-string-table))
+            create-section-header-string-table
+            string-table-offset))
 
 (define (create-string-table symbol-addresses)
   (let* ((names (map (lambda (pair) (symbol->string (car pair))) symbol-addresses))
@@ -17,3 +18,15 @@
 
 (define (create-section-header-string-table)
   (string->utf8 "\0.text\0.data\0.symtab\0.strtab\0.shstrtab\0"))
+
+(define (string-table-offset name string-table)
+  (let loop ((offset 0))
+    (if (>= offset (bytevector-length string-table))
+        #f  ; String not found
+        (let* ((remaining (bytevector-length string-table))
+               (str-length (string-length name))
+               (compare-length (min str-length (- remaining offset)))
+               (substr (utf8->string (bytevector-copy string-table offset compare-length))))
+          (if (string=? name substr)
+              offset
+              (loop (+ offset 1 (string-length substr)))))))
