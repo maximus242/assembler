@@ -1,51 +1,14 @@
 (define-module (linker)
-  #:use-module (ice-9 match)
-  #:use-module (ice-9 format)
+  #:use-module (elf-header)
+  #:use-module (program-headers)
+  #:use-module (section-headers)
+  #:use-module (symbol-table)
+  #:use-module (string-table)
+  #:use-module (utils)
   #:use-module (rnrs bytevectors)
-  #:use-module (ice-9 binary-ports)
-  #:use-module (rnrs io ports) ; For put-bytevector
-  #:export (link-code create-shared-object create-elf-header create-section-headers))
-
-; Add this definition near the top of the file, after the module definition
-(define (bytevector-append . bvs)
-  (let* ((total-length (apply + (map bytevector-length bvs)))
-         (result (make-bytevector total-length)))
-    (let loop ((offset 0)
-               (bvs bvs))
-      (if (null? bvs)
-          result
-          (let ((bv (car bvs)))
-            (bytevector-copy! bv 0 result offset (bytevector-length bv))
-            (loop (+ offset (bytevector-length bv)) (cdr bvs)))))))
-
-(define (create-program-header type offset vaddr paddr filesz memsz flags align)
-  (let ((header (make-bytevector 56 0)))
-    (bytevector-u32-set! header 0 type (endianness little))
-    (bytevector-u32-set! header 4 flags (endianness little))
-    (bytevector-u64-set! header 8 offset (endianness little))
-    (bytevector-u64-set! header 16 vaddr (endianness little))
-    (bytevector-u64-set! header 24 paddr (endianness little))
-    (bytevector-u64-set! header 32 filesz (endianness little))
-    (bytevector-u64-set! header 40 memsz (endianness little))
-    (bytevector-u64-set! header 48 align (endianness little))
-    header))
-
-(define (create-program-headers code-size data-size)
-  (let* ((text-segment (create-program-header 1 #x1000 #x1000 #x1000 code-size code-size 5 #x1000))
-         (data-segment (create-program-header 1 (+ #x1000 (align-to code-size 16)) 
-                                              (+ #x1000 (align-to code-size 16)) 
-                                              (+ #x1000 (align-to code-size 16)) 
-                                              data-size data-size 6 #x1000)))
-    (bytevector-append text-segment data-segment)))
-
-(define (make-symbol-table)
-  (make-hash-table))
-
-(define (add-symbol! table name address)
-  (hash-set! table name address))
-
-(define (get-symbol table name)
-  (hash-ref table name))
+  #:use-module (rnrs io ports)
+  #:use-module (ice-9 format)
+  #:export (link-code create-shared-object))
 
 (define (alist-ref key alist)
   (let ((pair (assoc key alist)))
@@ -105,18 +68,18 @@
                     (= (bytevector-u8-ref code (+ offset 2)) #x28)
                     (= (bytevector-u8-ref code (+ offset 3)) #x05))
                (let* ((imm-offset (+ offset 4))
-                      (imm (bytevector-u32-ref code imm-offset (endianness little))))
+                      (imm (bytevector-u32-ref code imm-offset (endianness little)))
+                      (symbol-address (alist-ref 'multiplier symbol-table)))
                  (format #t "  VMOVAPS: original displacement=~x~%" imm)
-                 (let ((symbol-address (alist-ref 'multiplier symbol-table)))
-                   (when symbol-address
-                     (let* ((instruction-end (+ offset 8))
-                            (next-instruction-address (+ instruction-end code-base-address))
-                            (target-offset (- (adjust-address symbol-address) next-instruction-address)))
-                       (format #t "    Resolving multiplier -> ~x~%" symbol-address)
-                       (format #t "    Instruction end: ~x~%" instruction-end)
-                       (format #t "    Next instruction address: ~x~%" next-instruction-address)
-                       (format #t "    Target offset: ~x~%" target-offset)
-                       (bytevector-u32-set! resolved-code imm-offset target-offset (endianness little)))))
+                 (when symbol-address
+                   (let* ((instruction-end (+ offset 8))
+                          (next-instruction-address (+ instruction-end code-base-address))
+                          (target-offset (- (adjust-address symbol-address) next-instruction-address)))
+                     (format #t "    Resolving multiplier -> ~x~%" symbol-address)
+                     (format #t "    Instruction end: ~x~%" instruction-end)
+                     (format #t "    Next instruction address: ~x~%" next-instruction-address)
+                     (format #t "    Target offset: ~x~%" target-offset)
+                     (bytevector-u32-set! resolved-code imm-offset target-offset (endianness little))))
                  (format #t "  After VMOVAPS resolution: ~x~%" 
                          (bytevector-u32-ref resolved-code imm-offset (endianness little)))
                  (loop (+ offset 8))))
@@ -144,7 +107,8 @@
                          (bytevector-s32-ref resolved-code imm-offset (endianness little)))
                  (loop (+ offset 5))))
               
-              (else (loop (+ offset 1)))))
+              (else 
+                (loop (+ offset 1)))))
           (begin
             (format #t "Finished resolving references.~%")
             resolved-code)))))
@@ -170,103 +134,8 @@
       '()
       (cons (car lst) (take (cdr lst) (- n 1)))))
 
-(define (create-elf-header entry-point section-header-offset num-sections)
-  (let ((header (make-bytevector 64 0)))
-    (bytevector-u32-set! header 0 #x464c457f (endianness little))  ; ELF magic number
-    (bytevector-u8-set! header 4 2)  ; 64-bit format
-    (bytevector-u8-set! header 5 1)  ; Little endian
-    (bytevector-u8-set! header 6 1)  ; Current version of ELF
-    (bytevector-u8-set! header 7 0)  ; System V ABI
-    (bytevector-u8-set! header 8 0)  ; ABI version
-    (bytevector-u16-set! header 16 3 (endianness little))  ; Type: Shared object file
-    (bytevector-u16-set! header 18 #x3e (endianness little))  ; Machine: AMD x86-64
-    (bytevector-u32-set! header 20 1 (endianness little))  ; Version: Current
-    (bytevector-u64-set! header 24 entry-point (endianness little))  ; Entry point address
-    (bytevector-u64-set! header 32 64 (endianness little))  ; Program header offset
-    (bytevector-u64-set! header 40 section-header-offset (endianness little))  ; Section header offset
-    (bytevector-u32-set! header 48 0 (endianness little))  ; Flags
-    (bytevector-u16-set! header 52 64 (endianness little))  ; Size of this header
-    (bytevector-u16-set! header 54 56 (endianness little))  ; Size of program headers
-    (bytevector-u16-set! header 56 2 (endianness little))   ; Number of program headers
-    (bytevector-u16-set! header 58 64 (endianness little))   ; Size of section headers
-    (bytevector-u16-set! header 60 num-sections (endianness little))   ; Number of section headers
-    (bytevector-u16-set! header 62 5 (endianness little))   ; Section header string table index (point to .shstrtab)
-    header))
-
 (define (write-bytevector bv port)
   (put-bytevector port bv))
-
-(define (create-section-headers code-size data-size symtab-size strtab-size shstrtab-size)
-  (let* ((num-sections 6)  ; .text, .data, .symtab, .strtab, .shstrtab, and a null section
-         (section-header-size 64)
-         (headers (make-bytevector (* num-sections section-header-size) 0)))
-    ;; Null section
-    (bytevector-u32-set! headers 0 0 (endianness little))
-    
-    ;; .text section
-    (bytevector-u32-set! headers 64 1 (endianness little))  ; sh_name
-    (bytevector-u32-set! headers 68 1 (endianness little))  ; sh_type (SHT_PROGBITS)
-    (bytevector-u64-set! headers 72 6 (endianness little))  ; sh_flags (SHF_ALLOC | SHF_EXECINSTR)
-    (bytevector-u64-set! headers 80 #x1000 (endianness little))  ; sh_addr
-    (bytevector-u64-set! headers 88 #x1000 (endianness little))  ; sh_offset
-    (bytevector-u64-set! headers 96 code-size (endianness little))  ; sh_size
-    (bytevector-u32-set! headers 104 0 (endianness little))  ; sh_link
-    (bytevector-u32-set! headers 108 0 (endianness little))  ; sh_info
-    (bytevector-u64-set! headers 112 16 (endianness little))  ; sh_addralign
-    (bytevector-u64-set! headers 120 0 (endianness little))  ; sh_entsize
-    
-    ;; .data section
-    (bytevector-u32-set! headers 128 7 (endianness little))  ; sh_name
-    (bytevector-u32-set! headers 132 1 (endianness little))  ; sh_type (SHT_PROGBITS)
-    (bytevector-u64-set! headers 136 3 (endianness little))  ; sh_flags (SHF_ALLOC | SHF_WRITE)
-    (bytevector-u64-set! headers 144 (+ #x1000 code-size) (endianness little))  ; sh_addr
-    (bytevector-u64-set! headers 152 (+ #x1000 code-size) (endianness little))  ; sh_offset
-    (bytevector-u64-set! headers 160 data-size (endianness little))  ; sh_size
-    (bytevector-u32-set! headers 168 0 (endianness little))  ; sh_link
-    (bytevector-u32-set! headers 172 0 (endianness little))  ; sh_info
-    (bytevector-u64-set! headers 176 8 (endianness little))  ; sh_addralign
-    (bytevector-u64-set! headers 184 0 (endianness little))  ; sh_entsize
-    
-    ;; .symtab section
-    (bytevector-u32-set! headers 192 13 (endianness little))  ; sh_name
-    (bytevector-u32-set! headers 196 2 (endianness little))  ; sh_type (SHT_SYMTAB)
-    (bytevector-u64-set! headers 200 0 (endianness little))  ; sh_flags
-    (bytevector-u64-set! headers 208 0 (endianness little))  ; sh_addr
-    (bytevector-u64-set! headers 216 (+ #x2000 code-size data-size) (endianness little))  ; sh_offset
-    (bytevector-u64-set! headers 224 symtab-size (endianness little))  ; sh_size
-    (bytevector-u32-set! headers 232 4 (endianness little))  ; sh_link (index of .strtab)
-    (bytevector-u32-set! headers 236 5 (endianness little))  ; sh_info (one greater than the symbol table index of the last local symbol)
-    (bytevector-u64-set! headers 240 8 (endianness little))  ; sh_addralign
-    (bytevector-u64-set! headers 248 24 (endianness little))  ; sh_entsize (size of a symbol table entry)
-    
-    ;; .strtab section
-    (bytevector-u32-set! headers 256 21 (endianness little))  ; sh_name
-    (bytevector-u32-set! headers 260 3 (endianness little))  ; sh_type (SHT_STRTAB)
-    (bytevector-u64-set! headers 264 0 (endianness little))  ; sh_flags
-    (bytevector-u64-set! headers 272 0 (endianness little))  ; sh_addr
-    (bytevector-u64-set! headers 280 (+ #x2000 code-size data-size symtab-size) (endianness little))  ; sh_offset
-    (bytevector-u64-set! headers 288 strtab-size (endianness little))  ; sh_size
-    (bytevector-u32-set! headers 296 0 (endianness little))  ; sh_link
-    (bytevector-u32-set! headers 300 0 (endianness little))  ; sh_info
-    (bytevector-u64-set! headers 304 1 (endianness little))  ; sh_addralign
-    (bytevector-u64-set! headers 312 0 (endianness little))  ; sh_entsize
-    
-    ;; .shstrtab section
-    (bytevector-u32-set! headers 320 29 (endianness little))  ; sh_name
-    (bytevector-u32-set! headers 324 3 (endianness little))  ; sh_type (SHT_STRTAB)
-    (bytevector-u64-set! headers 328 0 (endianness little))  ; sh_flags
-    (bytevector-u64-set! headers 336 0 (endianness little))  ; sh_addr
-    (bytevector-u64-set! headers 344 (+ #x2000 code-size data-size symtab-size strtab-size) (endianness little))  ; sh_offset
-    (bytevector-u64-set! headers 352 shstrtab-size (endianness little))  ; sh_size
-    (bytevector-u32-set! headers 360 0 (endianness little))  ; sh_link
-    (bytevector-u32-set! headers 364 0 (endianness little))  ; sh_info
-    (bytevector-u64-set! headers 368 1 (endianness little))  ; sh_addralign
-    (bytevector-u64-set! headers 376 0 (endianness little))  ; sh_entsize
-    
-    headers))
-
-(define (create-section-header-string-table)
-  (string->utf8 "\0.text\0.data\0.symtab\0.strtab\0.shstrtab\0"))
 
 (define (create-shared-object code data-sections output-file symbol-addresses label-positions)
   (let* ((entry-point #x1000)
@@ -283,67 +152,7 @@
          (section-headers (create-section-headers code-size data-size symtab-size strtab-size shstrtab-size))
          (elf-header (create-elf-header entry-point section-headers-offset num-sections))
          (program-headers (create-program-headers code-size data-size))
-         (total-size (+ (bytevector-length elf-header)
-                        (bytevector-length program-headers)
-                        (- #x2000 (+ (bytevector-length elf-header) (bytevector-length program-headers)))  ; Padding to 0x2000
-                        code-size
-                        (align-to code-size 16)  ; Alignment after code
-                        data-size
-                        (align-to data-size 16)  ; Alignment after data
-                        symtab-size
-                        (align-to symtab-size 16)  ; Alignment after symtab
-                        strtab-size
-                        (align-to strtab-size 16)  ; Alignment after strtab
-                        shstrtab-size
-                        (let ((padding-size (max 0 (- section-headers-offset 
-                                                      (+ #x2000 
-                                                         (align-to code-size 16) 
-                                                         (align-to data-size 16) 
-                                                         (align-to symtab-size 16) 
-                                                         (align-to strtab-size 16) 
-                                                         shstrtab-size)))))
-                          padding-size)
-                        (bytevector-length section-headers))))
-
-    ;; Debug output for section headers
-    (format #t "Section Headers Debug Info:~%")
-    (do ((i 0 (+ i 1)))
-        ((= i num-sections))
-      (let ((offset (* i 64)))
-        (format #t "Section ~a:~%" i)
-        (format #t "  sh_name: ~a~%" (bytevector-u32-ref section-headers offset (endianness little)))
-        (format #t "  sh_type: ~a~%" (bytevector-u32-ref section-headers (+ offset 4) (endianness little)))
-        (format #t "  sh_flags: 0x~x~%" (bytevector-u64-ref section-headers (+ offset 8) (endianness little)))
-        (format #t "  sh_addr: 0x~x~%" (bytevector-u64-ref section-headers (+ offset 16) (endianness little)))
-        (format #t "  sh_offset: 0x~x~%" (bytevector-u64-ref section-headers (+ offset 24) (endianness little)))
-        (format #t "  sh_size: ~a~%" (bytevector-u64-ref section-headers (+ offset 32) (endianness little)))
-        (format #t "  sh_link: ~a~%" (bytevector-u32-ref section-headers (+ offset 40) (endianness little)))
-        (format #t "  sh_info: ~a~%" (bytevector-u32-ref section-headers (+ offset 44) (endianness little)))
-        (format #t "  sh_addralign: ~a~%" (bytevector-u64-ref section-headers (+ offset 48) (endianness little)))
-        (format #t "  sh_entsize: ~a~%~%" (bytevector-u64-ref section-headers (+ offset 56) (endianness little)))))
-
-    ;; Debug output for file layout
-    (format #t "File Layout:~%")
-    (format #t "ELF Header: 0x0 - 0x~x~%" (bytevector-length elf-header))
-    (format #t "Program Headers: 0x~x - 0x~x~%" 
-            (bytevector-length elf-header)
-            (+ (bytevector-length elf-header) (bytevector-length program-headers)))
-    (format #t "Code Section: 0x2000 - 0x~x~%" (+ #x2000 code-size))
-    (format #t "Data Section: 0x~x - 0x~x~%" 
-            (+ #x2000 (align-to code-size 16))
-            (+ #x2000 (align-to code-size 16) data-size))
-    (format #t "Symbol Table: 0x~x - 0x~x~%" 
-            (+ #x2000 (align-to code-size 16) (align-to data-size 16))
-            (+ #x2000 (align-to code-size 16) (align-to data-size 16) symtab-size))
-    (format #t "String Table: 0x~x - 0x~x~%" 
-            (+ #x2000 (align-to code-size 16) (align-to data-size 16) (align-to symtab-size 16))
-            (+ #x2000 (align-to code-size 16) (align-to data-size 16) (align-to symtab-size 16) strtab-size))
-    (format #t "Section Header String Table: 0x~x - 0x~x~%" 
-            (+ #x2000 (align-to code-size 16) (align-to data-size 16) (align-to symtab-size 16) (align-to strtab-size 16))
-            (+ #x2000 (align-to code-size 16) (align-to data-size 16) (align-to symtab-size 16) (align-to strtab-size 16) shstrtab-size))
-    (format #t "Section Headers: 0x~x - 0x~x~%" 
-            section-headers-offset
-            (+ section-headers-offset (bytevector-length section-headers)))
+         (total-size (+ section-headers-offset (bytevector-length section-headers))))
 
     (call-with-output-file output-file
       (lambda (port)
@@ -365,64 +174,9 @@
         (write-bytevector section-headers port)))
 
     (format #t "Shared object created: ~a~%" output-file)
-    (format #t "Total file size: ~a bytes~%" total-size)
-    (format #t "Expected file size: ~a bytes~%" 
-            (+ section-headers-offset (bytevector-length section-headers)))
+    (format #t "Total file size: ~a bytes~%" total-size)))
 
-    ;; Verify total file size
-    (let ((actual-file-size (file-size output-file)))
-      (format #t "Actual file size: ~a bytes~%" actual-file-size)
-      (if (= actual-file-size total-size)
-          (format #t "File size matches expected size.~%")
-          (format #t "Warning: File size mismatch! Expected ~a, got ~a~%" total-size actual-file-size)))))
 
-;; Helper function to get file size
-(define (file-size filename)
-  (stat:size (stat filename)))
-
-(define (align-to value alignment)
-  (* (ceiling (/ value alignment)) alignment))
-
-;; Helper functions to create various parts of the ELF file
-(define (create-symbol-table symbol-addresses)
-  (let* ((symbol-count (length symbol-addresses))
-         (table-size (* symbol-count 24))  ; Each symbol entry is 24 bytes
-         (table (make-bytevector table-size 0))
-         (string-table-offset 1))  ; Start at 1 to account for null byte at beginning of string table
-    (format #t "Creating symbol table with ~a symbols~%" symbol-count)
-    (let loop ((symbols symbol-addresses)
-               (index 0)
-               (str-offset 1))
-      (if (null? symbols)
-          (begin
-            (format #t "Symbol table created. Size: ~a bytes~%" (bytevector-length table))
-            table)
-          (let* ((symbol (car symbols))
-                 (name (symbol->string (car symbol)))
-                 (address (cdr symbol)))
-            (bytevector-u32-set! table (* index 24) str-offset (endianness little))  ; st_name
-            (bytevector-u8-set! table (+ (* index 24) 4) 1)  ; st_info (1 = STT_OBJECT)
-            (bytevector-u8-set! table (+ (* index 24) 5) 0)  ; st_other
-            (bytevector-u16-set! table (+ (* index 24) 6) 1 (endianness little))  ; st_shndx (1 = .text section)
-            (bytevector-u64-set! table (+ (* index 24) 8) address (endianness little))  ; st_value
-            (bytevector-u64-set! table (+ (* index 24) 16) 0 (endianness little))  ; st_size
-            (format #t "Added symbol: ~a, address: 0x~x, offset in string table: ~a~%" 
-                    name address str-offset)
-            (loop (cdr symbols)
-                  (+ index 1)
-                  (+ str-offset (string-length name) 1)))))))
-
-(define (create-string-table symbol-addresses)
-  (let* ((names (map (lambda (pair) (symbol->string (car pair))) symbol-addresses))
-         (total-length (+ 1 (apply + (map (lambda (name) (+ (string-length name) 1)) names))))
-         (table (make-bytevector total-length 0)))
-    (let loop ((names names)
-               (offset 1))
-      (if (null? names)
-          table
-          (let ((name (car names)))
-            (bytevector-copy! (string->utf8 name) 0 table offset (string-length name))
-            (loop (cdr names) (+ offset (string-length name) 1)))))))
 
 (define (create-relocation-table symbol-addresses)
   (let* ((reloc-count (length symbol-addresses))
