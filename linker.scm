@@ -4,7 +4,7 @@
   #:use-module (rnrs bytevectors)
   #:use-module (ice-9 binary-ports)
   #:use-module (rnrs io ports) ; For put-bytevector
-  #:export (link-code create-shared-object))
+  #:export (link-code create-shared-object create-elf-header create-section-headers))
 
 ; Add this definition near the top of the file, after the module definition
 (define (bytevector-append . bvs)
@@ -32,7 +32,10 @@
 
 (define (create-program-headers code-size data-size)
   (let* ((text-segment (create-program-header 1 #x1000 #x1000 #x1000 code-size code-size 5 #x1000))
-         (data-segment (create-program-header 1 (+ #x1000 code-size) (+ #x1000 code-size) (+ #x1000 code-size) data-size data-size 6 #x1000)))
+         (data-segment (create-program-header 1 (+ #x1000 (align-to code-size 16)) 
+                                              (+ #x1000 (align-to code-size 16)) 
+                                              (+ #x1000 (align-to code-size 16)) 
+                                              data-size data-size 6 #x1000)))
     (bytevector-append text-segment data-segment)))
 
 (define (make-symbol-table)
@@ -229,7 +232,7 @@
     (bytevector-u32-set! headers 196 2 (endianness little))  ; sh_type (SHT_SYMTAB)
     (bytevector-u64-set! headers 200 0 (endianness little))  ; sh_flags
     (bytevector-u64-set! headers 208 0 (endianness little))  ; sh_addr
-    (bytevector-u64-set! headers 216 (+ #x1000 code-size data-size) (endianness little))  ; sh_offset
+    (bytevector-u64-set! headers 216 (+ #x2000 code-size data-size) (endianness little))  ; sh_offset
     (bytevector-u64-set! headers 224 symtab-size (endianness little))  ; sh_size
     (bytevector-u32-set! headers 232 4 (endianness little))  ; sh_link (index of .strtab)
     (bytevector-u32-set! headers 236 5 (endianness little))  ; sh_info (one greater than the symbol table index of the last local symbol)
@@ -241,7 +244,7 @@
     (bytevector-u32-set! headers 260 3 (endianness little))  ; sh_type (SHT_STRTAB)
     (bytevector-u64-set! headers 264 0 (endianness little))  ; sh_flags
     (bytevector-u64-set! headers 272 0 (endianness little))  ; sh_addr
-    (bytevector-u64-set! headers 280 (+ #x1000 code-size data-size symtab-size) (endianness little))  ; sh_offset
+    (bytevector-u64-set! headers 280 (+ #x2000 code-size data-size symtab-size) (endianness little))  ; sh_offset
     (bytevector-u64-set! headers 288 strtab-size (endianness little))  ; sh_size
     (bytevector-u32-set! headers 296 0 (endianness little))  ; sh_link
     (bytevector-u32-set! headers 300 0 (endianness little))  ; sh_info
@@ -253,7 +256,7 @@
     (bytevector-u32-set! headers 324 3 (endianness little))  ; sh_type (SHT_STRTAB)
     (bytevector-u64-set! headers 328 0 (endianness little))  ; sh_flags
     (bytevector-u64-set! headers 336 0 (endianness little))  ; sh_addr
-    (bytevector-u64-set! headers 344 (+ #x1000 code-size data-size symtab-size strtab-size) (endianness little))  ; sh_offset
+    (bytevector-u64-set! headers 344 (+ #x2000 code-size data-size symtab-size strtab-size) (endianness little))  ; sh_offset
     (bytevector-u64-set! headers 352 shstrtab-size (endianness little))  ; sh_size
     (bytevector-u32-set! headers 360 0 (endianness little))  ; sh_link
     (bytevector-u32-set! headers 364 0 (endianness little))  ; sh_info
@@ -275,34 +278,107 @@
          (strtab-size (bytevector-length strtab))
          (shstrtab (create-section-header-string-table))
          (shstrtab-size (bytevector-length shstrtab))
-         (section-headers-offset (align-to (+ #x1000 code-size data-size symtab-size strtab-size shstrtab-size) 8))
+         (section-headers-offset (align-to (+ #x2000 code-size data-size symtab-size strtab-size shstrtab-size) 16))
          (num-sections 6)  ; .text, .data, .symtab, .strtab, .shstrtab, and a null section
          (section-headers (create-section-headers code-size data-size symtab-size strtab-size shstrtab-size))
          (elf-header (create-elf-header entry-point section-headers-offset num-sections))
          (program-headers (create-program-headers code-size data-size))
-         (total-size (+ section-headers-offset (bytevector-length section-headers))))
+         (total-size (+ (bytevector-length elf-header)
+                        (bytevector-length program-headers)
+                        (- #x2000 (+ (bytevector-length elf-header) (bytevector-length program-headers)))  ; Padding to 0x2000
+                        code-size
+                        (align-to code-size 16)  ; Alignment after code
+                        data-size
+                        (align-to data-size 16)  ; Alignment after data
+                        symtab-size
+                        (align-to symtab-size 16)  ; Alignment after symtab
+                        strtab-size
+                        (align-to strtab-size 16)  ; Alignment after strtab
+                        shstrtab-size
+                        (let ((padding-size (max 0 (- section-headers-offset 
+                                                      (+ #x2000 
+                                                         (align-to code-size 16) 
+                                                         (align-to data-size 16) 
+                                                         (align-to symtab-size 16) 
+                                                         (align-to strtab-size 16) 
+                                                         shstrtab-size)))))
+                          padding-size)
+                        (bytevector-length section-headers))))
+
+    ;; Debug output for section headers
+    (format #t "Section Headers Debug Info:~%")
+    (do ((i 0 (+ i 1)))
+        ((= i num-sections))
+      (let ((offset (* i 64)))
+        (format #t "Section ~a:~%" i)
+        (format #t "  sh_name: ~a~%" (bytevector-u32-ref section-headers offset (endianness little)))
+        (format #t "  sh_type: ~a~%" (bytevector-u32-ref section-headers (+ offset 4) (endianness little)))
+        (format #t "  sh_flags: 0x~x~%" (bytevector-u64-ref section-headers (+ offset 8) (endianness little)))
+        (format #t "  sh_addr: 0x~x~%" (bytevector-u64-ref section-headers (+ offset 16) (endianness little)))
+        (format #t "  sh_offset: 0x~x~%" (bytevector-u64-ref section-headers (+ offset 24) (endianness little)))
+        (format #t "  sh_size: ~a~%" (bytevector-u64-ref section-headers (+ offset 32) (endianness little)))
+        (format #t "  sh_link: ~a~%" (bytevector-u32-ref section-headers (+ offset 40) (endianness little)))
+        (format #t "  sh_info: ~a~%" (bytevector-u32-ref section-headers (+ offset 44) (endianness little)))
+        (format #t "  sh_addralign: ~a~%" (bytevector-u64-ref section-headers (+ offset 48) (endianness little)))
+        (format #t "  sh_entsize: ~a~%~%" (bytevector-u64-ref section-headers (+ offset 56) (endianness little)))))
+
+    ;; Debug output for file layout
+    (format #t "File Layout:~%")
+    (format #t "ELF Header: 0x0 - 0x~x~%" (bytevector-length elf-header))
+    (format #t "Program Headers: 0x~x - 0x~x~%" 
+            (bytevector-length elf-header)
+            (+ (bytevector-length elf-header) (bytevector-length program-headers)))
+    (format #t "Code Section: 0x2000 - 0x~x~%" (+ #x2000 code-size))
+    (format #t "Data Section: 0x~x - 0x~x~%" 
+            (+ #x2000 (align-to code-size 16))
+            (+ #x2000 (align-to code-size 16) data-size))
+    (format #t "Symbol Table: 0x~x - 0x~x~%" 
+            (+ #x2000 (align-to code-size 16) (align-to data-size 16))
+            (+ #x2000 (align-to code-size 16) (align-to data-size 16) symtab-size))
+    (format #t "String Table: 0x~x - 0x~x~%" 
+            (+ #x2000 (align-to code-size 16) (align-to data-size 16) (align-to symtab-size 16))
+            (+ #x2000 (align-to code-size 16) (align-to data-size 16) (align-to symtab-size 16) strtab-size))
+    (format #t "Section Header String Table: 0x~x - 0x~x~%" 
+            (+ #x2000 (align-to code-size 16) (align-to data-size 16) (align-to symtab-size 16) (align-to strtab-size 16))
+            (+ #x2000 (align-to code-size 16) (align-to data-size 16) (align-to symtab-size 16) (align-to strtab-size 16) shstrtab-size))
+    (format #t "Section Headers: 0x~x - 0x~x~%" 
+            section-headers-offset
+            (+ section-headers-offset (bytevector-length section-headers)))
 
     (call-with-output-file output-file
       (lambda (port)
         (write-bytevector elf-header port)
         (write-bytevector program-headers port)
-        (write-bytevector (make-bytevector (max 0 (- #x1000 (+ (bytevector-length elf-header) (bytevector-length program-headers)))) 0) port)
+        (write-bytevector (make-bytevector (max 0 (- #x2000 (+ (bytevector-length elf-header) (bytevector-length program-headers)))) 0) port)
         (write-bytevector code port)
-        (write-bytevector (make-bytevector (align-to code-size 8) 0) port)
+        (write-bytevector (make-bytevector (align-to code-size 16) 0) port)  ; Align to 16 bytes
         (for-each (lambda (pair) (write-bytevector (cdr pair) port)) data-sections)
-        (write-bytevector (make-bytevector (align-to data-size 8) 0) port)
+        (write-bytevector (make-bytevector (align-to data-size 16) 0) port)  ; Align to 16 bytes
         (write-bytevector symtab port)
-        (write-bytevector (make-bytevector (align-to symtab-size 8) 0) port)
+        (write-bytevector (make-bytevector (align-to symtab-size 16) 0) port)  ; Align to 16 bytes
         (write-bytevector strtab port)
-        (write-bytevector (make-bytevector (align-to strtab-size 8) 0) port)
+        (write-bytevector (make-bytevector (align-to strtab-size 16) 0) port)  ; Align to 16 bytes
         (write-bytevector shstrtab port)
-        (let ((padding-size (max 0 (- section-headers-offset (+ #x1000 (align-to code-size 8) (align-to data-size 8) (align-to symtab-size 8) (align-to strtab-size 8) shstrtab-size)))))
+        (let ((padding-size (max 0 (- section-headers-offset (+ #x2000 (align-to code-size 16) (align-to data-size 16) (align-to symtab-size 16) (align-to strtab-size 16) shstrtab-size)))))
           (when (> padding-size 0)
             (write-bytevector (make-bytevector padding-size 0) port)))
         (write-bytevector section-headers port)))
 
     (format #t "Shared object created: ~a~%" output-file)
-    (format #t "Total file size: ~a bytes~%" total-size)))
+    (format #t "Total file size: ~a bytes~%" total-size)
+    (format #t "Expected file size: ~a bytes~%" 
+            (+ section-headers-offset (bytevector-length section-headers)))
+
+    ;; Verify total file size
+    (let ((actual-file-size (file-size output-file)))
+      (format #t "Actual file size: ~a bytes~%" actual-file-size)
+      (if (= actual-file-size total-size)
+          (format #t "File size matches expected size.~%")
+          (format #t "Warning: File size mismatch! Expected ~a, got ~a~%" total-size actual-file-size)))))
+
+;; Helper function to get file size
+(define (file-size filename)
+  (stat:size (stat filename)))
 
 (define (align-to value alignment)
   (* (ceiling (/ value alignment)) alignment))
