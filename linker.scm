@@ -141,6 +141,58 @@
 (define (estimate-dynamic-size)
   (* 16 10))  ; Estimate 10 entries, each 16 bytes long
 
+(define (verify-dynamic-section dynamic-section dynstr-offset dynsym-offset strtab-size dynsym-size rela-offset rela-size)
+  (define (get-tag-name tag)
+    (case tag
+      ((1) "DT_NEEDED")
+      ((5) "DT_STRTAB")
+      ((6) "DT_SYMTAB")
+      ((7) "DT_RELA")
+      ((8) "DT_RELASZ")
+      ((9) "DT_RELAENT")
+      ((10) "DT_STRSZ")
+      ((11) "DT_SYMENT")
+      ((0) "DT_NULL")
+      (else (format #f "Unknown tag: ~a" tag))))
+
+  (define (custom-assert condition message)
+    (unless condition
+      (error message)))
+
+  (let loop ((offset 0))
+    (when (< offset (bytevector-length dynamic-section))
+      (let* ((tag (bytevector-u64-ref dynamic-section offset (endianness little)))
+             (value (bytevector-u64-ref dynamic-section (+ offset 8) (endianness little))))
+        (format #t "~a: 0x~x~%" (get-tag-name tag) value)
+        (case tag
+          ((5) (custom-assert (= value dynstr-offset) "DT_STRTAB value mismatch"))
+          ((6) (custom-assert (= value dynsym-offset) "DT_SYMTAB value mismatch"))
+          ((7) (custom-assert (= value rela-offset) "DT_RELA value mismatch"))
+          ((8) (custom-assert (= value rela-size) "DT_RELASZ value mismatch"))
+          ((9) (custom-assert (= value 24) "DT_RELAENT value mismatch"))
+          ((10) (custom-assert (= value strtab-size) "DT_STRSZ value mismatch"))
+          ((11) (custom-assert (= value 24) "DT_SYMENT value mismatch")))
+        (if (= tag 0)
+            (format #t "Dynamic section verification complete.~%")
+            (loop (+ offset 16)))))))
+
+(define (check-section-overlaps sections)
+  (define (custom-assert condition message)
+    (unless condition
+      (error message)))
+
+  (let loop ((remaining sections))
+    (when (> (length remaining) 1)
+      (let* ((current (car remaining))
+             (others (cdr remaining)))
+        (for-each
+         (lambda (other)
+           (custom-assert (or (<= (+ (car current) (cadr current)) (car other))
+                              (>= (car current) (+ (car other) (cadr other))))
+                          (format #f "Section overlap: ~a and ~a" (caddr current) (caddr other))))
+         others)
+        (loop (cdr remaining))))))
+
 (define (create-shared-object code data-sections output-file symbol-addresses label-positions)
   (let* ((elf-header-size 64)
          (program-headers-offset elf-header-size)
@@ -160,13 +212,10 @@
          (code-offset #x1000)
          (data-offset (align-to (+ code-offset code-size) #x1000))
          (dynamic-offset (align-to (+ data-offset data-size) #x1000))
-         
-         ;; Calculate the total dynamic size including all related sections
-         (dynamic-section-size 128)  ; Size of the dynamic section itself
-         (dynstr-offset (align-to (+ dynamic-offset dynamic-section-size) 8))
+         (dynstr-offset (align-to (+ dynamic-offset 176) 8))  ; 176 is the new size of .dynamic
          (dynsym-offset (align-to (+ dynstr-offset strtab-size) 8))
          (rela-offset (align-to (+ dynsym-offset dynamic-symbol-table-size) 8))
-         (total-dynamic-size (- (+ rela-offset relocation-table-size) dynamic-offset))
+         (total-dynamic-size (- (align-to (+ rela-offset relocation-table-size) 8) dynamic-offset))
          
          ;; Create dynamic section
          (dynamic-section (create-dynamic-section 
@@ -208,6 +257,31 @@
                                         total-size)))
 
     (format #t "Total dynamic size: 0x~x~%" total-dynamic-size)
+    (format #t "Dynamic offset: 0x~x~%" dynamic-offset)
+    (format #t "Dynstr offset: 0x~x~%" dynstr-offset)
+    (format #t "Dynsym offset: 0x~x~%" dynsym-offset)
+    (format #t "Rela offset: 0x~x~%" rela-offset)
+
+    (format #t "Verifying dynamic section entries:~%")
+    (verify-dynamic-section dynamic-section dynstr-offset dynsym-offset strtab-size dynamic-symbol-table-size rela-offset relocation-table-size)
+
+    (format #t "Checking section placements:~%")
+    (let ((data-segment-start data-offset)
+          (data-segment-end (+ dynamic-offset total-dynamic-size)))
+      (define (custom-assert condition message)
+        (unless condition
+          (error message)))
+      
+      (custom-assert (<= data-segment-start dynstr-offset data-segment-end) ".dynstr not in LOAD segment")
+      (custom-assert (<= data-segment-start dynsym-offset data-segment-end) ".dynsym not in LOAD segment")
+      (custom-assert (<= data-segment-start rela-offset data-segment-end) ".rela.dyn not in LOAD segment"))
+
+    (format #t "Checking for section overlaps:~%")
+    (check-section-overlaps
+     (list (list dynamic-offset dynamic-size ".dynamic")
+           (list dynstr-offset strtab-size ".dynstr")
+           (list dynsym-offset dynamic-symbol-table-size ".dynsym")
+           (list rela-offset relocation-table-size ".rela.dyn")))
 
     ;; Create the ELF file
     (let ((elf-file (make-bytevector total-size 0)))
