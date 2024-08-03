@@ -2,41 +2,38 @@
   #:use-module (rnrs bytevectors)
   #:export (create-dynamic-section))
 
-(define (create-dynamic-section dynstr-offset dynsym-offset dynstr-size dynsym-size rela-offset rela-size)
-  (let* ((num-entries 8)
-         (entry-size 16)
-         (section (make-bytevector (* num-entries entry-size) 0)))
-    
+(define (create-dynamic-section dynstr-offset dynsym-offset strtab-size dynsym-size rela-offset rela-size)
+  (let ((dynamic-section (make-bytevector 128 0)))  ; Adjust size as needed
     ;; DT_STRTAB
-    (bytevector-u64-set! section 0 5 (endianness little))
-    (bytevector-u64-set! section 8 dynstr-offset (endianness little))
+    (bytevector-u64-set! dynamic-section 0 5 (endianness little))
+    (bytevector-u64-set! dynamic-section 8 dynstr-offset (endianness little))
     
     ;; DT_SYMTAB
-    (bytevector-u64-set! section 16 6 (endianness little))
-    (bytevector-u64-set! section 24 dynsym-offset (endianness little))
+    (bytevector-u64-set! dynamic-section 16 6 (endianness little))
+    (bytevector-u64-set! dynamic-section 24 dynsym-offset (endianness little))
     
     ;; DT_STRSZ
-    (bytevector-u64-set! section 32 10 (endianness little))
-    (bytevector-u64-set! section 40 dynstr-size (endianness little))
+    (bytevector-u64-set! dynamic-section 32 10 (endianness little))
+    (bytevector-u64-set! dynamic-section 40 strtab-size (endianness little))
     
     ;; DT_SYMENT
-    (bytevector-u64-set! section 48 11 (endianness little))
-    (bytevector-u64-set! section 56 24 (endianness little))
+    (bytevector-u64-set! dynamic-section 48 11 (endianness little))
+    (bytevector-u64-set! dynamic-section 56 24 (endianness little))  ; Size of Elf64_Sym
     
     ;; DT_RELA
-    (bytevector-u64-set! section 64 7 (endianness little))
-    (bytevector-u64-set! section 72 rela-offset (endianness little))
+    (bytevector-u64-set! dynamic-section 64 7 (endianness little))
+    (bytevector-u64-set! dynamic-section 72 rela-offset (endianness little))
     
     ;; DT_RELASZ
-    (bytevector-u64-set! section 80 8 (endianness little))
-    (bytevector-u64-set! section 88 rela-size (endianness little))
+    (bytevector-u64-set! dynamic-section 80 8 (endianness little))
+    (bytevector-u64-set! dynamic-section 88 rela-size (endianness little))
     
     ;; DT_RELAENT
-    (bytevector-u64-set! section 96 9 (endianness little))
-    (bytevector-u64-set! section 104 24 (endianness little))
+    (bytevector-u64-set! dynamic-section 96 9 (endianness little))
+    (bytevector-u64-set! dynamic-section 104 24 (endianness little))  ; Size of Elf64_Rela
     
-    ;; DT_NULL
-    (bytevector-u64-set! section 112 0 (endianness little))
-    (bytevector-u64-set! section 120 0 (endianness little))
+    ;; DT_NULL (terminator)
+    (bytevector-u64-set! dynamic-section 112 0 (endianness little))
+    (bytevector-u64-set! dynamic-section 120 0 (endianness little))
     
-    section))
+    dynamic-section))

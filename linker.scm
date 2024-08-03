@@ -161,16 +161,23 @@
          (data-offset (align-to (+ code-offset code-size) #x1000))
          (dynamic-offset (align-to (+ data-offset data-size) #x1000))
          
-         ;; Create dynamic section first to get its size
+         ;; Calculate the total dynamic size including all related sections
+         (dynamic-section-size 128)  ; Size of the dynamic section itself
+         (dynstr-offset (align-to (+ dynamic-offset dynamic-section-size) 8))
+         (dynsym-offset (align-to (+ dynstr-offset strtab-size) 8))
+         (rela-offset (align-to (+ dynsym-offset dynamic-symbol-table-size) 8))
+         (total-dynamic-size (- (+ rela-offset relocation-table-size) dynamic-offset))
+         
+         ;; Create dynamic section
          (dynamic-section (create-dynamic-section 
-                            (+ dynamic-offset 128)  ; dynstr offset
-                            (+ dynamic-offset 128 strtab-size)  ; dynsym offset
+                            dynstr-offset
+                            dynsym-offset
                             strtab-size
                             dynamic-symbol-table-size
-                            (+ dynamic-offset 128 strtab-size dynamic-symbol-table-size)  ; rela offset
+                            rela-offset
                             relocation-table-size))
          (dynamic-size (bytevector-length dynamic-section))
-         (total-dynamic-size (+ dynamic-size strtab-size dynamic-symbol-table-size relocation-table-size))
+         
          (section-headers-offset (align-to (+ dynamic-offset total-dynamic-size) #x1000))
          (num-sections 14)
          (section-headers (create-section-headers 
@@ -186,7 +193,8 @@
          (program-headers (create-program-headers 
                            code-size
                            data-size
-                           total-dynamic-size))
+                           total-dynamic-size
+                           dynamic-offset))
          (program-headers-size (bytevector-length program-headers))
          (num-program-headers (/ program-headers-size 56))
          (section-headers-size (* num-sections 64))
@@ -198,10 +206,6 @@
                                         num-program-headers 
                                         num-sections
                                         total-size)))
-
-    (format #t "Calculated dynamic section size: ~a bytes~%" dynamic-size)
-    (format #t "Actual dynamic section content:~%")
-    (display-bytevector dynamic-section)
 
     (format #t "Total dynamic size: 0x~x~%" total-dynamic-size)
 
@@ -227,16 +231,16 @@
       (format #t "Writing dynamic section at offset: 0x~x~%" dynamic-offset)
       
       ;; Write .dynstr section
-      (bytevector-copy! strtab 0 elf-file (+ dynamic-offset dynamic-size) strtab-size)
-      (format #t "Writing .dynstr section at offset: 0x~x~%" (+ dynamic-offset dynamic-size))
+      (bytevector-copy! strtab 0 elf-file dynstr-offset strtab-size)
+      (format #t "Writing .dynstr section at offset: 0x~x~%" dynstr-offset)
       
       ;; Write .dynsym section
-      (bytevector-copy! dynamic-symbol-table 0 elf-file (+ dynamic-offset dynamic-size strtab-size) dynamic-symbol-table-size)
-      (format #t "Writing .dynsym section at offset: 0x~x~%" (+ dynamic-offset dynamic-size strtab-size))
+      (bytevector-copy! dynamic-symbol-table 0 elf-file dynsym-offset dynamic-symbol-table-size)
+      (format #t "Writing .dynsym section at offset: 0x~x~%" dynsym-offset)
       
       ;; Write .rela.dyn section
-      (bytevector-copy! relocation-table 0 elf-file (+ dynamic-offset dynamic-size strtab-size dynamic-symbol-table-size) relocation-table-size)
-      (format #t "Writing .rela.dyn section at offset: 0x~x~%" (+ dynamic-offset dynamic-size strtab-size dynamic-symbol-table-size))
+      (bytevector-copy! relocation-table 0 elf-file rela-offset relocation-table-size)
+      (format #t "Writing .rela.dyn section at offset: 0x~x~%" rela-offset)
       
       ;; Write section headers
       (bytevector-copy! section-headers 0 elf-file section-headers-offset section-headers-size)
