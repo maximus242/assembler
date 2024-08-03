@@ -3,7 +3,7 @@
   #:export (create-dynamic-section))
 
 (define (create-dynamic-section dynstr-offset dynsym-offset strtab-size dynsym-size rela-offset rela-size)
-  (let ((dynamic-section (make-bytevector 176 0)))  ; Increased size to accommodate all entries
+  (let ((dynamic-section (make-bytevector 144 0)))  ; 9 entries * 16 bytes each
     ;; DT_NEEDED (assuming we need libc.so.6, adjust as necessary)
     (bytevector-u64-set! dynamic-section 0 1 (endianness little))
     (bytevector-u64-set! dynamic-section 8 1 (endianness little))  ; Offset in dynstr for "libc.so.6"
@@ -36,16 +36,8 @@
     (bytevector-u64-set! dynamic-section 112 11 (endianness little))
     (bytevector-u64-set! dynamic-section 120 24 (endianness little))  ; Size of Elf64_Sym
     
-    ;; DT_DEBUG (optional, for dynamic linker)
-    (bytevector-u64-set! dynamic-section 128 21 (endianness little))
-    (bytevector-u64-set! dynamic-section 136 0 (endianness little))
-    
-    ;; DT_PLTGOT (if you have a GOT)
-    (bytevector-u64-set! dynamic-section 144 3 (endianness little))
-    (bytevector-u64-set! dynamic-section 152 0 (endianness little))  ; Fill in actual GOT address if you have one
-    
     ;; DT_NULL (terminator)
-    (bytevector-u64-set! dynamic-section 160 0 (endianness little))
-    (bytevector-u64-set! dynamic-section 168 0 (endianness little))
+    (bytevector-u64-set! dynamic-section 128 0 (endianness little))
+    (bytevector-u64-set! dynamic-section 136 0 (endianness little))
     
     dynamic-section))

@@ -2,38 +2,33 @@
   #:use-module (rnrs bytevectors)
   #:export (create-string-table
             create-section-header-string-table
-            string-table-offset))
+            string-table-offset
+            get-section-name-offset))
 
 (define (create-string-table symbol-addresses)
-  (let* ((names (map (lambda (pair) (symbol->string (car pair))) symbol-addresses))
-         (total-length (+ 1 (apply + (map (lambda (name) (+ (string-length name) 1)) names))))
-         (table (make-bytevector total-length 0)))
-    (let loop ((names names)
-               (offset 1))
-      (if (null? names)
-          table
-          (let ((name (car names)))
-            (bytevector-copy! (string->utf8 name) 0 table offset (string-length name))
-            (loop (cdr names) (+ offset (string-length name) 1)))))))
+  (let* ((names (cons "" (map (lambda (pair) (symbol->string (car pair))) symbol-addresses)))
+         (total-length (apply + (map (lambda (name) (+ (string-length name) 1)) names)))
+         (table (make-bytevector total-length 0))
+         (offset 0))
+    (for-each (lambda (name)
+                (let ((len (string-length name)))
+                  (bytevector-copy! (string->utf8 name) 0 table offset len)
+                  (set! offset (+ offset len 1))))
+              names)
+    table))
 
 (define (create-section-header-string-table)
-  (string->utf8 
-   (string-append
-    "\0"                ; Null section
-    ".text\0"           ; Code section
-    ".data\0"           ; Data section
-    ".bss\0"            ; Uninitialized data section
-    ".rodata\0"         ; Read-only data section
-    ".symtab\0"         ; Symbol table
-    ".strtab\0"         ; String table
-    ".shstrtab\0"       ; Section header string table
-    ".rela.text\0"      ; Relocation entries for .text
-    ".rela.data\0"      ; Relocation entries for .data
-    ".init\0"           ; Initialization code
-    ".fini\0"           ; Termination code
-    ".dynamic\0"        ; Dynamic linking information
-    ".dynsym\0"         ; Dynamic linking symbol table
-    ".dynstr\0")))      ; Dynamic linking string table
+  (let* ((names '("" ".text" ".data" ".bss" ".rodata" ".symtab" ".strtab" ".shstrtab" 
+                  ".rela.text" ".dynamic" ".dynstr" ".dynsym" ".rela.dyn" ".got" ".plt"))
+         (total-length (apply + (map (lambda (s) (+ (string-length s) 1)) names)))
+         (table (make-bytevector total-length 0))
+         (offset 0))
+    (for-each (lambda (name)
+                (let ((len (string-length name)))
+                  (bytevector-copy! (string->utf8 name) 0 table offset len)
+                  (set! offset (+ offset len 1))))
+              names)
+    table))
 
 (define (string-table-offset name string-table)
   (let loop ((offset 0))
@@ -51,4 +46,7 @@
                #t
                (and (= (char->integer (string-ref str i))
                        (bytevector-u8-ref bv (+ offset i)))
-                    (loop (+ i 1))))))))  ; <- Add one more closing parenthesis here
+                    (loop (+ i 1))))))))
+
+(define (get-section-name-offset shstrtab section-name)
+  (string-table-offset section-name shstrtab))

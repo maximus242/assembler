@@ -212,7 +212,8 @@
          (code-offset #x1000)
          (data-offset (align-to (+ code-offset code-size) #x1000))
          (dynamic-offset (align-to (+ data-offset data-size) #x1000))
-         (dynstr-offset (align-to (+ dynamic-offset 176) 8))  ; 176 is the new size of .dynamic
+         (dynamic-size 144)  ; Size of the dynamic section (9 entries * 16 bytes each)
+         (dynstr-offset (align-to (+ dynamic-offset dynamic-size) 8))
          (dynsym-offset (align-to (+ dynstr-offset strtab-size) 8))
          (rela-offset (align-to (+ dynsym-offset dynamic-symbol-table-size) 8))
          (total-dynamic-size (- (align-to (+ rela-offset relocation-table-size) 8) dynamic-offset))
@@ -225,7 +226,6 @@
                             dynamic-symbol-table-size
                             rela-offset
                             relocation-table-size))
-         (dynamic-size (bytevector-length dynamic-section))
          
          (section-headers-offset (align-to (+ dynamic-offset total-dynamic-size) #x1000))
          (num-sections 14)
@@ -266,15 +266,21 @@
     (verify-dynamic-section dynamic-section dynstr-offset dynsym-offset strtab-size dynamic-symbol-table-size rela-offset relocation-table-size)
 
     (format #t "Checking section placements:~%")
-    (let ((data-segment-start data-offset)
-          (data-segment-end (+ dynamic-offset total-dynamic-size)))
+    (let* ((data-segment-start data-offset)
+           (data-segment-end (+ dynamic-offset total-dynamic-size))
+           (data-segment-size (- data-segment-end data-segment-start)))
+      (format #t "Data segment start: 0x~x~%" data-segment-start)
+      (format #t "Data segment end: 0x~x~%" data-segment-end)
+      (format #t "Data segment size: 0x~x~%" data-segment-size)
+      
       (define (custom-assert condition message)
         (unless condition
           (error message)))
       
       (custom-assert (<= data-segment-start dynstr-offset data-segment-end) ".dynstr not in LOAD segment")
       (custom-assert (<= data-segment-start dynsym-offset data-segment-end) ".dynsym not in LOAD segment")
-      (custom-assert (<= data-segment-start rela-offset data-segment-end) ".rela.dyn not in LOAD segment"))
+      (custom-assert (<= data-segment-start rela-offset data-segment-end) ".rela.dyn not in LOAD segment")
+      (custom-assert (<= (+ rela-offset relocation-table-size) data-segment-end) ".rela.dyn exceeds LOAD segment"))
 
     (format #t "Checking for section overlaps:~%")
     (check-section-overlaps
