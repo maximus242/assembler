@@ -138,6 +138,9 @@
 (define (write-bytevector bv port)
   (put-bytevector port bv))
 
+(define (estimate-dynamic-size)
+  (* 16 10))  ; Estimate 10 entries, each 16 bytes long
+
 (define (create-shared-object code data-sections output-file symbol-addresses label-positions)
   (let* ((elf-header-size 64)
          (program-headers-offset elf-header-size)
@@ -154,24 +157,21 @@
          (dynamic-symbol-table-size (bytevector-length dynamic-symbol-table))
          (relocation-table (create-relocation-table symbol-addresses))
          (relocation-table-size (bytevector-length relocation-table))
-         ; Calculate offsets
          (code-offset #x1000)
          (data-offset (align-to (+ code-offset code-size) #x1000))
          (dynamic-offset (align-to (+ data-offset data-size) #x1000))
-         (dynsym-offset (align-to (+ dynamic-offset 1000) #x1000)) ; Estimate dynamic section size
-         (dynstr-offset (+ dynsym-offset dynamic-symbol-table-size))
-         (rela-offset (+ dynstr-offset strtab-size))
          
-         ; Create dynamic section
+         ;; Create dynamic section first to get its size
          (dynamic-section (create-dynamic-section 
-                            dynstr-offset
-                            dynsym-offset 
+                            (+ dynamic-offset 128)  ; dynstr offset
+                            (+ dynamic-offset 128 strtab-size)  ; dynsym offset
                             strtab-size
                             dynamic-symbol-table-size
-                            rela-offset
+                            (+ dynamic-offset 128 strtab-size dynamic-symbol-table-size)  ; rela offset
                             relocation-table-size))
-         (dynamic-section-size (bytevector-length dynamic-section))
-         (section-headers-offset (align-to (+ rela-offset relocation-table-size) #x1000))
+         (dynamic-size (bytevector-length dynamic-section))
+         (total-dynamic-size (+ dynamic-size strtab-size dynamic-symbol-table-size relocation-table-size))
+         (section-headers-offset (align-to (+ dynamic-offset total-dynamic-size) #x1000))
          (num-sections 14)
          (section-headers (create-section-headers 
                            code-size
@@ -180,12 +180,13 @@
                            strtab-size
                            shstrtab-size
                            dynamic-symbol-table-size
+                           strtab-size
                            relocation-table-size
-                           dynamic-section-size))
+                           total-dynamic-size))
          (program-headers (create-program-headers 
                            code-size
                            data-size
-                           dynamic-section-size))
+                           total-dynamic-size))
          (program-headers-size (bytevector-length program-headers))
          (num-program-headers (/ program-headers-size 56))
          (section-headers-size (* num-sections 64))
@@ -198,33 +199,55 @@
                                         num-sections
                                         total-size)))
 
-    (format #t "Calculated dynamic section size: ~a bytes~%" dynamic-section-size)
+    (format #t "Calculated dynamic section size: ~a bytes~%" dynamic-size)
     (format #t "Actual dynamic section content:~%")
     (display-bytevector dynamic-section)
 
-    (format #t "Section headers offset: 0x~x~%" section-headers-offset)
-    (format #t "Section headers size: ~a bytes~%" section-headers-size)
+    (format #t "Total dynamic size: 0x~x~%" total-dynamic-size)
 
-    (call-with-output-file output-file
-      (lambda (port)
-        (write-bytevector elf-header port)
-        (write-bytevector program-headers port)
-        (write-bytevector (make-bytevector (- code-offset (+ elf-header-size program-headers-size)) 0) port)
-        (write-bytevector code port)
-        (write-bytevector (make-bytevector (- data-offset (+ code-offset code-size)) 0) port)
-        (for-each (lambda (pair) (write-bytevector (cdr pair) port)) data-sections)
-        (write-bytevector (make-bytevector (- dynamic-offset (+ data-offset data-size)) 0) port)
-        (write-bytevector dynamic-section port)
-        (write-bytevector (make-bytevector (- dynsym-offset (+ dynamic-offset dynamic-section-size)) 0) port)
-        (write-bytevector dynamic-symbol-table port)
-        (write-bytevector strtab port)
-        (write-bytevector relocation-table port)
-        (write-bytevector (make-bytevector (- section-headers-offset (+ rela-offset relocation-table-size)) 0) port)
-        (format #t "Writing section headers at offset: 0x~x~%" (port-position port))
-        (write-bytevector section-headers port)))
-
-    (format #t "Shared object created: ~a~%" output-file)
-    (format #t "Total file size: ~a bytes~%" total-size)))
+    ;; Create the ELF file
+    (let ((elf-file (make-bytevector total-size 0)))
+      ;; Write ELF header
+      (bytevector-copy! elf-header 0 elf-file 0 (bytevector-length elf-header))
+      
+      ;; Write program headers
+      (bytevector-copy! program-headers 0 elf-file program-headers-offset program-headers-size)
+      
+      ;; Write .text section
+      (bytevector-copy! code 0 elf-file code-offset code-size)
+      
+      ;; Write .data section
+      (for-each (lambda (pair)
+                  (bytevector-copy! (cdr pair) 0 elf-file data-offset (bytevector-length (cdr pair)))
+                  (set! data-offset (+ data-offset (bytevector-length (cdr pair)))))
+                data-sections)
+      
+      ;; Write .dynamic section
+      (bytevector-copy! dynamic-section 0 elf-file dynamic-offset dynamic-size)
+      (format #t "Writing dynamic section at offset: 0x~x~%" dynamic-offset)
+      
+      ;; Write .dynstr section
+      (bytevector-copy! strtab 0 elf-file (+ dynamic-offset dynamic-size) strtab-size)
+      (format #t "Writing .dynstr section at offset: 0x~x~%" (+ dynamic-offset dynamic-size))
+      
+      ;; Write .dynsym section
+      (bytevector-copy! dynamic-symbol-table 0 elf-file (+ dynamic-offset dynamic-size strtab-size) dynamic-symbol-table-size)
+      (format #t "Writing .dynsym section at offset: 0x~x~%" (+ dynamic-offset dynamic-size strtab-size))
+      
+      ;; Write .rela.dyn section
+      (bytevector-copy! relocation-table 0 elf-file (+ dynamic-offset dynamic-size strtab-size dynamic-symbol-table-size) relocation-table-size)
+      (format #t "Writing .rela.dyn section at offset: 0x~x~%" (+ dynamic-offset dynamic-size strtab-size dynamic-symbol-table-size))
+      
+      ;; Write section headers
+      (bytevector-copy! section-headers 0 elf-file section-headers-offset section-headers-size)
+      
+      ;; Write the ELF file to disk
+      (call-with-output-file output-file
+        (lambda (port)
+          (put-bytevector port elf-file)))
+      
+      (format #t "Shared object created: ~a~%" output-file)
+      (format #t "Total file size: ~a bytes~%" total-size))))
 
 (define (create-relocation-table symbol-addresses)
   (let* ((reloc-count (length symbol-addresses))

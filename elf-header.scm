@@ -3,8 +3,8 @@
   #:export (create-elf-header))
 
 (define (create-elf-header entry-point program-headers-offset program-headers-size 
-                           section-headers-offset num-program-headers num-section-headers
-                           file-size)
+                           section-headers-offset num-program-headers num-sections
+                           total-size)
   (let ((header (make-bytevector 64 0)))
     (bytevector-u32-set! header 0 #x464c457f (endianness little))  ; ELF magic number
     (bytevector-u8-set! header 4 2)  ; 64-bit format
@@ -23,6 +23,6 @@
     (bytevector-u16-set! header 54 56 (endianness little))  ; Size of program headers
     (bytevector-u16-set! header 56 num-program-headers (endianness little))   ; Number of program headers
     (bytevector-u16-set! header 58 64 (endianness little))   ; Size of section headers
-    (bytevector-u16-set! header 60 num-section-headers (endianness little))   ; Number of section headers
-    (bytevector-u16-set! header 62 (- num-section-headers 1) (endianness little))   ; Section header string table index
+    (bytevector-u16-set! header 60 num-sections (endianness little))   ; Number of section headers
+    (bytevector-u16-set! header 62 (- num-sections 1) (endianness little))   ; Section header string table index
     header))
