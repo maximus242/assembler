@@ -1,15 +1,15 @@
 (define-module (linker)
-  #:use-module (elf-header)
-  #:use-module (program-headers)
-  #:use-module (section-headers)
-  #:use-module (dynamic-section)
-  #:use-module (symbol-table)
-  #:use-module (string-table)
-  #:use-module (utils)
-  #:use-module (rnrs bytevectors)
-  #:use-module (rnrs io ports)
-  #:use-module (ice-9 format)
-  #:export (link-code create-shared-object))
+               #:use-module (elf-header)
+               #:use-module (program-headers)
+               #:use-module (section-headers)
+               #:use-module (dynamic-section)
+               #:use-module (symbol-table)
+               #:use-module (string-table)
+               #:use-module (utils)
+               #:use-module (rnrs bytevectors)
+               #:use-module (rnrs io ports)
+               #:use-module (ice-9 format)
+               #:export (link-code create-shared-object))
 
 (define (alist-ref key alist)
   (let ((pair (assoc key alist)))
@@ -30,110 +30,110 @@
     (format #t "Label positions: ~a~%" label-positions)
     (let loop ((offset 0))
       (if (< offset code-length)
-          (let ((instruction (bytevector-u8-ref code offset)))
-            (format #t "Offset: ~a, Instruction: ~x~%" offset instruction)
-            (cond
-              ; Handle MOV immediate (could be a symbol or label reference)
-              ((and (= instruction #x48)
-                    (< (+ offset 6) code-length)
-                    (= (bytevector-u8-ref code (+ offset 1)) #xC7))
-               (let* ((reg (logand (bytevector-u8-ref code (+ offset 2)) #x07))
-                      (imm-offset (+ offset 3)))
-                 (if (< (+ imm-offset 4) code-length)
-                     (let ((imm (bytevector-u32-ref code imm-offset (endianness little))))
-                       (format #t "  MOV imm32: reg=~a, imm=~x~%" reg imm)
-                       (when (= imm 0) ; Possible symbolic reference or label
-                         (let* ((symbol-name (alist-ref reg reg-to-symbol-map))
-                                (symbol-address (and symbol-name (or (alist-ref symbol-name symbol-table)
-                                                                     (hash-ref label-positions symbol-name)))))
-                           (format #t "  Resolving symbol/label: ~a -> ~a~%" 
-                                   (or symbol-name "#f") 
-                                   (if symbol-address 
-                                       (format #f "~x" symbol-address)
-                                       "#f"))
-                           (when symbol-address
-                             (bytevector-u32-set! resolved-code imm-offset 
-                                                  (if (hash-ref label-positions symbol-name)
-                                                      (+ symbol-address code-base-address)
-                                                      (adjust-address symbol-address))
-                                                  (endianness little)))))
-                       (format #t "  After MOV resolution: ~x~%" 
-                               (bytevector-u32-ref resolved-code imm-offset (endianness little)))
-                       (loop (+ offset 7)))
-                     (format #t "Warning: Insufficient bytes for MOV immediate at offset ~a~%" offset))))
-              
-              ; Handle VMOVAPS
-              ((and (= instruction #xC5)
-                    (< (+ offset 7) code-length)
-                    (= (bytevector-u8-ref code (+ offset 1)) #xFC)
-                    (= (bytevector-u8-ref code (+ offset 2)) #x28)
-                    (= (bytevector-u8-ref code (+ offset 3)) #x05))
-               (let* ((imm-offset (+ offset 4))
-                      (imm (bytevector-u32-ref code imm-offset (endianness little)))
-                      (symbol-address (alist-ref 'multiplier symbol-table)))
-                 (format #t "  VMOVAPS: original displacement=~x~%" imm)
-                 (when symbol-address
-                   (let* ((instruction-end (+ offset 8))
-                          (next-instruction-address (+ instruction-end code-base-address))
-                          (target-offset (- (adjust-address symbol-address) next-instruction-address)))
-                     (format #t "    Resolving multiplier -> ~x~%" symbol-address)
-                     (format #t "    Instruction end: ~x~%" instruction-end)
-                     (format #t "    Next instruction address: ~x~%" next-instruction-address)
-                     (format #t "    Target offset: ~x~%" target-offset)
-                     (bytevector-u32-set! resolved-code imm-offset target-offset (endianness little))))
-                 (format #t "  After VMOVAPS resolution: ~x~%" 
-                         (bytevector-u32-ref resolved-code imm-offset (endianness little)))
-                 (loop (+ offset 8))))
-              
-              ; Handle potential label references in other instructions (e.g., jumps, calls)
-              ((and (or (= instruction #xE8) ; CALL
-                        (= instruction #xE9)) ; JMP
-                    (< (+ offset 4) code-length))
-               (let* ((imm-offset (+ offset 1))
-                      (imm (bytevector-s32-ref code imm-offset (endianness little))))
-                 (format #t "  CALL/JMP: original offset=~x~%" imm)
-                 (when (= imm 0) ; Possible label reference
-                   (let* ((label-name (alist-ref offset reg-to-symbol-map))
-                          (label-position (and label-name (hash-ref label-positions label-name))))
-                     (when label-position
-                       (let* ((instruction-end (+ offset 5))
-                              (next-instruction-address (+ instruction-end code-base-address))
-                              (target-offset (- (+ label-position code-base-address) next-instruction-address)))
-                         (format #t "    Resolving label ~a -> ~x~%" label-name label-position)
-                         (format #t "    Instruction end: ~x~%" instruction-end)
-                         (format #t "    Next instruction address: ~x~%" next-instruction-address)
-                         (format #t "    Target offset: ~x~%" target-offset)
-                         (bytevector-s32-set! resolved-code imm-offset target-offset (endianness little))))))
-                 (format #t "  After CALL/JMP resolution: ~x~%" 
-                         (bytevector-s32-ref resolved-code imm-offset (endianness little)))
-                 (loop (+ offset 5))))
-              
-              (else 
-                (loop (+ offset 1)))))
-          (begin
-            (format #t "Finished resolving references.~%")
-            resolved-code)))))
+        (let ((instruction (bytevector-u8-ref code offset)))
+          (format #t "Offset: ~a, Instruction: ~x~%" offset instruction)
+          (cond
+            ; Handle MOV immediate (could be a symbol or label reference)
+            ((and (= instruction #x48)
+                  (< (+ offset 6) code-length)
+                  (= (bytevector-u8-ref code (+ offset 1)) #xC7))
+             (let* ((reg (logand (bytevector-u8-ref code (+ offset 2)) #x07))
+                    (imm-offset (+ offset 3)))
+               (if (< (+ imm-offset 4) code-length)
+                 (let ((imm (bytevector-u32-ref code imm-offset (endianness little))))
+                   (format #t "  MOV imm32: reg=~a, imm=~x~%" reg imm)
+                   (when (= imm 0) ; Possible symbolic reference or label
+                     (let* ((symbol-name (alist-ref reg reg-to-symbol-map))
+                            (symbol-address (and symbol-name (or (alist-ref symbol-name symbol-table)
+                                                                 (hash-ref label-positions symbol-name)))))
+                       (format #t "  Resolving symbol/label: ~a -> ~a~%" 
+                               (or symbol-name "#f") 
+                               (if symbol-address 
+                                 (format #f "~x" symbol-address)
+                                 "#f"))
+                       (when symbol-address
+                         (bytevector-u32-set! resolved-code imm-offset 
+                                              (if (hash-ref label-positions symbol-name)
+                                                (+ symbol-address code-base-address)
+                                                (adjust-address symbol-address))
+                                              (endianness little)))))
+                   (format #t "  After MOV resolution: ~x~%" 
+                           (bytevector-u32-ref resolved-code imm-offset (endianness little)))
+                   (loop (+ offset 7)))
+                 (format #t "Warning: Insufficient bytes for MOV immediate at offset ~a~%" offset))))
+
+            ; Handle VMOVAPS
+            ((and (= instruction #xC5)
+                  (< (+ offset 7) code-length)
+                  (= (bytevector-u8-ref code (+ offset 1)) #xFC)
+                  (= (bytevector-u8-ref code (+ offset 2)) #x28)
+                  (= (bytevector-u8-ref code (+ offset 3)) #x05))
+             (let* ((imm-offset (+ offset 4))
+                    (imm (bytevector-u32-ref code imm-offset (endianness little)))
+                    (symbol-address (alist-ref 'multiplier symbol-table)))
+               (format #t "  VMOVAPS: original displacement=~x~%" imm)
+               (when symbol-address
+                 (let* ((instruction-end (+ offset 8))
+                        (next-instruction-address (+ instruction-end code-base-address))
+                        (target-offset (- (adjust-address symbol-address) next-instruction-address)))
+                   (format #t "    Resolving multiplier -> ~x~%" symbol-address)
+                   (format #t "    Instruction end: ~x~%" instruction-end)
+                   (format #t "    Next instruction address: ~x~%" next-instruction-address)
+                   (format #t "    Target offset: ~x~%" target-offset)
+                   (bytevector-u32-set! resolved-code imm-offset target-offset (endianness little))))
+               (format #t "  After VMOVAPS resolution: ~x~%" 
+                       (bytevector-u32-ref resolved-code imm-offset (endianness little)))
+               (loop (+ offset 8))))
+
+            ; Handle potential label references in other instructions (e.g., jumps, calls)
+            ((and (or (= instruction #xE8) ; CALL
+                      (= instruction #xE9)) ; JMP
+                  (< (+ offset 4) code-length))
+             (let* ((imm-offset (+ offset 1))
+                    (imm (bytevector-s32-ref code imm-offset (endianness little))))
+               (format #t "  CALL/JMP: original offset=~x~%" imm)
+               (when (= imm 0) ; Possible label reference
+                 (let* ((label-name (alist-ref offset reg-to-symbol-map))
+                        (label-position (and label-name (hash-ref label-positions label-name))))
+                   (when label-position
+                     (let* ((instruction-end (+ offset 5))
+                            (next-instruction-address (+ instruction-end code-base-address))
+                            (target-offset (- (+ label-position code-base-address) next-instruction-address)))
+                       (format #t "    Resolving label ~a -> ~x~%" label-name label-position)
+                       (format #t "    Instruction end: ~x~%" instruction-end)
+                       (format #t "    Next instruction address: ~x~%" next-instruction-address)
+                       (format #t "    Target offset: ~x~%" target-offset)
+                       (bytevector-s32-set! resolved-code imm-offset target-offset (endianness little))))))
+               (format #t "  After CALL/JMP resolution: ~x~%" 
+                       (bytevector-s32-ref resolved-code imm-offset (endianness little)))
+               (loop (+ offset 5))))
+
+            (else 
+              (loop (+ offset 1)))))
+        (begin
+          (format #t "Finished resolving references.~%")
+          resolved-code)))))
 
 (define (link-code code symbol-addresses label-positions)
   (let ((linked-code (bytevector-copy code))
         (code-offset 0))
     (for-each
-     (lambda (inst)
-       (when (eq? (car inst) 'lea)
-         (let* ((label (caddr (cadr inst)))
-                (target-address (cdr (assoc label symbol-addresses)))
-                (instruction-end (+ code-offset 7))
-                (next-instruction-address (+ code-offset 7))
-                (displacement (- target-address next-instruction-address)))
-           (bytevector-u32-set! linked-code (+ code-offset 3) displacement (native-endianness)))))
-     (disassemble code))
+      (lambda (inst)
+        (when (eq? (car inst) 'lea)
+          (let* ((label (caddr (cadr inst)))
+                 (target-address (cdr (assoc label symbol-addresses)))
+                 (instruction-end (+ code-offset 7))
+                 (next-instruction-address (+ code-offset 7))
+                 (displacement (- target-address next-instruction-address)))
+            (bytevector-u32-set! linked-code (+ code-offset 3) displacement (native-endianness)))))
+      (disassemble code))
     linked-code))
 
 ; Helper function to implement 'take' functionality
 (define (take lst n)
   (if (or (null? lst) (= n 0))
-      '()
-      (cons (car lst) (take (cdr lst) (- n 1)))))
+    '()
+    (cons (car lst) (take (cdr lst) (- n 1)))))
 
 (define (write-bytevector bv port)
   (put-bytevector port bv))
@@ -173,8 +173,8 @@
           ((10) (custom-assert (= value strtab-size) "DT_STRSZ value mismatch"))
           ((11) (custom-assert (= value 24) "DT_SYMENT value mismatch")))
         (if (= tag 0)
-            (format #t "Dynamic section verification complete.~%")
-            (loop (+ offset 16)))))))
+          (format #t "Dynamic section verification complete.~%")
+          (loop (+ offset 16)))))))
 
 (define (check-section-overlaps sections)
   (define (custom-assert condition message)
@@ -186,11 +186,11 @@
       (let* ((current (car remaining))
              (others (cdr remaining)))
         (for-each
-         (lambda (other)
-           (custom-assert (or (<= (+ (car current) (cadr current)) (car other))
-                              (>= (car current) (+ (car other) (cadr other))))
-                          (format #f "Section overlap: ~a and ~a" (caddr current) (caddr other))))
-         others)
+          (lambda (other)
+            (custom-assert (or (<= (+ (car current) (cadr current)) (car other))
+                               (>= (car current) (+ (car other) (cadr other))))
+                           (format #f "Section overlap: ~a and ~a" (caddr current) (caddr other))))
+          others)
         (loop (cdr remaining))))))
 
 (define (create-shared-object code data-sections output-file symbol-addresses label-positions)
@@ -212,38 +212,40 @@
          (code-offset #x1000)
          (data-offset (align-to (+ code-offset code-size) #x1000))
          (dynamic-offset (align-to (+ data-offset data-size) #x1000))
-         (dynamic-size 144)  ; Size of the dynamic section (9 entries * 16 bytes each)
-         (dynstr-offset (align-to (+ dynamic-offset dynamic-size) 8))
-         (dynsym-offset (align-to (+ dynstr-offset strtab-size) 8))
-         (rela-offset (align-to (+ dynsym-offset dynamic-symbol-table-size) 8))
+         (dynamic-size 120)  ; 8 entries * 16 bytes each
+         (dynamic-offset (align-to (+ data-offset data-size) #x1000))
+         (dynsym-offset (align-to (+ dynamic-offset dynamic-size) 8))
+         (dynstr-offset (align-to (+ dynsym-offset dynamic-symbol-table-size) 8))
+         (rela-offset (align-to (+ dynstr-offset strtab-size) 8))
          (total-dynamic-size (- (align-to (+ rela-offset relocation-table-size) 8) dynamic-offset))
-         
+
          ;; Create dynamic section
          (dynamic-section (create-dynamic-section 
-                            dynstr-offset
-                            dynsym-offset
-                            strtab-size
-                            dynamic-symbol-table-size
-                            rela-offset
-                            relocation-table-size))
-         
+                             dynstr-offset
+                             dynsym-offset
+                             strtab-size
+                             dynamic-symbol-table-size
+                             rela-offset
+                             relocation-table-size))
+
          (section-headers-offset (align-to (+ dynamic-offset total-dynamic-size) #x1000))
          (num-sections 14)
          (section-headers (create-section-headers 
-                           code-size
-                           data-size
-                           symtab-size
-                           strtab-size
-                           shstrtab-size
-                           dynamic-symbol-table-size
-                           strtab-size
-                           relocation-table-size
-                           total-dynamic-size))
+                            code-size
+                            data-size
+                            symtab-size
+                            strtab-size
+                            shstrtab-size
+                            dynamic-symbol-table-size
+                            strtab-size
+                            relocation-table-size
+                            total-dynamic-size
+                            dynamic-size))
          (program-headers (create-program-headers 
-                           code-size
-                           data-size
-                           total-dynamic-size
-                           dynamic-offset))
+                            code-size
+                            data-size
+                            total-dynamic-size  ; Use total_dynamic_size here
+                            dynamic-offset))
          (program-headers-size (bytevector-length program-headers))
          (num-program-headers (/ program-headers-size 56))
          (section-headers-size (* num-sections 64))
@@ -272,11 +274,11 @@
       (format #t "Data segment start: 0x~x~%" data-segment-start)
       (format #t "Data segment end: 0x~x~%" data-segment-end)
       (format #t "Data segment size: 0x~x~%" data-segment-size)
-      
+
       (define (custom-assert condition message)
         (unless condition
           (error message)))
-      
+
       (custom-assert (<= data-segment-start dynstr-offset data-segment-end) ".dynstr not in LOAD segment")
       (custom-assert (<= data-segment-start dynsym-offset data-segment-end) ".dynsym not in LOAD segment")
       (custom-assert (<= data-segment-start rela-offset data-segment-end) ".rela.dyn not in LOAD segment")
@@ -284,52 +286,52 @@
 
     (format #t "Checking for section overlaps:~%")
     (check-section-overlaps
-     (list (list dynamic-offset dynamic-size ".dynamic")
-           (list dynstr-offset strtab-size ".dynstr")
-           (list dynsym-offset dynamic-symbol-table-size ".dynsym")
-           (list rela-offset relocation-table-size ".rela.dyn")))
+      (list (list dynamic-offset dynamic-size ".dynamic")
+            (list dynstr-offset strtab-size ".dynstr")
+            (list dynsym-offset dynamic-symbol-table-size ".dynsym")
+            (list rela-offset relocation-table-size ".rela.dyn")))
 
     ;; Create the ELF file
     (let ((elf-file (make-bytevector total-size 0)))
       ;; Write ELF header
       (bytevector-copy! elf-header 0 elf-file 0 (bytevector-length elf-header))
-      
+
       ;; Write program headers
       (bytevector-copy! program-headers 0 elf-file program-headers-offset program-headers-size)
-      
+
       ;; Write .text section
       (bytevector-copy! code 0 elf-file code-offset code-size)
-      
+
       ;; Write .data section
       (for-each (lambda (pair)
                   (bytevector-copy! (cdr pair) 0 elf-file data-offset (bytevector-length (cdr pair)))
                   (set! data-offset (+ data-offset (bytevector-length (cdr pair)))))
                 data-sections)
-      
+
       ;; Write .dynamic section
       (bytevector-copy! dynamic-section 0 elf-file dynamic-offset dynamic-size)
       (format #t "Writing dynamic section at offset: 0x~x~%" dynamic-offset)
-      
+
       ;; Write .dynstr section
       (bytevector-copy! strtab 0 elf-file dynstr-offset strtab-size)
       (format #t "Writing .dynstr section at offset: 0x~x~%" dynstr-offset)
-      
+
       ;; Write .dynsym section
       (bytevector-copy! dynamic-symbol-table 0 elf-file dynsym-offset dynamic-symbol-table-size)
       (format #t "Writing .dynsym section at offset: 0x~x~%" dynsym-offset)
-      
+
       ;; Write .rela.dyn section
       (bytevector-copy! relocation-table 0 elf-file rela-offset relocation-table-size)
       (format #t "Writing .rela.dyn section at offset: 0x~x~%" rela-offset)
-      
+
       ;; Write section headers
       (bytevector-copy! section-headers 0 elf-file section-headers-offset section-headers-size)
-      
+
       ;; Write the ELF file to disk
       (call-with-output-file output-file
-        (lambda (port)
-          (put-bytevector port elf-file)))
-      
+                             (lambda (port)
+                               (put-bytevector port elf-file)))
+
       (format #t "Shared object created: ~a~%" output-file)
       (format #t "Total file size: ~a bytes~%" total-size))))
 
@@ -340,15 +342,15 @@
     (let loop ((symbols symbol-addresses)
                (index 0))
       (if (null? symbols)
-          table
-          (let* ((symbol (car symbols))
-                 (name (car symbol))
-                 (address (cdr symbol)))
-            (bytevector-u64-set! table (* index 24) address (endianness little))  ; r_offset
-            (bytevector-u64-set! table (+ (* index 24) 8)
-                                 (logior (ash index 32) 1) (endianness little))  ; r_info (1 = R_X86_64_64)
-            (bytevector-u64-set! table (+ (* index 24) 16) 0 (endianness little))  ; r_addend
-            (loop (cdr symbols) (+ index 1)))))))
+        table
+        (let* ((symbol (car symbols))
+               (name (car symbol))
+               (address (cdr symbol)))
+          (bytevector-u64-set! table (* index 24) address (endianness little))  ; r_offset
+          (bytevector-u64-set! table (+ (* index 24) 8)
+                               (logior (ash index 32) 1) (endianness little))  ; r_info (1 = R_X86_64_64)
+          (bytevector-u64-set! table (+ (* index 24) 16) 0 (endianness little))  ; r_addend
+          (loop (cdr symbols) (+ index 1)))))))
 
 (define (create-dynamic-symbol-table symbol-addresses)
   (let* ((symbol-count (length symbol-addresses))
@@ -360,30 +362,30 @@
                (index 0)
                (str-offset 1))
       (if (null? symbols)
-          (begin
-            (format #t "Dynamic symbol table created. Size: ~a bytes~%" (bytevector-length table))
-            table)
-          (let* ((symbol (car symbols))
-                 (name (symbol->string (car symbol)))
-                 (address (cdr symbol)))
-            (bytevector-u32-set! table (* index 24) str-offset (endianness little))  ; st_name
-            (bytevector-u8-set! table (+ (* index 24) 4) 1)  ; st_info (1 = STT_OBJECT)
-            (bytevector-u8-set! table (+ (* index 24) 5) 0)  ; st_other
-            (bytevector-u16-set! table (+ (* index 24) 6) 0 (endianness little))  ; st_shndx
-            (bytevector-u64-set! table (+ (* index 24) 8) address (endianness little))  ; st_value
-            (bytevector-u64-set! table (+ (* index 24) 16) 0 (endianness little))  ; st_size
-            (format #t "Added dynamic symbol: ~a, address: 0x~x, offset in string table: ~a~%" 
-                    name address str-offset)
-            (loop (cdr symbols)
-                  (+ index 1)
-                  (+ str-offset (string-length name) 1)))))))
+        (begin
+          (format #t "Dynamic symbol table created. Size: ~a bytes~%" (bytevector-length table))
+          table)
+        (let* ((symbol (car symbols))
+               (name (symbol->string (car symbol)))
+               (address (cdr symbol)))
+          (bytevector-u32-set! table (* index 24) str-offset (endianness little))  ; st_name
+          (bytevector-u8-set! table (+ (* index 24) 4) 1)  ; st_info (1 = STT_OBJECT)
+          (bytevector-u8-set! table (+ (* index 24) 5) 0)  ; st_other
+          (bytevector-u16-set! table (+ (* index 24) 6) 0 (endianness little))  ; st_shndx
+          (bytevector-u64-set! table (+ (* index 24) 8) address (endianness little))  ; st_value
+          (bytevector-u64-set! table (+ (* index 24) 16) 0 (endianness little))  ; st_size
+          (format #t "Added dynamic symbol: ~a, address: 0x~x, offset in string table: ~a~%" 
+                  name address str-offset)
+          (loop (cdr symbols)
+                (+ index 1)
+                (+ str-offset (string-length name) 1)))))))
 
 (define (display-symbol-table symbol-table string-table)
   (format #t "Symbol Table Contents:~%")
   (format #t "------------------------~%")
   (let ((symbol-count (/ (bytevector-length symbol-table) 24)))
     (do ((i 0 (+ i 1)))
-        ((= i symbol-count))
+      ((= i symbol-count))
       (let* ((name-offset (bytevector-u32-ref symbol-table (* i 24) (endianness little)))
              (info (bytevector-u8-ref symbol-table (+ (* i 24) 4)))
              (other (bytevector-u8-ref symbol-table (+ (* i 24) 5)))
@@ -410,15 +412,15 @@
 (define (bytevector-index bv byte start)
   (let loop ((i start))
     (cond
-     ((= i (bytevector-length bv)) #f)
-     ((= (bytevector-u8-ref bv i) byte) i)
-     (else (loop (+ i 1))))))
+      ((= i (bytevector-length bv)) #f)
+      ((= (bytevector-u8-ref bv i) byte) i)
+      (else (loop (+ i 1))))))
 
 ;; Helper function to display bytevector contents
 (define (display-bytevector bv)
   (let ((len (bytevector-length bv)))
     (do ((i 0 (+ i 1)))
-        ((= i len))
+      ((= i len))
       (format #t "~2,'0x " (bytevector-u8-ref bv i))
       (when (= (modulo (+ i 1) 16) 0)
         (newline)))))

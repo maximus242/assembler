@@ -3,18 +3,6 @@
   #:use-module (utils)
   #:export (create-program-headers))
 
-(define (create-program-header type offset vaddr paddr filesz memsz flags align)
-  (let ((header (make-bytevector 56 0)))
-    (bytevector-u32-set! header 0 type (endianness little))
-    (bytevector-u32-set! header 4 flags (endianness little))
-    (bytevector-u64-set! header 8 offset (endianness little))
-    (bytevector-u64-set! header 16 vaddr (endianness little))
-    (bytevector-u64-set! header 24 paddr (endianness little))
-    (bytevector-u64-set! header 32 filesz (endianness little))
-    (bytevector-u64-set! header 40 memsz (endianness little))
-    (bytevector-u64-set! header 48 align (endianness little))
-    header))
-
 (define (create-program-headers code-size data-size total-dynamic-size dynamic-offset)
   (let* ((num-headers 3)
          (header-size 56)
@@ -39,8 +27,8 @@
     (bytevector-u64-set! headers 64 data-addr (endianness little))  ; p_offset
     (bytevector-u64-set! headers 72 data-addr (endianness little))  ; p_vaddr
     (bytevector-u64-set! headers 80 data-addr (endianness little))  ; p_paddr
-    (bytevector-u64-set! headers 88 (+ (- dynamic-addr data-addr) total-dynamic-size) (endianness little))  ; p_filesz
-    (bytevector-u64-set! headers 96 (+ (- dynamic-addr data-addr) total-dynamic-size) (endianness little))  ; p_memsz
+    (bytevector-u64-set! headers 88 (+ data-size (- dynamic-addr data-addr) total-dynamic-size) (endianness little))  ; p_filesz
+    (bytevector-u64-set! headers 96 (+ data-size (- dynamic-addr data-addr) total-dynamic-size) (endianness little))  ; p_memsz
     (bytevector-u64-set! headers 104 #x1000 (endianness little))  ; p_align
 
     ;; DYNAMIC segment
@@ -51,6 +39,6 @@
     (bytevector-u64-set! headers 136 dynamic-addr (endianness little))  ; p_paddr
     (bytevector-u64-set! headers 144 total-dynamic-size (endianness little))  ; p_filesz
     (bytevector-u64-set! headers 152 total-dynamic-size (endianness little))  ; p_memsz
-    (bytevector-u64-set! headers 160 #x1000 (endianness little))  ; p_align
+    (bytevector-u64-set! headers 160 8 (endianness little))  ; p_align
 
     headers))
