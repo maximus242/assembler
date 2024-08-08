@@ -28,7 +28,9 @@
 
 ;; Updated code using RIP-relative addressing
 (define example-code
-  '((label _start)
+  '((label main)
+    (push rbp)
+    (mov rbp rsp)
     (lea rdi (rip buffer1))
     (lea rsi (rip buffer2))
     (lea rdx (rip result))
@@ -41,9 +43,8 @@
     (vmovaps (rdx) ymm2)
     (vxorps ymm2 ymm2 ymm2)
     (vmovaps (rdx) ymm2)
-    (mov.imm32 eax 60)       ; 60 is the syscall number for exit
-    (xor edi edi)            ; 0 exit status
-    (syscall)))
+    (mov.imm32 eax 0)
+    (ret)))
 
 (define assembled-code (assemble example-code))
 (define label-positions (get-label-positions))

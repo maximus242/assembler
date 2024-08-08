@@ -36,6 +36,22 @@
   (and (symbol? x)
        (memq x '(buffer1 buffer2 result multiplier))))
 
+(define (encode-push reg)
+  (let ((reg-code (register->code reg)))
+    (if (< reg-code 8)
+        ;; For registers RAX to RDI
+        (u8-list->bytevector (list #x50 (+ reg-code)))
+        ;; For registers R8 to R15
+        (u8-list->bytevector (list #x41 #x50 (+ (- reg-code 8)))))))
+
+(define (encode-pop reg)
+  (let ((reg-code (register->code reg)))
+    (if (< reg-code 8)
+        ;; For registers RAX to RDI
+        (u8-list->bytevector (list #x58 (+ reg-code)))
+        ;; For registers R8 to R15
+        (u8-list->bytevector (list #x41 #x58 (+ (- reg-code 8)))))))
+
 (define (encode-mov dest src)
   (let ((dest-code (register->code dest))
         (src-code (register->code src)))
@@ -148,6 +164,9 @@
         (integer->bytevector displacement 4))))
     (_ (error "Unsupported lea instruction" instruction))))
 
+(define (encode-ret)
+  (u8-list->bytevector (list #xC3)))
+
 (define (encode-instruction inst)
   (match inst
     (('label name) '()) ; Labels don't generate any machine code
@@ -161,6 +180,9 @@
     (('vfmadd132ps dest src1 src2) (encode-vfmadd132ps dest src1 src2))
     (('vxorps dest src1 src2) (encode-vxorps dest src1 src2))
     (('lea dest src) (encode-lea inst))
+    (('push reg) (encode-push reg))
+    (('pop reg) (encode-pop reg))
+    (('ret) (encode-ret))
     (_ (error "Unsupported instruction" inst))))
 
 (define (bytevector-append . bvs)
