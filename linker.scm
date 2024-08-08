@@ -249,7 +249,7 @@
          (num-program-headers (/ program-headers-size 56))
          (section-headers-size (* num-sections 64))
          (total-size (+ section-headers-offset section-headers-size))
-         (shstrtab-index (- num-sections 1)) ; Add this line to calculate shstrtab-index
+         (shstrtab-index 7)
          (elf-header (create-elf-header entry-point 
                                         program-headers-offset
                                         program-headers-size 
