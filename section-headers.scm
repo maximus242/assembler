@@ -38,7 +38,7 @@
     (set-section-header! headers 5 63 6 3 dynamic-addr dynamic-addr dynamic-size 7 0 8 16)
 
     ;; .dynsym section
-    (set-section-header! headers 6 80 11 2 dynsym-addr dynsym-addr dynsym-size 7 5 8 24)
+    (set-section-header! headers 6 80 11 2 dynsym-addr dynsym-addr dynsym-size 7 0 8 24)
 
     ;; .dynstr section
     (set-section-header! headers 7 72 3 2 dynstr-addr dynstr-addr dynstr-size 0 0 1 0)
@@ -53,7 +53,7 @@
     (set-section-header! headers 10 103 1 6 plt-addr plt-addr #x20 0 0 16 16)
 
     ;; .symtab section
-    (set-section-header! headers 11 26 2 0 0 (+ #x2000 code-size data-size) symtab-size 12 5 8 24)  ; sh_info = 1 for first global symbol
+    (set-section-header! headers 11 26 2 0 0 (+ #x2000 code-size data-size) symtab-size 12 0 8 24)  ; sh_info = 1 for first global symbol
 
     ;; .strtab section
     (set-section-header! headers 12 34 3 0 0 (+ #x2000 code-size data-size symtab-size) strtab-size 0 0 1 0)
