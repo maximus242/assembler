@@ -74,7 +74,7 @@
     (bytevector-u64-set! headers 336 0 (endianness little))  ; sh_addr
     (bytevector-u64-set! headers 344 (+ #x2000 code-size data-size) (endianness little))  ; sh_offset
     (bytevector-u64-set! headers 352 symtab-size (endianness little))  ; sh_size
-    (bytevector-u32-set! headers 360 4 (endianness little))  ; sh_link (index of .strtab)
+    (bytevector-u32-set! headers 360 6 (endianness little))  ; sh_link (index of .strtab)
     (bytevector-u32-set! headers 364 5 (endianness little))  ; sh_info (one greater than the symbol table index of the last local symbol)
     (bytevector-u64-set! headers 368 8 (endianness little))  ; sh_addralign
     (bytevector-u64-set! headers 376 24 (endianness little))  ; sh_entsize (size of a symbol table entry)
