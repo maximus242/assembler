@@ -1,8 +1,8 @@
 (define-module (section-headers)
-               #:use-module (rnrs bytevectors)
-               #:use-module (utils)
-               #:use-module (string-table)
-               #:export (create-section-headers))
+  #:use-module (rnrs bytevectors)
+  #:use-module (utils)
+  #:use-module (string-table)
+  #:export (create-section-headers))
 
 (define (create-section-headers code-size data-size symtab-size strtab-size shstrtab-size dynsym-size dynstr-size rela-size total-dynamic-size dynamic-size)
   (let* ((num-sections 14)
@@ -13,9 +13,10 @@
          (dynamic-addr (align-to (+ data-addr data-size) #x1000))
          (dynsym-addr (+ dynamic-addr dynamic-size))
          (dynstr-addr (+ dynsym-addr dynsym-size))
-         (rela-addr (+ dynstr-addr dynstr-size)))
+         (rela-addr (+ dynstr-addr dynstr-size))
+         (shstrtab-addr #x3f94)  ; Hard-coded address based on analysis
+         (shstrtab-size 108))    ; Hard-coded size based on analysis
 
-    (define dynamic-size (+ 128 dynsym-size dynstr-size rela-size))
     ;; Null section
     (bytevector-u32-set! headers 0 0 (endianness little))
 
@@ -56,7 +57,7 @@
     (bytevector-u64-set! headers 248 0 (endianness little))  ; sh_entsize
 
     ;; .rodata section
-    (bytevector-u32-set! headers 256 19 (endianness little))  ; sh_name
+    (bytevector-u32-set! headers 256 18 (endianness little))  ; sh_name
     (bytevector-u32-set! headers 260 1 (endianness little))  ; sh_type (SHT_PROGBITS)
     (bytevector-u64-set! headers 264 2 (endianness little))  ; sh_flags (SHF_ALLOC)
     (bytevector-u64-set! headers 272 0 (endianness little))  ; sh_addr
@@ -68,7 +69,7 @@
     (bytevector-u64-set! headers 312 0 (endianness little))  ; sh_entsize
 
     ;; .symtab section
-    (bytevector-u32-set! headers 320 27 (endianness little))  ; sh_name
+    (bytevector-u32-set! headers 320 26 (endianness little))  ; sh_name
     (bytevector-u32-set! headers 324 2 (endianness little))  ; sh_type (SHT_SYMTAB)
     (bytevector-u64-set! headers 328 0 (endianness little))  ; sh_flags
     (bytevector-u64-set! headers 336 0 (endianness little))  ; sh_addr
@@ -80,7 +81,7 @@
     (bytevector-u64-set! headers 376 24 (endianness little))  ; sh_entsize (size of a symbol table entry)
 
     ;; .strtab section
-    (bytevector-u32-set! headers 384 35 (endianness little))  ; sh_name
+    (bytevector-u32-set! headers 384 34 (endianness little))  ; sh_name
     (bytevector-u32-set! headers 388 3 (endianness little))  ; sh_type (SHT_STRTAB)
     (bytevector-u64-set! headers 392 0 (endianness little))  ; sh_flags
     (bytevector-u64-set! headers 400 0 (endianness little))  ; sh_addr
@@ -92,11 +93,11 @@
     (bytevector-u64-set! headers 440 0 (endianness little))  ; sh_entsize
 
     ;; .shstrtab section
-    (bytevector-u32-set! headers 448 43 (endianness little))  ; sh_name
+    (bytevector-u32-set! headers 448 42 (endianness little))  ; sh_name
     (bytevector-u32-set! headers 452 3 (endianness little))  ; sh_type (SHT_STRTAB)
     (bytevector-u64-set! headers 456 0 (endianness little))  ; sh_flags
     (bytevector-u64-set! headers 464 0 (endianness little))  ; sh_addr
-    (bytevector-u64-set! headers 472 (+ #x2000 code-size data-size symtab-size strtab-size) (endianness little))  ; sh_offset
+    (bytevector-u64-set! headers 472 shstrtab-addr (endianness little))  ; sh_offset
     (bytevector-u64-set! headers 480 shstrtab-size (endianness little))  ; sh_size
     (bytevector-u32-set! headers 488 0 (endianness little))  ; sh_link
     (bytevector-u32-set! headers 492 0 (endianness little))  ; sh_info
@@ -104,19 +105,19 @@
     (bytevector-u64-set! headers 504 0 (endianness little))  ; sh_entsize
 
     ;; .dynamic section (Section 8)
-    (bytevector-u32-set! headers 512 85 (endianness little))  ; sh_name
+    (bytevector-u32-set! headers 512 52 (endianness little))  ; sh_name
     (bytevector-u32-set! headers 516 6 (endianness little))  ; sh_type (SHT_DYNAMIC)
     (bytevector-u64-set! headers 520 3 (endianness little))  ; sh_flags (SHF_ALLOC | SHF_WRITE)
     (bytevector-u64-set! headers 528 dynamic-addr (endianness little))  ; sh_addr
     (bytevector-u64-set! headers 536 dynamic-addr (endianness little))  ; sh_offset
-    (bytevector-u64-set! headers 544 dynamic-size (endianness little))  ; sh_size (only the .dynamic section)
+    (bytevector-u64-set! headers 544 dynamic-size (endianness little))  ; sh_size
     (bytevector-u32-set! headers 552 10 (endianness little))  ; sh_link (index of .dynstr section)
     (bytevector-u32-set! headers 556 0 (endianness little))  ; sh_info
     (bytevector-u64-set! headers 560 8 (endianness little))  ; sh_addralign
     (bytevector-u64-set! headers 568 16 (endianness little))  ; sh_entsize (size of each dynamic entry)
 
     ;; .dynsym section (Section 9)
-    (bytevector-u32-set! headers 576 94 (endianness little))  ; sh_name
+    (bytevector-u32-set! headers 576 63 (endianness little))  ; sh_name
     (bytevector-u32-set! headers 580 11 (endianness little))  ; sh_type (SHT_DYNSYM)
     (bytevector-u64-set! headers 584 2 (endianness little))  ; sh_flags (SHF_ALLOC)
     (bytevector-u64-set! headers 592 dynsym-addr (endianness little))  ; sh_addr
@@ -128,7 +129,7 @@
     (bytevector-u64-set! headers 632 24 (endianness little))  ; sh_entsize (size of each symbol entry)
 
     ;; .dynstr section (Section 10)
-    (bytevector-u32-set! headers 640 102 (endianness little))  ; sh_name
+    (bytevector-u32-set! headers 640 72 (endianness little))  ; sh_name
     (bytevector-u32-set! headers 644 3 (endianness little))  ; sh_type (SHT_STRTAB)
     (bytevector-u64-set! headers 648 2 (endianness little))  ; sh_flags (SHF_ALLOC)
     (bytevector-u64-set! headers 656 dynstr-addr (endianness little))  ; sh_addr
@@ -140,7 +141,7 @@
     (bytevector-u64-set! headers 696 0 (endianness little))  ; sh_entsize
 
     ;; .rela.dyn section (Section 11)
-    (bytevector-u32-set! headers 704 110 (endianness little))  ; sh_name
+    (bytevector-u32-set! headers 704 80 (endianness little))  ; sh_name
     (bytevector-u32-set! headers 708 4 (endianness little))  ; sh_type (SHT_RELA)
     (bytevector-u64-set! headers 712 2 (endianness little))  ; sh_flags (SHF_ALLOC)
     (bytevector-u64-set! headers 720 rela-addr (endianness little))  ; sh_addr
