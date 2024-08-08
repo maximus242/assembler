@@ -13,10 +13,15 @@
   (make-hash-table))
 
 (define (add-symbol! table name address)
-  (hash-set! table name address))
+  (hash-set! table name address)
+  (format #t "Symbol added: ~a with address: 0x~x~%" name address))
 
 (define (get-symbol table name)
-  (hash-ref table name))
+  (let ((address (hash-ref table name #f)))
+    (if address
+        (format #t "Symbol retrieved: ~a with address: 0x~x~%" name address)
+        (format #t "Symbol not found: ~a~%" name))
+    address))
 
 (define (create-symbol-table symbol-addresses)
   (let* ((symbol-count (+ (length symbol-addresses) 1))  ; Add 1 for 'main'
@@ -56,7 +61,7 @@
                     name address str-offset)
             (loop (cdr symbols)
                   (+ index 1)
-                  (+ str-offset (string-length name) 1)))))))
+                  (+ str-offset (string-length name) 1)))))))  ; Correctly update the string offset
 
 (define (create-dynamic-symbol-table symbol-addresses)
   (let* ((symbol-count (+ (length symbol-addresses) 1))  ; Add 1 for 'main'
