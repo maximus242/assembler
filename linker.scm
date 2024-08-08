@@ -239,7 +239,8 @@
                             strtab-size
                             relocation-table-size
                             total-dynamic-size
-                            dynamic-size))
+                            dynamic-size
+                            rela-offset))
          (program-headers (create-program-headers 
                             code-size
                             data-size

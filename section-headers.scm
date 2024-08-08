@@ -4,7 +4,7 @@
                #:use-module (string-table)
                #:export (create-section-headers))
 
-(define (create-section-headers code-size data-size symtab-size strtab-size shstrtab-size dynsym-size dynstr-size rela-size total-dynamic-size dynamic-size)
+(define (create-section-headers code-size data-size symtab-size strtab-size shstrtab-size dynsym-size dynstr-size rela-size total-dynamic-size dynamic-size rela-offset)
   (let* ((num-sections 14)
          (section-header-size 64)
          (headers (make-bytevector (* num-sections section-header-size) 0))
@@ -44,7 +44,7 @@
     (set-section-header! headers 7 72 3 2 dynstr-addr dynstr-addr dynstr-size 0 0 1 0)
 
     ;; .rela.dyn section
-    (set-section-header! headers 8 88 4 2 rela-addr rela-addr rela-size 6 0 8 24)
+    (set-section-header! headers 8 88 4 2 rela-offset rela-offset rela-size 6 0 8 24)  ;; Use rela-offset
 
     ;; .got section
     (set-section-header! headers 9 98 1 3 got-addr got-addr #x18 0 0 8 8)
@@ -64,7 +64,7 @@
     (format #t "Dynamic section header: addr=0x~x, offset=0x~x, size=0x~x~%" dynamic-addr dynamic-addr dynamic-size)
     (format #t "Dynsym section header: addr=0x~x, offset=0x~x, size=0x~x~%" dynsym-addr dynsym-addr dynsym-size)
     (format #t "Dynstr section header: addr=0x~x, offset=0x~x, size=0x~x~%" dynstr-addr dynstr-addr dynstr-size)
-    (format #t "Rela section header: addr=0x~x, offset=0x~x, size=0x~x~%" rela-addr rela-addr rela-size)
+    (format #t "Rela section header: addr=0x~x, offset=0x~x, size=0x~x~%" rela-offset rela-offset rela-size)  ;; Use rela-offset
 
     headers))
 
