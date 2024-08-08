@@ -213,7 +213,6 @@
          (data-offset (align-to (+ code-offset code-size) #x1000))
          (dynamic-offset (align-to (+ data-offset data-size) #x1000))
          (dynamic-size 120)  ; 8 entries * 16 bytes each
-         (dynamic-offset (align-to (+ data-offset data-size) #x1000))
          (dynsym-offset (align-to (+ dynamic-offset dynamic-size) 8))
          (dynstr-offset (align-to (+ dynsym-offset dynamic-symbol-table-size) 8))
          (rela-offset (align-to (+ dynstr-offset strtab-size) 8))
@@ -244,19 +243,21 @@
          (program-headers (create-program-headers 
                             code-size
                             data-size
-                            total-dynamic-size  ; Use total_dynamic_size here
+                            total-dynamic-size
                             dynamic-offset))
          (program-headers-size (bytevector-length program-headers))
          (num-program-headers (/ program-headers-size 56))
          (section-headers-size (* num-sections 64))
          (total-size (+ section-headers-offset section-headers-size))
+         (shstrtab-index (- num-sections 1)) ; Add this line to calculate shstrtab-index
          (elf-header (create-elf-header entry-point 
                                         program-headers-offset
                                         program-headers-size 
                                         section-headers-offset 
                                         num-program-headers 
                                         num-sections
-                                        total-size)))
+                                        total-size
+                                        shstrtab-index)))
 
     (format #t "Total dynamic size: 0x~x~%" total-dynamic-size)
     (format #t "Dynamic offset: 0x~x~%" dynamic-offset)
@@ -323,6 +324,10 @@
       ;; Write .rela.dyn section
       (bytevector-copy! relocation-table 0 elf-file rela-offset relocation-table-size)
       (format #t "Writing .rela.dyn section at offset: 0x~x~%" rela-offset)
+
+      ;; Write .shstrtab section
+      (bytevector-copy! shstrtab 0 elf-file (- section-headers-offset shstrtab-size) shstrtab-size)
+      (format #t "Writing .shstrtab section at offset: 0x~x~%" (- section-headers-offset shstrtab-size))
 
       ;; Write section headers
       (bytevector-copy! section-headers 0 elf-file section-headers-offset section-headers-size)
