@@ -249,7 +249,7 @@
          (num-program-headers (/ program-headers-size 56))
          (section-headers-size (* num-sections 64))
          (total-size (+ section-headers-offset section-headers-size))
-         (shstrtab-index 7)
+         (shstrtab-index 13)
          (elf-header (create-elf-header entry-point 
                                         program-headers-offset
                                         program-headers-size 
