@@ -48,13 +48,23 @@
   (create-table symbol-addresses create-symbol-entry "symbol"))
 
 (define (create-dynamic-symbol-table symbol-addresses)
-  (let* ((symbol-count (length symbol-addresses))
+  (let* ((symbol-count (+ (length symbol-addresses) 1))  ; Add 1 for null symbol
          (table-size (* symbol-count 24))  ; Each symbol entry is 24 bytes
          (table (make-bytevector table-size 0))
          (string-table-offset 1))  ; Start at 1 to account for null byte at beginning of string table
-    (format #t "Creating dynamic symbol table with ~a symbols~%" symbol-count)
+    (format #t "Creating dynamic symbol table with ~a symbols (including null symbol)~%" symbol-count)
+    
+    ; Create null symbol entry
+    (bytevector-u32-set! table 0 0 (endianness little))  ; st_name = 0
+    (bytevector-u8-set! table 4 0)  ; st_info = 0
+    (bytevector-u8-set! table 5 0)  ; st_other = 0
+    (bytevector-u16-set! table 6 0 (endianness little))  ; st_shndx = 0
+    (bytevector-u64-set! table 8 0 (endianness little))  ; st_value = 0
+    (bytevector-u64-set! table 16 0 (endianness little))  ; st_size = 0
+    (format #t "Added null symbol at index 0~%")
+    
     (let loop ((symbols symbol-addresses)
-               (index 0)
+               (index 1)  ; Start at 1 because 0 is the null symbol
                (str-offset 1))
       (if (null? symbols)
         (begin
