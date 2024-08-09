@@ -3,7 +3,7 @@
   #:use-module (utils)
   #:export (create-program-headers))
 
-(define (create-program-headers code-size data-size total-dynamic-size dynamic-offset)
+(define (create-program-headers code-size data-size total-dynamic-size dynamic-offset dynamic-size)
   (let* ((num-headers 5)
          (header-size 56)
          (headers (make-bytevector (* num-headers header-size) 0))
@@ -65,8 +65,8 @@
     (bytevector-u64-set! headers 176 dynamic-offset (endianness little))  ; p_offset
     (bytevector-u64-set! headers 184 dynamic-addr (endianness little))  ; p_vaddr
     (bytevector-u64-set! headers 192 dynamic-addr (endianness little))  ; p_paddr
-    (bytevector-u64-set! headers 200 total-dynamic-size (endianness little))  ; p_filesz
-    (bytevector-u64-set! headers 208 total-dynamic-size (endianness little))  ; p_memsz
+    (bytevector-u64-set! headers 200 dynamic-size (endianness little))  ; p_filesz
+    (bytevector-u64-set! headers 208 dynamic-size (endianness little))  ; p_memsz
     (bytevector-u64-set! headers 216 8 (endianness little))  ; p_align
     (log-header "PT_DYNAMIC" 168 headers)
 

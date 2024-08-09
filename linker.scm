@@ -245,7 +245,9 @@
                             code-size
                             data-size
                             total-dynamic-size
-                            dynamic-offset))
+                            dynamic-offset
+                            dynamic-size
+                            ))
          (program-headers-size (bytevector-length program-headers))
          (num-program-headers (/ program-headers-size 56))
          (section-headers-size (* num-sections 64))
