@@ -11,6 +11,7 @@
   #:use-module (rnrs io ports)
   #:use-module (ice-9 format)
   #:use-module (relocation-table)
+  #:use-module (elf-layout-calculator)
   #:export (create-shared-object))
 
 ;; Helper functions
@@ -74,35 +75,35 @@
 ;; Main function
 
 (define (create-shared-object code data-sections output-file symbol-addresses label-positions)
-  (let* ((program-headers-offset elf-header-size)
-         (code-size (bytevector-length code))
-         (data-size (apply + (map (lambda (pair) (bytevector-length (cdr pair))) data-sections)))
+  (let* ((layout (calculate-elf-layout code data-sections symbol-addresses))
+         (program-headers-offset (assoc-ref layout 'program-headers-offset))
+         (code-size (assoc-ref layout 'code-size))
+         (data-size (assoc-ref layout 'data-size))
+         (symtab-size (assoc-ref layout 'symtab-size))
+         (strtab-size (assoc-ref layout 'strtab-size))
+         (shstrtab-size (assoc-ref layout 'shstrtab-size))
+         (dynamic-symbol-table-size (assoc-ref layout 'dynamic-symbol-table-size))
+         (relocation-table-size (assoc-ref layout 'relocation-table-size))
+         (got-size (assoc-ref layout 'got-size))
+         (data-offset (assoc-ref layout 'data-offset))
+         (dynamic-offset (assoc-ref layout 'dynamic-offset))
+         (dynamic-size (assoc-ref layout 'dynamic-size))
+         (dynsym-offset (assoc-ref layout 'dynsym-offset))
+         (dynstr-offset (assoc-ref layout 'dynstr-offset))
+         (rela-offset (assoc-ref layout 'rela-offset))
+         (got-offset (assoc-ref layout 'got-offset))
+         (plt-offset (assoc-ref layout 'plt-offset))
+         (total-dynamic-size (assoc-ref layout 'total-dynamic-size))
+         (section-headers-offset (assoc-ref layout 'section-headers-offset))
          (symtab (create-symbol-table symbol-addresses))
-         (symtab-size (bytevector-length symtab))
          (strtab (create-string-table symbol-addresses))
-         (strtab-size (bytevector-length strtab))
          (shstrtab (create-section-header-string-table))
-         (shstrtab-size (bytevector-length shstrtab))
          (dynamic-symbol-table (create-dynamic-symbol-table symbol-addresses))
-         (dynamic-symbol-table-size (bytevector-length dynamic-symbol-table))
          (relocation-table (create-relocation-table symbol-addresses))
-         (relocation-table-size (bytevector-length relocation-table))
-         (got-size (* (length symbol-addresses) got-entry-size))  ; Calculate GOT size
-         (data-offset (align-to (+ code-offset code-size) alignment))
-         (dynamic-offset (align-to (+ data-offset data-size) alignment))
-         (dynamic-size (* 8 dynamic-entry-size))  ; 8 entries * 16 bytes each
-         (dynsym-offset (align-to (+ dynamic-offset dynamic-size) 8))
-         (dynstr-offset (align-to (+ dynsym-offset dynamic-symbol-table-size) 8))
-         (rela-offset (align-to (+ dynstr-offset strtab-size) 8))
-         (got-offset (align-to (+ rela-offset relocation-table-size) 8))  ; Add GOT offset
-         (plt-offset (align-to (+ got-offset got-size) 16))  ; Add PLT offset
-         (total-dynamic-size (- plt-offset dynamic-offset))  ; Update total dynamic size
-         (section-headers-offset (align-to (+ dynamic-offset total-dynamic-size) alignment))
          (dynamic-section (create-dynamic-section 
                             dynstr-offset dynsym-offset strtab-size
                             dynamic-symbol-table-size rela-offset relocation-table-size
                             got-offset))
-         (section-headers-offset (align-to (+ dynamic-offset total-dynamic-size) alignment))
          (section-headers (create-section-headers 
                             code-size 
                             data-size 

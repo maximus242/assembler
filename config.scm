@@ -37,7 +37,8 @@
             num-program-headers
             text-addr
             shstrtab-addr
-            shstrtab-size))
+            shstrtab-size
+            section-offset))
 
 (define elf-header-size 64)
 (define entry-point #x1000)
@@ -87,3 +88,5 @@
 (define text-addr #x1000)
 (define shstrtab-addr #x3f94)
 (define shstrtab-size 108)
+
+(define section-offset #x2000)

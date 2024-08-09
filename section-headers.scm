@@ -30,7 +30,9 @@
          (dynstr-addr (+ dynsym-addr dynsym-size))
          (rela-addr rela-offset)
          (got-addr (align-to (+ rela-addr rela-size) 8))
-         (plt-addr (+ got-addr got-size)))
+         (plt-addr (+ got-addr got-size))
+         (symtab-offset (+ section-offset code-size data-size))
+         (strtab-offset (+ symtab-offset symtab-size)))
 
     (log-addresses-and-sizes text-addr data-addr dynamic-addr dynsym-addr 
                              dynstr-addr rela-addr got-addr plt-addr 
@@ -63,9 +65,9 @@
             (make-section-header 103 sht-progbits (logior shf-alloc shf-execinstr) 
                                  plt-addr plt-addr #x20 0 0 16 16)
             (make-section-header 26 sht-symtab 0 0 
-                                 (+ #x2000 code-size data-size) symtab-size 12 5 8 24)
+                                 symtab-offset symtab-size 12 5 8 24)
             (make-section-header 34 sht-strtab 0 0 
-                                 (+ #x2000 code-size data-size symtab-size) strtab-size 0 0 1 0)
+                                 strtab-offset strtab-size 0 0 1 0)
             (make-section-header 42 sht-strtab 0 0 
                                  shstrtab-addr shstrtab-size 0 0 1 0))))
 
