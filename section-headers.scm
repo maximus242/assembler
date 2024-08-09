@@ -24,16 +24,13 @@
 (define (create-section-headers code-size data-size symtab-size strtab-size shstrtab-size 
                                 dynsym-size dynstr-size rela-size total-dynamic-size 
                                 dynamic-size rela-offset got-size)
-  (let* ((text-addr #x1000)
-         (data-addr (+ text-addr (align-to code-size #x1000)))
-         (dynamic-addr (align-to (+ data-addr data-size) #x1000))
+  (let* ((data-addr (+ text-addr (align-to code-size alignment)))
+         (dynamic-addr (align-to (+ data-addr data-size) alignment))
          (dynsym-addr (+ dynamic-addr dynamic-size))
          (dynstr-addr (+ dynsym-addr dynsym-size))
          (rela-addr rela-offset)
          (got-addr (align-to (+ rela-addr rela-size) 8))
-         (plt-addr (+ got-addr got-size))
-         (shstrtab-addr #x3f94)
-         (shstrtab-size 108))
+         (plt-addr (+ got-addr got-size)))
 
     (log-addresses-and-sizes text-addr data-addr dynamic-addr dynsym-addr 
                              dynstr-addr rela-addr got-addr plt-addr 
@@ -54,7 +51,7 @@
             (make-section-header 18 sht-progbits shf-alloc 
                                  (+ text-addr code-size) (+ text-addr code-size) 0 0 0 8 0)
             (make-section-header 63 sht-dynamic (logior shf-write shf-alloc) 
-                                 dynamic-addr dynamic-addr dynamic-size 7 0 8 16)
+                                 dynamic-addr dynamic-addr dynamic-size 7 0 8 dynamic-entry-size)
             (make-section-header 80 sht-dynsym shf-alloc 
                                  dynsym-addr dynsym-addr dynsym-size 7 5 8 24)
             (make-section-header 72 sht-strtab shf-alloc 
@@ -62,7 +59,7 @@
             (make-section-header 88 sht-rela shf-alloc 
                                  rela-addr rela-addr rela-size 6 0 8 24)
             (make-section-header 98 sht-progbits (logior shf-write shf-alloc) 
-                                 got-addr got-addr got-size 0 0 8 8)
+                                 got-addr got-addr got-size 0 0 8 got-entry-size)
             (make-section-header 103 sht-progbits (logior shf-alloc shf-execinstr) 
                                  plt-addr plt-addr #x20 0 0 16 16)
             (make-section-header 26 sht-symtab 0 0 

@@ -2,17 +2,8 @@
   #:use-module (rnrs bytevectors)
   #:use-module (utils)
   #:use-module (srfi srfi-9)
+  #:use-module (config)
   #:export (create-program-headers))
-
-;; Constants
-(define PT_LOAD 1)
-(define PT_DYNAMIC 2)
-(define PT_PHDR 6)
-(define PT_GNU_RELRO #x6474e552)
-
-(define PF_X #b001)
-(define PF_W #b010)
-(define PF_R #b100)
 
 ;; Program header record
 (define-record-type <program-header>
@@ -28,41 +19,38 @@
   (align ph-align))
 
 (define (create-program-headers code-size data-size total-dynamic-size dynamic-offset dynamic-size got-offset got-size)
-  (let* ((elf-header-size 64)
-         (num-headers 5)
-         (header-size 56)
-         (phdr-size (* num-headers header-size))
-         (text-addr #x1000)
-         (data-addr (align-to (+ text-addr code-size) #x1000))
-         (total-size (+ got-offset got-size))  ; Update total size to include GOT
-         (dynamic-addr (align-to (+ data-addr data-size) #x1000))
-         (relro-size (- got-offset data-addr)))  ; Update RELRO size to cover up to GOT
+  (let* ((phdr-size (* num-program-headers program-header-size))
+         (text-addr entry-point)
+         (data-addr (align-to (+ text-addr code-size) alignment))
+         (total-size (+ got-offset got-size))
+         (dynamic-addr (align-to (+ data-addr data-size) alignment))
+         (relro-size (- got-offset data-addr)))
 
     (log-addresses-and-sizes text-addr data-addr dynamic-addr total-size relro-size got-offset got-size)
 
     (let ((headers
            (list
             ;; PT_PHDR
-            (make-program-header PT_PHDR PF_R elf-header-size
+            (make-program-header pt-phdr pf-r elf-header-size
                                  (+ text-addr elf-header-size) (+ text-addr elf-header-size)
                                  phdr-size phdr-size 8)
             ;; PT_LOAD for .text
-            (make-program-header PT_LOAD (logior PF_R PF_X) 0
+            (make-program-header pt-load (logior pf-r pf-x) 0
                                  text-addr text-addr
                                  (+ elf-header-size phdr-size code-size)
                                  (+ elf-header-size phdr-size code-size)
-                                 #x1000)
+                                 alignment)
             ;; PT_LOAD for .data, .dynamic, .got, etc.
-            (make-program-header PT_LOAD (logior PF_R PF_W) data-addr
+            (make-program-header pt-load (logior pf-r pf-w) data-addr
                                  data-addr data-addr
                                  (- total-size data-addr) (- total-size data-addr)
-                                 #x1000)
+                                 alignment)
             ;; PT_DYNAMIC
-            (make-program-header PT_DYNAMIC (logior PF_R PF_W) dynamic-offset
+            (make-program-header pt-dynamic (logior pf-r pf-w) dynamic-offset
                                  dynamic-addr dynamic-addr
                                  dynamic-size dynamic-size 8)
             ;; PT_GNU_RELRO
-            (make-program-header PT_GNU_RELRO PF_R data-addr
+            (make-program-header pt-gnu-relro pf-r data-addr
                                  data-addr data-addr
                                  relro-size relro-size 1))))
 
@@ -90,8 +78,7 @@
           (ph-filesz ph) (ph-memsz ph) (ph-align ph)))
 
 (define (program-headers->bytevector headers)
-  (let* ((header-size 56)
-         (bv (make-bytevector (* (length headers) header-size) 0)))
+  (let* ((bv (make-bytevector (* (length headers) program-header-size) 0)))
     (let loop ((headers headers) (offset 0))
       (if (null? headers)
           bv
@@ -104,4 +91,4 @@
             (bytevector-u64-set! bv (+ offset 32) (ph-filesz ph) (endianness little))
             (bytevector-u64-set! bv (+ offset 40) (ph-memsz ph) (endianness little))
             (bytevector-u64-set! bv (+ offset 48) (ph-align ph) (endianness little))
-            (loop (cdr headers) (+ offset header-size)))))))
+            (loop (cdr headers) (+ offset program-header-size)))))))
