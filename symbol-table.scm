@@ -10,6 +10,8 @@
             create-symbol-table
             create-dynamic-symbol-table))
 
+
+
 ;; Define constants
 (define STT_OBJECT 1)
 (define STT_FUNC 2)
@@ -46,7 +48,32 @@
   (create-table symbol-addresses create-symbol-entry "symbol"))
 
 (define (create-dynamic-symbol-table symbol-addresses)
-  (create-table symbol-addresses create-symbol-entry "dynamic symbol"))
+  (let* ((symbol-count (length symbol-addresses))
+         (table-size (* symbol-count 24))  ; Each symbol entry is 24 bytes
+         (table (make-bytevector table-size 0))
+         (string-table-offset 1))  ; Start at 1 to account for null byte at beginning of string table
+    (format #t "Creating dynamic symbol table with ~a symbols~%" symbol-count)
+    (let loop ((symbols symbol-addresses)
+               (index 0)
+               (str-offset 1))
+      (if (null? symbols)
+        (begin
+          (format #t "Dynamic symbol table created. Size: ~a bytes~%" (bytevector-length table))
+          table)
+        (let* ((symbol (car symbols))
+               (name (symbol->string (car symbol)))
+               (address (cdr symbol)))
+          (bytevector-u32-set! table (* index 24) str-offset (endianness little))  ; st_name
+          (bytevector-u8-set! table (+ (* index 24) 4) 1)  ; st_info (1 = STT_OBJECT)
+          (bytevector-u8-set! table (+ (* index 24) 5) 0)  ; st_other
+          (bytevector-u16-set! table (+ (* index 24) 6) 0 (endianness little))  ; st_shndx
+          (bytevector-u64-set! table (+ (* index 24) 8) address (endianness little))  ; st_value
+          (bytevector-u64-set! table (+ (* index 24) 16) 0 (endianness little))  ; st_size
+          (format #t "Added dynamic symbol: ~a, address: 0x~x, offset in string table: ~a~%" 
+                  name address str-offset)
+          (loop (cdr symbols)
+                (+ index 1)
+                (+ str-offset (string-length name) 1)))))))
 
 (define (create-table symbol-addresses create-entry-func table-type)
   (let* ((symbol-count (+ (length symbol-addresses) 1))  ; Add 1 for 'main'

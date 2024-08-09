@@ -1,4 +1,5 @@
 (use-modules (linker)
+             (shared-object-creator)
              (assembler)
              (rnrs bytevectors))
 
