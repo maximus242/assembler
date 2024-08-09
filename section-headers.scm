@@ -1,14 +1,43 @@
 (define-module (section-headers)
-               #:use-module (rnrs bytevectors)
-               #:use-module (utils)
-               #:use-module (string-table)
-               #:export (create-section-headers))
+  #:use-module (rnrs bytevectors)
+  #:use-module (utils)
+  #:use-module (string-table)
+  #:use-module (srfi srfi-9)
+  #:export (create-section-headers))
 
-(define (create-section-headers code-size data-size symtab-size strtab-size shstrtab-size dynsym-size dynstr-size rela-size total-dynamic-size dynamic-size rela-offset)
-  (let* ((num-sections 14)
-         (section-header-size 64)
-         (headers (make-bytevector (* num-sections section-header-size) 0))
-         (text-addr #x1000)
+;; Define constants for section types and flags
+(define SHT_NULL 0)
+(define SHT_PROGBITS 1)
+(define SHT_SYMTAB 2)
+(define SHT_STRTAB 3)
+(define SHT_RELA 4)
+(define SHT_DYNAMIC 6)
+(define SHT_NOBITS 8)
+(define SHT_DYNSYM 11)
+
+(define SHF_WRITE #x1)
+(define SHF_ALLOC #x2)
+(define SHF_EXECINSTR #x4)
+
+;; Define a record type for section headers
+(define-record-type <section-header>
+  (make-section-header name type flags addr offset size link info align entsize)
+  section-header?
+  (name sh-name)
+  (type sh-type)
+  (flags sh-flags)
+  (addr sh-addr)
+  (offset sh-offset)
+  (size sh-size)
+  (link sh-link)
+  (info sh-info)
+  (align sh-align)
+  (entsize sh-entsize))
+
+(define (create-section-headers code-size data-size symtab-size strtab-size shstrtab-size 
+                                dynsym-size dynstr-size rela-size total-dynamic-size 
+                                dynamic-size rela-offset)
+  (let* ((text-addr #x1000)
          (data-addr (+ text-addr (align-to code-size #x1000)))
          (dynamic-addr (align-to (+ data-addr data-size) #x1000))
          (dynsym-addr (+ dynamic-addr dynamic-size))
@@ -19,99 +48,79 @@
          (shstrtab-addr #x3f94)
          (shstrtab-size 108))
 
-    ;; Logging the computed addresses and sizes
-    (format #t "Computed addresses and sizes:\n")
-    (format #t "  text-addr=0x~x\n" text-addr)
-    (format #t "  data-addr=0x~x\n" data-addr)
-    (format #t "  dynamic-addr=0x~x\n" dynamic-addr)
-    (format #t "  dynsym-addr=0x~x\n" dynsym-addr)
-    (format #t "  dynstr-addr=0x~x\n" dynstr-addr)
-    (format #t "  rela-addr=0x~x\n" rela-addr)
-    (format #t "  got-addr=0x~x\n" got-addr)
-    (format #t "  plt-addr=0x~x\n" plt-addr)
-    (format #t "  shstrtab-addr=0x~x, shstrtab-size=0x~x\n" shstrtab-addr shstrtab-size)
+    (log-addresses-and-sizes text-addr data-addr dynamic-addr dynsym-addr 
+                             dynstr-addr rela-addr got-addr plt-addr 
+                             shstrtab-addr shstrtab-size)
 
-    ;; Null section
-    (set-section-header! headers 0 0 0 0 0 0 0 0 0 0 0)
+    (let ((headers
+           (list
+            (make-section-header 0 SHT_NULL 0 0 0 0 0 0 0 0)
+            (make-section-header 1 SHT_PROGBITS (logior SHF_ALLOC SHF_EXECINSTR) 
+                                 text-addr text-addr code-size 0 0 16 0)
+            (make-section-header 7 SHT_PROGBITS (logior SHF_WRITE SHF_ALLOC) 
+                                 data-addr data-addr data-size 0 0 8 0)
+            (make-section-header 13 SHT_NOBITS (logior SHF_WRITE SHF_ALLOC) 
+                                 (+ data-addr data-size) (+ data-addr data-size) 0 0 0 8 0)
+            (make-section-header 18 SHT_PROGBITS SHF_ALLOC 
+                                 (+ text-addr code-size) (+ text-addr code-size) 0 0 0 8 0)
+            (make-section-header 63 SHT_DYNAMIC (logior SHF_WRITE SHF_ALLOC) 
+                                 dynamic-addr dynamic-addr dynamic-size 7 0 8 16)
+            (make-section-header 80 SHT_DYNSYM SHF_ALLOC 
+                                 dynsym-addr dynsym-addr dynsym-size 7 5 8 24)
+            (make-section-header 72 SHT_STRTAB SHF_ALLOC 
+                                 dynstr-addr dynstr-addr dynstr-size 0 0 1 0)
+            (make-section-header 88 SHT_RELA SHF_ALLOC 
+                                 rela-offset rela-offset rela-size 6 0 8 24)
+            (make-section-header 98 SHT_PROGBITS (logior SHF_WRITE SHF_ALLOC) 
+                                 got-addr got-addr #x18 0 0 8 8)
+            (make-section-header 103 SHT_PROGBITS (logior SHF_ALLOC SHF_EXECINSTR) 
+                                 plt-addr plt-addr #x20 0 0 16 16)
+            (make-section-header 26 SHT_SYMTAB 0 0 
+                                 (+ #x2000 code-size data-size) symtab-size 12 5 8 24)
+            (make-section-header 34 SHT_STRTAB 0 0 
+                                 (+ #x2000 code-size data-size symtab-size) strtab-size 0 0 1 0)
+            (make-section-header 42 SHT_STRTAB 0 0 
+                                 shstrtab-addr shstrtab-size 0 0 1 0))))
 
-    ;; .text section
-    (set-section-header! headers 1 1 1 6 text-addr text-addr code-size 0 0 16 0)
+      (log-section-headers headers)
+      (section-headers->bytevector headers))))
 
-    ;; .data section
-    (set-section-header! headers 2 7 1 3 data-addr data-addr data-size 0 0 8 0)
+(define (log-addresses-and-sizes . args)
+  (format #t "Computed addresses and sizes:\n")
+  (for-each (lambda (name value)
+              (format #t "  ~a=0x~x\n" name value))
+            '(text-addr data-addr dynamic-addr dynsym-addr dynstr-addr 
+              rela-addr got-addr plt-addr shstrtab-addr shstrtab-size)
+            args))
 
-    ;; .bss section
-    (set-section-header! headers 3 13 8 3 (+ data-addr data-size) (+ data-addr data-size) 0 0 0 8 0)
-
-    ;; .rodata section
-    (set-section-header! headers 4 18 1 2 (+ text-addr code-size) (+ text-addr code-size) 0 0 0 8 0)
-
-    ;; .dynamic section
-    (set-section-header! headers 5 63 6 3 dynamic-addr dynamic-addr dynamic-size 7 0 8 16)
-
-    ;; .dynsym section
-    (set-section-header! headers 6 80 11 2 dynsym-addr dynsym-addr dynsym-size 7 5 8 24)
-
-    ;; .dynstr section
-    (set-section-header! headers 7 72 3 2 dynstr-addr dynstr-addr dynstr-size 0 0 1 0)
-
-    ;; .rela.dyn section
-    (set-section-header! headers 8 88 4 2 rela-offset rela-offset rela-size 6 0 8 24)  ;; Use rela-offset
-
-    ;; .got section
-    (set-section-header! headers 9 98 1 3 got-addr got-addr #x18 0 0 8 8)
-
-    ;; .plt section
-    (set-section-header! headers 10 103 1 6 plt-addr plt-addr #x20 0 0 16 16)
-
-    ;; .symtab section
-    (set-section-header! headers 11 26 2 0 0 (+ #x2000 code-size data-size) symtab-size 12 5 8 24)  ; sh_info = 1 for first global symbol
-
-    ;; .strtab section
-    (set-section-header! headers 12 34 3 0 0 (+ #x2000 code-size data-size symtab-size) strtab-size 0 0 1 0)
-
-    ;; .shstrtab section
-    (set-section-header! headers 13 42 3 0 0 shstrtab-addr shstrtab-size 0 0 1 0)
-
-    ;; Logging final section headers
-    (format #t "Final section headers:\n")
-    (display-headers headers num-sections section-header-size)
-
-    headers))
-
-;; Helper function to set a section header
-(define (set-section-header! headers index name type flags addr offset size link info align entsize)
-  (let ((base (* index 64)))
-    ;; Logging the values being set
-    (format #t "Setting section header [~a]: name=0x~x, type=0x~x, flags=0x~x, addr=0x~x, offset=0x~x, size=0x~x, link=0x~x, info=0x~x, align=0x~x, entsize=0x~x\n"
-            index name type flags addr offset size link info align entsize)
-
-    (bytevector-u32-set! headers (+ base 0) name (endianness little))
-    (bytevector-u32-set! headers (+ base 4) type (endianness little))
-    (bytevector-u64-set! headers (+ base 8) flags (endianness little))
-    (bytevector-u64-set! headers (+ base 16) addr (endianness little))
-    (bytevector-u64-set! headers (+ base 24) offset (endianness little))
-    (bytevector-u64-set! headers (+ base 32) size (endianness little))
-    (bytevector-u32-set! headers (+ base 40) link (endianness little))
-    (bytevector-u32-set! headers (+ base 44) info (endianness little))
-    (bytevector-u64-set! headers (+ base 48) align (endianness little))
-    (bytevector-u64-set! headers (+ base 56) entsize (endianness little))))
-
-;; Helper function to display the section headers
-(define (display-headers headers num-sections section-header-size)
+(define (log-section-headers headers)
+  (format #t "Final section headers:\n")
   (for-each
-    (lambda (index)
-      (let ((base (* index section-header-size)))
-        (format #t "Section [~a]: name=0x~x, type=0x~x, flags=0x~x, addr=0x~x, offset=0x~x, size=0x~x, link=0x~x, info=0x~x, align=0x~x, entsize=0x~x\n"
-                index
-                (bytevector-u32-ref headers (+ base 0) (endianness little))
-                (bytevector-u32-ref headers (+ base 4) (endianness little))
-                (bytevector-u64-ref headers (+ base 8) (endianness little))
-                (bytevector-u64-ref headers (+ base 16) (endianness little))
-                (bytevector-u64-ref headers (+ base 24) (endianness little))
-                (bytevector-u64-ref headers (+ base 32) (endianness little))
-                (bytevector-u32-ref headers (+ base 40) (endianness little))
-                (bytevector-u32-ref headers (+ base 44) (endianness little))
-                (bytevector-u64-ref headers (+ base 48) (endianness little))
-                (bytevector-u64-ref headers (+ base 56) (endianness little)))))
-    (iota num-sections)))
+   (lambda (index header)
+     (format #t "Section [~a]: name=0x~x, type=0x~x, flags=0x~x, addr=0x~x, offset=0x~x, size=0x~x, link=0x~x, info=0x~x, align=0x~x, entsize=0x~x\n"
+             index
+             (sh-name header) (sh-type header) (sh-flags header)
+             (sh-addr header) (sh-offset header) (sh-size header)
+             (sh-link header) (sh-info header) (sh-align header) (sh-entsize header)))
+   (iota (length headers))
+   headers))
+
+(define (section-headers->bytevector headers)
+  (let* ((section-header-size 64)
+         (bv (make-bytevector (* (length headers) section-header-size) 0)))
+    (for-each
+     (lambda (index header)
+       (let ((base (* index section-header-size)))
+         (bytevector-u32-set! bv (+ base 0) (sh-name header) (endianness little))
+         (bytevector-u32-set! bv (+ base 4) (sh-type header) (endianness little))
+         (bytevector-u64-set! bv (+ base 8) (sh-flags header) (endianness little))
+         (bytevector-u64-set! bv (+ base 16) (sh-addr header) (endianness little))
+         (bytevector-u64-set! bv (+ base 24) (sh-offset header) (endianness little))
+         (bytevector-u64-set! bv (+ base 32) (sh-size header) (endianness little))
+         (bytevector-u32-set! bv (+ base 40) (sh-link header) (endianness little))
+         (bytevector-u32-set! bv (+ base 44) (sh-info header) (endianness little))
+         (bytevector-u64-set! bv (+ base 48) (sh-align header) (endianness little))
+         (bytevector-u64-set! bv (+ base 56) (sh-entsize header) (endianness little))))
+     (iota (length headers))
+     headers)
+    bv))
