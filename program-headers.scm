@@ -27,18 +27,18 @@
   (memsz ph-memsz)
   (align ph-align))
 
-(define (create-program-headers code-size data-size total-dynamic-size dynamic-offset dynamic-size)
+(define (create-program-headers code-size data-size total-dynamic-size dynamic-offset dynamic-size got-offset got-size)
   (let* ((elf-header-size 64)
          (num-headers 5)
          (header-size 56)
          (phdr-size (* num-headers header-size))
          (text-addr #x1000)
          (data-addr (align-to (+ text-addr code-size) #x1000))
-         (total-size (+ dynamic-offset total-dynamic-size))
+         (total-size (+ got-offset got-size))  ; Update total size to include GOT
          (dynamic-addr (align-to (+ data-addr data-size) #x1000))
-         (relro-size (- dynamic-offset data-addr)))
+         (relro-size (- got-offset data-addr)))  ; Update RELRO size to cover up to GOT
 
-    (log-addresses-and-sizes text-addr data-addr dynamic-addr total-size relro-size)
+    (log-addresses-and-sizes text-addr data-addr dynamic-addr total-size relro-size got-offset got-size)
 
     (let ((headers
            (list
@@ -52,7 +52,7 @@
                                  (+ elf-header-size phdr-size code-size)
                                  (+ elf-header-size phdr-size code-size)
                                  #x1000)
-            ;; PT_LOAD for .data, .dynamic, etc.
+            ;; PT_LOAD for .data, .dynamic, .got, etc.
             (make-program-header PT_LOAD (logior PF_R PF_W) data-addr
                                  data-addr data-addr
                                  (- total-size data-addr) (- total-size data-addr)
@@ -69,14 +69,16 @@
       (for-each log-program-header headers)
       (program-headers->bytevector headers))))
 
-(define (log-addresses-and-sizes text-addr data-addr dynamic-addr total-size relro-size)
+(define (log-addresses-and-sizes text-addr data-addr dynamic-addr total-size relro-size got-offset got-size)
   (format #t "Computed addresses and sizes:
   text-addr=0x~x
   data-addr=0x~x
   dynamic-addr=0x~x
   total-size=0x~x
-  relro-size=0x~x\n"
-          text-addr data-addr dynamic-addr total-size relro-size))
+  relro-size=0x~x
+  got-offset=0x~x
+  got-size=0x~x\n"
+          text-addr data-addr dynamic-addr total-size relro-size got-offset got-size))
 
 (define (log-program-header ph)
   (format #t "Program Header:

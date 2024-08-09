@@ -36,21 +36,24 @@
 
 (define (create-section-headers code-size data-size symtab-size strtab-size shstrtab-size 
                                 dynsym-size dynstr-size rela-size total-dynamic-size 
-                                dynamic-size rela-offset)
+                                dynamic-size rela-offset got-size)
   (let* ((text-addr #x1000)
          (data-addr (+ text-addr (align-to code-size #x1000)))
          (dynamic-addr (align-to (+ data-addr data-size) #x1000))
          (dynsym-addr (+ dynamic-addr dynamic-size))
          (dynstr-addr (+ dynsym-addr dynsym-size))
-         (rela-addr (+ dynstr-addr dynstr-size))
-         (got-addr (+ rela-addr rela-size))
-         (plt-addr (+ got-addr #x18))  ; Assuming a small GOT size
+         (rela-addr rela-offset)
+         (got-addr (align-to (+ rela-addr rela-size) 8))
+         (plt-addr (+ got-addr got-size))
          (shstrtab-addr #x3f94)
          (shstrtab-size 108))
 
     (log-addresses-and-sizes text-addr data-addr dynamic-addr dynsym-addr 
                              dynstr-addr rela-addr got-addr plt-addr 
-                             shstrtab-addr shstrtab-size)
+                             shstrtab-addr shstrtab-size got-size
+                             code-size data-size symtab-size strtab-size
+                             dynsym-size dynstr-size rela-size total-dynamic-size 
+                             dynamic-size rela-offset)
 
     (let ((headers
            (list
@@ -70,9 +73,9 @@
             (make-section-header 72 SHT_STRTAB SHF_ALLOC 
                                  dynstr-addr dynstr-addr dynstr-size 0 0 1 0)
             (make-section-header 88 SHT_RELA SHF_ALLOC 
-                                 rela-offset rela-offset rela-size 6 0 8 24)
+                                 rela-addr rela-addr rela-size 6 0 8 24)
             (make-section-header 98 SHT_PROGBITS (logior SHF_WRITE SHF_ALLOC) 
-                                 got-addr got-addr #x18 0 0 8 8)
+                                 got-addr got-addr got-size 0 0 8 8)
             (make-section-header 103 SHT_PROGBITS (logior SHF_ALLOC SHF_EXECINSTR) 
                                  plt-addr plt-addr #x20 0 0 16 16)
             (make-section-header 26 SHT_SYMTAB 0 0 
@@ -85,13 +88,23 @@
       (log-section-headers headers)
       (section-headers->bytevector headers))))
 
-(define (log-addresses-and-sizes . args)
+(define (log-addresses-and-sizes text-addr data-addr dynamic-addr dynsym-addr 
+                                 dynstr-addr rela-addr got-addr plt-addr 
+                                 shstrtab-addr shstrtab-size got-size
+                                 code-size data-size symtab-size strtab-size
+                                 dynsym-size dynstr-size rela-size total-dynamic-size 
+                                 dynamic-size rela-offset)
   (format #t "Computed addresses and sizes:\n")
   (for-each (lambda (name value)
               (format #t "  ~a=0x~x\n" name value))
             '(text-addr data-addr dynamic-addr dynsym-addr dynstr-addr 
-              rela-addr got-addr plt-addr shstrtab-addr shstrtab-size)
-            args))
+              rela-addr got-addr plt-addr shstrtab-addr shstrtab-size got-size
+              code-size data-size symtab-size strtab-size dynsym-size dynstr-size
+              rela-size total-dynamic-size dynamic-size rela-offset)
+            (list text-addr data-addr dynamic-addr dynsym-addr dynstr-addr 
+                  rela-addr got-addr plt-addr shstrtab-addr shstrtab-size got-size
+                  code-size data-size symtab-size strtab-size dynsym-size dynstr-size
+                  rela-size total-dynamic-size dynamic-size rela-offset)))
 
 (define (log-section-headers headers)
   (format #t "Final section headers:\n")

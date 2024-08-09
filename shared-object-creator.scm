@@ -1,15 +1,15 @@
 (define-module (shared-object-creator)
-  #:use-module (elf-header)
-  #:use-module (program-headers)
-  #:use-module (section-headers)
-  #:use-module (dynamic-section)
-  #:use-module (symbol-table)
-  #:use-module (string-table)
-  #:use-module (utils)
-  #:use-module (rnrs bytevectors)
-  #:use-module (rnrs io ports)
-  #:use-module (ice-9 format)
-  #:export (create-shared-object))
+               #:use-module (elf-header)
+               #:use-module (program-headers)
+               #:use-module (section-headers)
+               #:use-module (dynamic-section)
+               #:use-module (symbol-table)
+               #:use-module (string-table)
+               #:use-module (utils)
+               #:use-module (rnrs bytevectors)
+               #:use-module (rnrs io ports)
+               #:use-module (ice-9 format)
+               #:export (create-shared-object))
 
 ;; Helper functions
 
@@ -106,6 +106,9 @@
          (dynamic-symbol-table-size (bytevector-length dynamic-symbol-table))
          (relocation-table (create-relocation-table symbol-addresses))
          (relocation-table-size (bytevector-length relocation-table))
+         (num-sections 14)
+         (got-entry-size 8)  ; Size of each GOT entry (64-bit)
+         (got-size (* (length symbol-addresses) got-entry-size))  ; Calculate GOT size
          (code-offset #x1000)
          (data-offset (align-to (+ code-offset code-size) #x1000))
          (dynamic-offset (align-to (+ data-offset data-size) #x1000))
@@ -113,18 +116,32 @@
          (dynsym-offset (align-to (+ dynamic-offset dynamic-size) 8))
          (dynstr-offset (align-to (+ dynsym-offset dynamic-symbol-table-size) 8))
          (rela-offset (align-to (+ dynstr-offset strtab-size) 8))
-         (total-dynamic-size (- (align-to (+ rela-offset relocation-table-size) 8) dynamic-offset))
+         (got-offset (align-to (+ rela-offset relocation-table-size) 8))  ; Add GOT offset
+         (plt-offset (align-to (+ got-offset got-size) 16))  ; Add PLT offset
+         (total-dynamic-size (- plt-offset dynamic-offset))  ; Update total dynamic size
+         (section-headers-offset (align-to (+ dynamic-offset total-dynamic-size) #x1000))
          (dynamic-section (create-dynamic-section 
                             dynstr-offset dynsym-offset strtab-size
-                            dynamic-symbol-table-size rela-offset relocation-table-size))
+                            dynamic-symbol-table-size rela-offset relocation-table-size
+                            got-offset))
          (section-headers-offset (align-to (+ dynamic-offset total-dynamic-size) #x1000))
          (num-sections 14)
          (section-headers (create-section-headers 
-                            code-size data-size symtab-size strtab-size shstrtab-size
-                            dynamic-symbol-table-size strtab-size relocation-table-size
-                            total-dynamic-size dynamic-size rela-offset))
+                            code-size 
+                            data-size 
+                            symtab-size 
+                            strtab-size 
+                            shstrtab-size
+                            dynamic-symbol-table-size  ; dynsym-size
+                            strtab-size                ; dynstr-size
+                            relocation-table-size      ; rela-size
+                            total-dynamic-size 
+                            dynamic-size 
+                            rela-offset
+                            got-size))
          (program-headers (create-program-headers 
-                            code-size data-size total-dynamic-size dynamic-offset dynamic-size))
+                            code-size data-size total-dynamic-size dynamic-offset dynamic-size
+                            got-offset got-size))
          (program-headers-size (bytevector-length program-headers))
          (num-program-headers (/ program-headers-size 56))
          (section-headers-size (* num-sections 64))
@@ -190,8 +207,8 @@
       (bytevector-copy! section-headers 0 elf-file section-headers-offset section-headers-size)
 
       (call-with-output-file output-file
-        (lambda (port)
-          (put-bytevector port elf-file)))
+                             (lambda (port)
+                               (put-bytevector port elf-file)))
 
       (format #t "Shared object created: ~a~%" output-file)
       (format #t "Total file size: ~a bytes~%" total-size))))

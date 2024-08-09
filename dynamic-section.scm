@@ -2,8 +2,8 @@
   #:use-module (rnrs bytevectors)
   #:export (create-dynamic-section))
 
-(define (create-dynamic-section dynstr-offset dynsym-offset strtab-size dynsym-size rela-offset rela-size)
-  (let ((section (make-bytevector (* 9 16) 0)))  ; 9 entries including DT_NULL
+(define (create-dynamic-section dynstr-offset dynsym-offset strtab-size dynsym-size rela-offset rela-size got-offset)
+  (let ((section (make-bytevector (* 10 16) 0)))  ; 10 entries including DT_NULL and DT_PLTGOT
     ;; DT_STRTAB
     (bytevector-u64-set! section (* 0 16) 5 (endianness little))  ; tag
     (bytevector-u64-set! section (+ (* 0 16) 8) dynstr-offset (endianness little))  ; value
@@ -32,8 +32,12 @@
     (bytevector-u64-set! section (* 6 16) 9 (endianness little))  ; tag
     (bytevector-u64-set! section (+ (* 6 16) 8) 24 (endianness little))  ; value
     
+    ;; DT_PLTGOT (new entry)
+    (bytevector-u64-set! section (* 7 16) 3 (endianness little))  ; tag (3 is DT_PLTGOT)
+    (bytevector-u64-set! section (+ (* 7 16) 8) got-offset (endianness little))  ; value
+    
     ;; DT_NULL (end of dynamic section)
-    (bytevector-u64-set! section (* 7 16) 0 (endianness little))  ; tag
-    (bytevector-u64-set! section (+ (* 7 16) 8) 0 (endianness little))  ; value
+    (bytevector-u64-set! section (* 8 16) 0 (endianness little))  ; tag
+    (bytevector-u64-set! section (+ (* 8 16) 8) 0 (endianness little))  ; value
     
     section))
