@@ -11,27 +11,28 @@
   #:use-module (ice-9 format)
   #:export (create-shared-object))
 
-(define (estimate-dynamic-size)
-  (* 16 10))  ; Estimate 10 entries, each 16 bytes long
+;; Helper functions
+
+(define (custom-assert condition message)
+  (unless condition
+    (error message)))
+
+(define (get-tag-name tag)
+  (case tag
+    ((1) "DT_NEEDED")
+    ((5) "DT_STRTAB")
+    ((6) "DT_SYMTAB")
+    ((7) "DT_RELA")
+    ((8) "DT_RELASZ")
+    ((9) "DT_RELAENT")
+    ((10) "DT_STRSZ")
+    ((11) "DT_SYMENT")
+    ((0) "DT_NULL")
+    (else (format #f "Unknown tag: ~a" tag))))
+
+;; Verification functions
 
 (define (verify-dynamic-section dynamic-section dynstr-offset dynsym-offset strtab-size dynsym-size rela-offset rela-size)
-  (define (get-tag-name tag)
-    (case tag
-      ((1) "DT_NEEDED")
-      ((5) "DT_STRTAB")
-      ((6) "DT_SYMTAB")
-      ((7) "DT_RELA")
-      ((8) "DT_RELASZ")
-      ((9) "DT_RELAENT")
-      ((10) "DT_STRSZ")
-      ((11) "DT_SYMENT")
-      ((0) "DT_NULL")
-      (else (format #f "Unknown tag: ~a" tag))))
-
-  (define (custom-assert condition message)
-    (unless condition
-      (error message)))
-
   (let loop ((offset 0))
     (when (< offset (bytevector-length dynamic-section))
       (let* ((tag (bytevector-u64-ref dynamic-section offset (endianness little)))
@@ -50,10 +51,6 @@
           (loop (+ offset 16)))))))
 
 (define (check-section-overlaps sections)
-  (define (custom-assert condition message)
-    (unless condition
-      (error message)))
-
   (let loop ((remaining sections))
     (when (> (length remaining) 1)
       (let* ((current (car remaining))
@@ -65,6 +62,33 @@
                            (format #f "Section overlap: ~a and ~a" (caddr current) (caddr other))))
           others)
         (loop (cdr remaining))))))
+
+(define (verify-segment-contents data-segment-start data-segment-end dynstr-offset dynsym-offset rela-offset relocation-table-size)
+  (custom-assert (<= data-segment-start dynstr-offset data-segment-end) ".dynstr not in LOAD segment")
+  (custom-assert (<= data-segment-start dynsym-offset data-segment-end) ".dynsym not in LOAD segment")
+  (custom-assert (<= data-segment-start rela-offset data-segment-end) ".rela.dyn not in LOAD segment")
+  (custom-assert (<= (+ rela-offset relocation-table-size) data-segment-end) ".rela.dyn exceeds LOAD segment"))
+
+;; Section creation functions
+
+(define (create-relocation-table symbol-addresses)
+  (let* ((reloc-count (length symbol-addresses))
+         (table-size (* reloc-count 24))
+         (table (make-bytevector table-size 0)))
+    (let loop ((symbols symbol-addresses)
+               (index 0))
+      (if (null? symbols)
+        table
+        (let* ((symbol (car symbols))
+               (name (car symbol))
+               (address (cdr symbol)))
+          (bytevector-u64-set! table (* index 24) address (endianness little))  ; r_offset
+          (bytevector-u64-set! table (+ (* index 24) 8)
+                               (logior (ash index 32) 1) (endianness little))  ; r_info (1 = R_X86_64_64)
+          (bytevector-u64-set! table (+ (* index 24) 16) 0 (endianness little))  ; r_addend
+          (loop (cdr symbols) (+ index 1)))))))
+
+;; Main function
 
 (define (create-shared-object code data-sections output-file symbol-addresses label-positions)
   (let* ((elf-header-size 64)
@@ -90,50 +114,25 @@
          (dynstr-offset (align-to (+ dynsym-offset dynamic-symbol-table-size) 8))
          (rela-offset (align-to (+ dynstr-offset strtab-size) 8))
          (total-dynamic-size (- (align-to (+ rela-offset relocation-table-size) 8) dynamic-offset))
-
-         ;; Create dynamic section
          (dynamic-section (create-dynamic-section 
-                             dynstr-offset
-                             dynsym-offset
-                             strtab-size
-                             dynamic-symbol-table-size
-                             rela-offset
-                             relocation-table-size))
-
+                            dynstr-offset dynsym-offset strtab-size
+                            dynamic-symbol-table-size rela-offset relocation-table-size))
          (section-headers-offset (align-to (+ dynamic-offset total-dynamic-size) #x1000))
          (num-sections 14)
          (section-headers (create-section-headers 
-                            code-size
-                            data-size
-                            symtab-size
-                            strtab-size
-                            shstrtab-size
-                            dynamic-symbol-table-size
-                            strtab-size
-                            relocation-table-size
-                            total-dynamic-size
-                            dynamic-size
-                            rela-offset))
+                            code-size data-size symtab-size strtab-size shstrtab-size
+                            dynamic-symbol-table-size strtab-size relocation-table-size
+                            total-dynamic-size dynamic-size rela-offset))
          (program-headers (create-program-headers 
-                            code-size
-                            data-size
-                            total-dynamic-size
-                            dynamic-offset
-                            dynamic-size
-                            ))
+                            code-size data-size total-dynamic-size dynamic-offset dynamic-size))
          (program-headers-size (bytevector-length program-headers))
          (num-program-headers (/ program-headers-size 56))
          (section-headers-size (* num-sections 64))
          (total-size (+ section-headers-offset section-headers-size))
          (shstrtab-index 13)
-         (elf-header (create-elf-header entry-point 
-                                        program-headers-offset
-                                        program-headers-size 
-                                        section-headers-offset 
-                                        num-program-headers 
-                                        num-sections
-                                        total-size
-                                        shstrtab-index)))
+         (elf-header (create-elf-header entry-point program-headers-offset program-headers-size 
+                                        section-headers-offset num-program-headers num-sections
+                                        total-size shstrtab-index)))
 
     (format #t "Total dynamic size: 0x~x~%" total-dynamic-size)
     (format #t "Dynamic offset: 0x~x~%" dynamic-offset)
@@ -142,7 +141,8 @@
     (format #t "Rela offset: 0x~x~%" rela-offset)
 
     (format #t "Verifying dynamic section entries:~%")
-    (verify-dynamic-section dynamic-section dynstr-offset dynsym-offset strtab-size dynamic-symbol-table-size rela-offset relocation-table-size)
+    (verify-dynamic-section dynamic-section dynstr-offset dynsym-offset strtab-size 
+                            dynamic-symbol-table-size rela-offset relocation-table-size)
 
     (format #t "Checking section placements:~%")
     (let* ((data-segment-start data-offset)
@@ -152,14 +152,8 @@
       (format #t "Data segment end: 0x~x~%" data-segment-end)
       (format #t "Data segment size: 0x~x~%" data-segment-size)
 
-      (define (custom-assert condition message)
-        (unless condition
-          (error message)))
-
-      (custom-assert (<= data-segment-start dynstr-offset data-segment-end) ".dynstr not in LOAD segment")
-      (custom-assert (<= data-segment-start dynsym-offset data-segment-end) ".dynsym not in LOAD segment")
-      (custom-assert (<= data-segment-start rela-offset data-segment-end) ".rela.dyn not in LOAD segment")
-      (custom-assert (<= (+ rela-offset relocation-table-size) data-segment-end) ".rela.dyn exceeds LOAD segment"))
+      (verify-segment-contents data-segment-start data-segment-end 
+                               dynstr-offset dynsym-offset rela-offset relocation-table-size))
 
     (format #t "Checking for section overlaps:~%")
     (check-section-overlaps
@@ -168,67 +162,36 @@
             (list dynsym-offset dynamic-symbol-table-size ".dynsym")
             (list rela-offset relocation-table-size ".rela.dyn")))
 
-    ;; Create the ELF file
     (let ((elf-file (make-bytevector total-size 0)))
-      ;; Write ELF header
       (bytevector-copy! elf-header 0 elf-file 0 (bytevector-length elf-header))
-
-      ;; Write program headers
       (bytevector-copy! program-headers 0 elf-file program-headers-offset program-headers-size)
-
-      ;; Write .text section
       (bytevector-copy! code 0 elf-file code-offset code-size)
 
-      ;; Write .data section
       (for-each (lambda (pair)
                   (bytevector-copy! (cdr pair) 0 elf-file data-offset (bytevector-length (cdr pair)))
                   (set! data-offset (+ data-offset (bytevector-length (cdr pair)))))
                 data-sections)
 
-      ;; Write .dynamic section
       (bytevector-copy! dynamic-section 0 elf-file dynamic-offset dynamic-size)
       (format #t "Writing dynamic section at offset: 0x~x~%" dynamic-offset)
 
-      ;; Write .dynstr section
       (bytevector-copy! strtab 0 elf-file dynstr-offset strtab-size)
       (format #t "Writing .dynstr section at offset: 0x~x~%" dynstr-offset)
 
-      ;; Write .dynsym section
       (bytevector-copy! dynamic-symbol-table 0 elf-file dynsym-offset dynamic-symbol-table-size)
       (format #t "Writing .dynsym section at offset: 0x~x~%" dynsym-offset)
 
-      ;; Write .rela.dyn section
       (bytevector-copy! relocation-table 0 elf-file rela-offset relocation-table-size)
       (format #t "Writing .rela.dyn section at offset: 0x~x~%" rela-offset)
 
-      ;; Write .shstrtab section
       (bytevector-copy! shstrtab 0 elf-file (- section-headers-offset shstrtab-size) shstrtab-size)
       (format #t "Writing .shstrtab section at offset: 0x~x~%" (- section-headers-offset shstrtab-size))
 
-      ;; Write section headers
       (bytevector-copy! section-headers 0 elf-file section-headers-offset section-headers-size)
 
-      ;; Write the ELF file to disk
       (call-with-output-file output-file
-                             (lambda (port)
-                               (put-bytevector port elf-file)))
+        (lambda (port)
+          (put-bytevector port elf-file)))
 
       (format #t "Shared object created: ~a~%" output-file)
       (format #t "Total file size: ~a bytes~%" total-size))))
-
-(define (create-relocation-table symbol-addresses)
-  (let* ((reloc-count (length symbol-addresses))
-         (table-size (* reloc-count 24))
-         (table (make-bytevector table-size 0)))
-    (let loop ((symbols symbol-addresses)
-               (index 0))
-      (if (null? symbols)
-        table
-        (let* ((symbol (car symbols))
-               (name (car symbol))
-               (address (cdr symbol)))
-          (bytevector-u64-set! table (* index 24) address (endianness little))  ; r_offset
-          (bytevector-u64-set! table (+ (* index 24) 8)
-                               (logior (ash index 32) 1) (endianness little))  ; r_info (1 = R_X86_64_64)
-          (bytevector-u64-set! table (+ (* index 24) 16) 0 (endianness little))  ; r_addend
-          (loop (cdr symbols) (+ index 1)))))))
