@@ -1,15 +1,16 @@
 (define-module (shared-object-creator)
-               #:use-module (elf-header)
-               #:use-module (program-headers)
-               #:use-module (section-headers)
-               #:use-module (dynamic-section)
-               #:use-module (symbol-table)
-               #:use-module (string-table)
-               #:use-module (utils)
-               #:use-module (rnrs bytevectors)
-               #:use-module (rnrs io ports)
-               #:use-module (ice-9 format)
-               #:export (create-shared-object))
+  #:use-module (config)
+  #:use-module (elf-header)
+  #:use-module (program-headers)
+  #:use-module (section-headers)
+  #:use-module (dynamic-section)
+  #:use-module (symbol-table)
+  #:use-module (string-table)
+  #:use-module (utils)
+  #:use-module (rnrs bytevectors)
+  #:use-module (rnrs io ports)
+  #:use-module (ice-9 format)
+  #:export (create-shared-object))
 
 ;; Helper functions
 
@@ -91,9 +92,7 @@
 ;; Main function
 
 (define (create-shared-object code data-sections output-file symbol-addresses label-positions)
-  (let* ((elf-header-size 64)
-         (program-headers-offset elf-header-size)
-         (entry-point #x1000)
+  (let* ((program-headers-offset elf-header-size)
          (code-size (bytevector-length code))
          (data-size (apply + (map (lambda (pair) (bytevector-length (cdr pair))) data-sections)))
          (symtab (create-symbol-table symbol-addresses))
@@ -106,26 +105,22 @@
          (dynamic-symbol-table-size (bytevector-length dynamic-symbol-table))
          (relocation-table (create-relocation-table symbol-addresses))
          (relocation-table-size (bytevector-length relocation-table))
-         (num-sections 14)
-         (got-entry-size 8)  ; Size of each GOT entry (64-bit)
          (got-size (* (length symbol-addresses) got-entry-size))  ; Calculate GOT size
-         (code-offset #x1000)
-         (data-offset (align-to (+ code-offset code-size) #x1000))
-         (dynamic-offset (align-to (+ data-offset data-size) #x1000))
-         (dynamic-size 120)  ; 8 entries * 16 bytes each
+         (data-offset (align-to (+ code-offset code-size) alignment))
+         (dynamic-offset (align-to (+ data-offset data-size) alignment))
+         (dynamic-size (* 8 dynamic-entry-size))  ; 8 entries * 16 bytes each
          (dynsym-offset (align-to (+ dynamic-offset dynamic-size) 8))
          (dynstr-offset (align-to (+ dynsym-offset dynamic-symbol-table-size) 8))
          (rela-offset (align-to (+ dynstr-offset strtab-size) 8))
          (got-offset (align-to (+ rela-offset relocation-table-size) 8))  ; Add GOT offset
          (plt-offset (align-to (+ got-offset got-size) 16))  ; Add PLT offset
          (total-dynamic-size (- plt-offset dynamic-offset))  ; Update total dynamic size
-         (section-headers-offset (align-to (+ dynamic-offset total-dynamic-size) #x1000))
+         (section-headers-offset (align-to (+ dynamic-offset total-dynamic-size) alignment))
          (dynamic-section (create-dynamic-section 
                             dynstr-offset dynsym-offset strtab-size
                             dynamic-symbol-table-size rela-offset relocation-table-size
                             got-offset))
-         (section-headers-offset (align-to (+ dynamic-offset total-dynamic-size) #x1000))
-         (num-sections 14)
+         (section-headers-offset (align-to (+ dynamic-offset total-dynamic-size) alignment))
          (section-headers (create-section-headers 
                             code-size 
                             data-size 
@@ -143,10 +138,9 @@
                             code-size data-size total-dynamic-size dynamic-offset dynamic-size
                             got-offset got-size))
          (program-headers-size (bytevector-length program-headers))
-         (num-program-headers (/ program-headers-size 56))
-         (section-headers-size (* num-sections 64))
+         (num-program-headers (/ program-headers-size program-header-size))
+         (section-headers-size (* num-sections section-header-size))
          (total-size (+ section-headers-offset section-headers-size))
-         (shstrtab-index 13)
          (elf-header (create-elf-header entry-point program-headers-offset program-headers-size 
                                         section-headers-offset num-program-headers num-sections
                                         total-size shstrtab-index)))

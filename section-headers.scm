@@ -3,21 +3,8 @@
   #:use-module (utils)
   #:use-module (string-table)
   #:use-module (srfi srfi-9)
+  #:use-module (config)
   #:export (create-section-headers))
-
-;; Define constants for section types and flags
-(define SHT_NULL 0)
-(define SHT_PROGBITS 1)
-(define SHT_SYMTAB 2)
-(define SHT_STRTAB 3)
-(define SHT_RELA 4)
-(define SHT_DYNAMIC 6)
-(define SHT_NOBITS 8)
-(define SHT_DYNSYM 11)
-
-(define SHF_WRITE #x1)
-(define SHF_ALLOC #x2)
-(define SHF_EXECINSTR #x4)
 
 ;; Define a record type for section headers
 (define-record-type <section-header>
@@ -57,32 +44,32 @@
 
     (let ((headers
            (list
-            (make-section-header 0 SHT_NULL 0 0 0 0 0 0 0 0)
-            (make-section-header 1 SHT_PROGBITS (logior SHF_ALLOC SHF_EXECINSTR) 
+            (make-section-header 0 sht-null 0 0 0 0 0 0 0 0)
+            (make-section-header 1 sht-progbits (logior shf-alloc shf-execinstr) 
                                  text-addr text-addr code-size 0 0 16 0)
-            (make-section-header 7 SHT_PROGBITS (logior SHF_WRITE SHF_ALLOC) 
+            (make-section-header 7 sht-progbits (logior shf-write shf-alloc) 
                                  data-addr data-addr data-size 0 0 8 0)
-            (make-section-header 13 SHT_NOBITS (logior SHF_WRITE SHF_ALLOC) 
+            (make-section-header 13 sht-nobits (logior shf-write shf-alloc) 
                                  (+ data-addr data-size) (+ data-addr data-size) 0 0 0 8 0)
-            (make-section-header 18 SHT_PROGBITS SHF_ALLOC 
+            (make-section-header 18 sht-progbits shf-alloc 
                                  (+ text-addr code-size) (+ text-addr code-size) 0 0 0 8 0)
-            (make-section-header 63 SHT_DYNAMIC (logior SHF_WRITE SHF_ALLOC) 
+            (make-section-header 63 sht-dynamic (logior shf-write shf-alloc) 
                                  dynamic-addr dynamic-addr dynamic-size 7 0 8 16)
-            (make-section-header 80 SHT_DYNSYM SHF_ALLOC 
+            (make-section-header 80 sht-dynsym shf-alloc 
                                  dynsym-addr dynsym-addr dynsym-size 7 5 8 24)
-            (make-section-header 72 SHT_STRTAB SHF_ALLOC 
+            (make-section-header 72 sht-strtab shf-alloc 
                                  dynstr-addr dynstr-addr dynstr-size 0 0 1 0)
-            (make-section-header 88 SHT_RELA SHF_ALLOC 
+            (make-section-header 88 sht-rela shf-alloc 
                                  rela-addr rela-addr rela-size 6 0 8 24)
-            (make-section-header 98 SHT_PROGBITS (logior SHF_WRITE SHF_ALLOC) 
+            (make-section-header 98 sht-progbits (logior shf-write shf-alloc) 
                                  got-addr got-addr got-size 0 0 8 8)
-            (make-section-header 103 SHT_PROGBITS (logior SHF_ALLOC SHF_EXECINSTR) 
+            (make-section-header 103 sht-progbits (logior shf-alloc shf-execinstr) 
                                  plt-addr plt-addr #x20 0 0 16 16)
-            (make-section-header 26 SHT_SYMTAB 0 0 
+            (make-section-header 26 sht-symtab 0 0 
                                  (+ #x2000 code-size data-size) symtab-size 12 5 8 24)
-            (make-section-header 34 SHT_STRTAB 0 0 
+            (make-section-header 34 sht-strtab 0 0 
                                  (+ #x2000 code-size data-size symtab-size) strtab-size 0 0 1 0)
-            (make-section-header 42 SHT_STRTAB 0 0 
+            (make-section-header 42 sht-strtab 0 0 
                                  shstrtab-addr shstrtab-size 0 0 1 0))))
 
       (log-section-headers headers)
@@ -119,8 +106,7 @@
    headers))
 
 (define (section-headers->bytevector headers)
-  (let* ((section-header-size 64)
-         (bv (make-bytevector (* (length headers) section-header-size) 0)))
+  (let* ((bv (make-bytevector (* (length headers) section-header-size) 0)))
     (for-each
      (lambda (index header)
        (let ((base (* index section-header-size)))

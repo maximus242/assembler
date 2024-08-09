@@ -10,7 +10,7 @@
   #:use-module (rnrs io ports)
   #:use-module (ice-9 format)
   #:use-module (shared-object-creator)
-  #:export (link-code create-shared-object))
+  #:export (link-code))
 
 ;; Constants
 (define base-address-difference #x1000) ; 0x401000 - 0x400000
