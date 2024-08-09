@@ -104,17 +104,17 @@
                             dynstr-offset dynsym-offset strtab-size
                             dynamic-symbol-table-size rela-offset relocation-table-size
                             got-offset))
-         (section-headers (create-section-headers 
-                            code-size 
-                            data-size 
-                            symtab-size 
-                            strtab-size 
+         (section-headers (create-section-headers
+                            code-size
+                            data-size
+                            symtab-size
+                            strtab-size
                             shstrtab-size
                             dynamic-symbol-table-size  ; dynsym-size
                             strtab-size                ; dynstr-size
                             relocation-table-size      ; rela-size
-                            total-dynamic-size 
-                            dynamic-size 
+                            total-dynamic-size
+                            dynamic-size
                             rela-offset
                             got-size))
          (program-headers (create-program-headers 
