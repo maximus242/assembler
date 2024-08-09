@@ -19,6 +19,18 @@
          (shstrtab-addr #x3f94)
          (shstrtab-size 108))
 
+    ;; Logging the computed addresses and sizes
+    (format #t "Computed addresses and sizes:\n")
+    (format #t "  text-addr=0x~x\n" text-addr)
+    (format #t "  data-addr=0x~x\n" data-addr)
+    (format #t "  dynamic-addr=0x~x\n" dynamic-addr)
+    (format #t "  dynsym-addr=0x~x\n" dynsym-addr)
+    (format #t "  dynstr-addr=0x~x\n" dynstr-addr)
+    (format #t "  rela-addr=0x~x\n" rela-addr)
+    (format #t "  got-addr=0x~x\n" got-addr)
+    (format #t "  plt-addr=0x~x\n" plt-addr)
+    (format #t "  shstrtab-addr=0x~x, shstrtab-size=0x~x\n" shstrtab-addr shstrtab-size)
+
     ;; Null section
     (set-section-header! headers 0 0 0 0 0 0 0 0 0 0 0)
 
@@ -61,16 +73,19 @@
     ;; .shstrtab section
     (set-section-header! headers 13 42 3 0 0 shstrtab-addr shstrtab-size 0 0 1 0)
 
-    (format #t "Dynamic section header: addr=0x~x, offset=0x~x, size=0x~x~%" dynamic-addr dynamic-addr dynamic-size)
-    (format #t "Dynsym section header: addr=0x~x, offset=0x~x, size=0x~x~%" dynsym-addr dynsym-addr dynsym-size)
-    (format #t "Dynstr section header: addr=0x~x, offset=0x~x, size=0x~x~%" dynstr-addr dynstr-addr dynstr-size)
-    (format #t "Rela section header: addr=0x~x, offset=0x~x, size=0x~x~%" rela-offset rela-offset rela-size)  ;; Use rela-offset
+    ;; Logging final section headers
+    (format #t "Final section headers:\n")
+    (display-headers headers num-sections section-header-size)
 
     headers))
 
 ;; Helper function to set a section header
 (define (set-section-header! headers index name type flags addr offset size link info align entsize)
   (let ((base (* index 64)))
+    ;; Logging the values being set
+    (format #t "Setting section header [~a]: name=0x~x, type=0x~x, flags=0x~x, addr=0x~x, offset=0x~x, size=0x~x, link=0x~x, info=0x~x, align=0x~x, entsize=0x~x\n"
+            index name type flags addr offset size link info align entsize)
+
     (bytevector-u32-set! headers (+ base 0) name (endianness little))
     (bytevector-u32-set! headers (+ base 4) type (endianness little))
     (bytevector-u64-set! headers (+ base 8) flags (endianness little))
@@ -81,3 +96,22 @@
     (bytevector-u32-set! headers (+ base 44) info (endianness little))
     (bytevector-u64-set! headers (+ base 48) align (endianness little))
     (bytevector-u64-set! headers (+ base 56) entsize (endianness little))))
+
+;; Helper function to display the section headers
+(define (display-headers headers num-sections section-header-size)
+  (for-each
+    (lambda (index)
+      (let ((base (* index section-header-size)))
+        (format #t "Section [~a]: name=0x~x, type=0x~x, flags=0x~x, addr=0x~x, offset=0x~x, size=0x~x, link=0x~x, info=0x~x, align=0x~x, entsize=0x~x\n"
+                index
+                (bytevector-u32-ref headers (+ base 0) (endianness little))
+                (bytevector-u32-ref headers (+ base 4) (endianness little))
+                (bytevector-u64-ref headers (+ base 8) (endianness little))
+                (bytevector-u64-ref headers (+ base 16) (endianness little))
+                (bytevector-u64-ref headers (+ base 24) (endianness little))
+                (bytevector-u64-ref headers (+ base 32) (endianness little))
+                (bytevector-u32-ref headers (+ base 40) (endianness little))
+                (bytevector-u32-ref headers (+ base 44) (endianness little))
+                (bytevector-u64-ref headers (+ base 48) (endianness little))
+                (bytevector-u64-ref headers (+ base 56) (endianness little)))))
+    (iota num-sections)))
