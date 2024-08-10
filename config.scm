@@ -2,7 +2,6 @@
   #:export (
     ;; ELF Header Constants
     elf-header-size
-    entry-point
     code-offset
     alignment
     elf-magic
@@ -51,7 +50,6 @@
 
 ;; ELF Header Constants
 (define elf-header-size 64)
-(define entry-point #x1000)
 (define code-offset #x1000)
 (define alignment #x1000)
 (define elf-magic #x464c457f)
