@@ -119,6 +119,8 @@
          (total-size (assoc-ref layout 'total-size))
          (data-addr (assoc-ref layout 'data-addr))
          (dynamic-addr (assoc-ref layout 'dynamic-addr))
+         (bss-size (assoc-ref layout 'bss-size))
+         (plt-size (assoc-ref layout 'plt-size))
          (symtab (create-symbol-table symbol-addresses))
          (strtab (create-string-table symbol-addresses))
          (shstrtab (create-section-header-string-table))
