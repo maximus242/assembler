@@ -44,7 +44,8 @@
          (got-offset (align-to (+ rela-offset relocation-table-size) 8))
          (plt-offset (align-to (+ got-offset got-size) 16))
          (total-dynamic-size (- plt-offset dynamic-offset))
-         (section-headers-offset (align-to (+ dynamic-offset total-dynamic-size) alignment)))
+         (section-headers-offset (align-to (+ dynamic-offset total-dynamic-size) alignment))
+         (shstrtab-addr (- section-headers-offset shstrtab-size)))  ; Calculate shstrtab-addr
 
     ;; Section header calculations
     (let* ((data-addr (+ text-addr (align-to code-size alignment)))
@@ -77,6 +78,7 @@
         (cons 'plt-offset plt-offset)
         (cons 'total-dynamic-size total-dynamic-size)
         (cons 'section-headers-offset section-headers-offset)
+        (cons 'shstrtab-addr shstrtab-addr)  ; Add this line
         ;; Section header variables
         (cons 'data-addr data-addr)
         (cons 'dynamic-addr dynamic-addr)

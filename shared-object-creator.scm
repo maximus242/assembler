@@ -1,18 +1,18 @@
 (define-module (shared-object-creator)
-  #:use-module (config)
-  #:use-module (elf-header)
-  #:use-module (program-headers)
-  #:use-module (section-headers)
-  #:use-module (dynamic-section)
-  #:use-module (symbol-table)
-  #:use-module (string-table)
-  #:use-module (utils)
-  #:use-module (rnrs bytevectors)
-  #:use-module (rnrs io ports)
-  #:use-module (ice-9 format)
-  #:use-module (relocation-table)
-  #:use-module (elf-layout-calculator)
-  #:export (create-shared-object))
+               #:use-module (config)
+               #:use-module (elf-header)
+               #:use-module (program-headers)
+               #:use-module (section-headers)
+               #:use-module (dynamic-section)
+               #:use-module (symbol-table)
+               #:use-module (string-table)
+               #:use-module (utils)
+               #:use-module (rnrs bytevectors)
+               #:use-module (rnrs io ports)
+               #:use-module (ice-9 format)
+               #:use-module (relocation-table)
+               #:use-module (elf-layout-calculator)
+               #:export (create-shared-object))
 
 ;; Helper functions
 
@@ -95,6 +95,7 @@
          (plt-offset (assoc-ref layout 'plt-offset))
          (total-dynamic-size (assoc-ref layout 'total-dynamic-size))
          (section-headers-offset (assoc-ref layout 'section-headers-offset))
+         (shstrtab-addr (assoc-ref layout 'shstrtab-addr))  ; Add this line
          (symtab (create-symbol-table symbol-addresses))
          (strtab (create-string-table symbol-addresses))
          (shstrtab (create-section-header-string-table))
@@ -105,18 +106,29 @@
                             dynamic-symbol-table-size rela-offset relocation-table-size
                             got-offset))
          (section-headers (create-section-headers
+                            text-addr
                             code-size
                             data-size
                             symtab-size
                             strtab-size
                             shstrtab-size
-                            dynamic-symbol-table-size  ; dynsym-size
-                            strtab-size                ; dynstr-size
-                            relocation-table-size      ; rela-size
+                            dynamic-symbol-table-size
+                            strtab-size
+                            relocation-table-size
                             total-dynamic-size
                             dynamic-size
                             rela-offset
-                            got-size))
+                            got-size
+                            (assoc-ref layout 'data-addr)
+                            (assoc-ref layout 'dynamic-addr)
+                            (assoc-ref layout 'dynsym-addr)
+                            (assoc-ref layout 'dynstr-addr)
+                            (assoc-ref layout 'rela-addr)
+                            (assoc-ref layout 'got-addr)
+                            (assoc-ref layout 'plt-addr)
+                            (assoc-ref layout 'symtab-offset)
+                            (assoc-ref layout 'strtab-offset)
+                            shstrtab-addr))  ; Use shstrtab-addr here
          (program-headers (create-program-headers 
                             code-size data-size total-dynamic-size dynamic-offset dynamic-size
                             got-offset got-size))
