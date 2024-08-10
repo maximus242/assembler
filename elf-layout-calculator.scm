@@ -56,6 +56,7 @@
            (got-addr (align-to (+ rela-addr relocation-table-size) 8))
            (plt-addr (+ got-addr got-size))
            (symtab-offset (+ section-offset code-size data-size))
+           (total-size (+ section-headers-offset (* num-sections section-header-size)))
            (strtab-offset (+ symtab-offset symtab-size)))
 
       (list
@@ -88,4 +89,5 @@
         (cons 'got-addr got-addr)
         (cons 'plt-addr plt-addr)
         (cons 'symtab-offset symtab-offset)
+        (cons 'total-size total-size)
         (cons 'strtab-offset strtab-offset)))))

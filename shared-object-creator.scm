@@ -95,7 +95,29 @@
          (plt-offset (assoc-ref layout 'plt-offset))
          (total-dynamic-size (assoc-ref layout 'total-dynamic-size))
          (section-headers-offset (assoc-ref layout 'section-headers-offset))
-         (shstrtab-addr (assoc-ref layout 'shstrtab-addr))  ; Add this line
+         (shstrtab-addr (assoc-ref layout 'shstrtab-addr))
+         (program-headers-offset (assoc-ref layout 'program-headers-offset))
+         (code-size (assoc-ref layout 'code-size))
+         (data-size (assoc-ref layout 'data-size))
+         (symtab-size (assoc-ref layout 'symtab-size))
+         (strtab-size (assoc-ref layout 'strtab-size))
+         (shstrtab-size (assoc-ref layout 'shstrtab-size))
+         (dynamic-symbol-table-size (assoc-ref layout 'dynamic-symbol-table-size))
+         (relocation-table-size (assoc-ref layout 'relocation-table-size))
+         (got-size (assoc-ref layout 'got-size))
+         (data-offset (assoc-ref layout 'data-offset))
+         (dynamic-offset (assoc-ref layout 'dynamic-offset))
+         (dynamic-size (assoc-ref layout 'dynamic-size))
+         (dynsym-offset (assoc-ref layout 'dynsym-offset))
+         (dynstr-offset (assoc-ref layout 'dynstr-offset))
+         (rela-offset (assoc-ref layout 'rela-offset))
+         (got-offset (assoc-ref layout 'got-offset))
+         (plt-offset (assoc-ref layout 'plt-offset))
+         (total-dynamic-size (assoc-ref layout 'total-dynamic-size))
+         (section-headers-offset (assoc-ref layout 'section-headers-offset))
+         (total-size (assoc-ref layout 'total-size))
+         (data-addr (assoc-ref layout 'data-addr))
+         (dynamic-addr (assoc-ref layout 'dynamic-addr))
          (symtab (create-symbol-table symbol-addresses))
          (strtab (create-string-table symbol-addresses))
          (shstrtab (create-section-header-string-table))
@@ -130,8 +152,20 @@
                             (assoc-ref layout 'strtab-offset)
                             shstrtab-addr))  ; Use shstrtab-addr here
          (program-headers (create-program-headers 
-                            code-size data-size total-dynamic-size dynamic-offset dynamic-size
-                            got-offset got-size))
+                           elf-header-size
+                           program-header-size
+                           num-program-headers
+                           text-addr
+                           code-size
+                           data-addr
+                           data-size
+                           dynamic-addr
+                           dynamic-offset
+                           dynamic-size
+                           got-offset
+                           got-size
+                           total-size
+                           alignment))
          (program-headers-size (bytevector-length program-headers))
          (num-program-headers (/ program-headers-size program-header-size))
          (section-headers-size (* num-sections section-header-size))

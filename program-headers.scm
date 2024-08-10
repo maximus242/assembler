@@ -18,12 +18,12 @@
   (memsz ph-memsz)
   (align ph-align))
 
-(define (create-program-headers code-size data-size total-dynamic-size dynamic-offset dynamic-size got-offset got-size)
+(define (create-program-headers 
+         elf-header-size program-header-size num-program-headers
+         text-addr code-size data-addr data-size
+         dynamic-addr dynamic-offset dynamic-size
+         got-offset got-size total-size alignment)
   (let* ((phdr-size (* num-program-headers program-header-size))
-         (text-addr entry-point)
-         (data-addr (align-to (+ text-addr code-size) alignment))
-         (total-size (+ got-offset got-size))
-         (dynamic-addr (align-to (+ data-addr data-size) alignment))
          (relro-size (- got-offset data-addr)))
 
     (log-addresses-and-sizes text-addr data-addr dynamic-addr total-size relro-size got-offset got-size)
@@ -92,3 +92,4 @@
             (bytevector-u64-set! bv (+ offset 40) (ph-memsz ph) (endianness little))
             (bytevector-u64-set! bv (+ offset 48) (ph-align ph) (endianness little))
             (loop (cdr headers) (+ offset program-header-size)))))))
+
