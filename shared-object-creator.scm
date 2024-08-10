@@ -90,6 +90,7 @@
          (dynamic-size (assoc-ref layout 'dynamic-size))
          (dynsym-offset (assoc-ref layout 'dynsym-offset))
          (dynstr-offset (assoc-ref layout 'dynstr-offset))
+         (rodata-size (assoc-ref layout 'rodata-size))
          (rela-offset (assoc-ref layout 'rela-offset))
          (got-offset (assoc-ref layout 'got-offset))
          (plt-offset (assoc-ref layout 'plt-offset))
@@ -157,13 +158,16 @@
                            num-program-headers
                            text-addr
                            code-size
-                           data-addr
+                           rodata-size
+                           bss-size
                            data-size
                            dynamic-addr
                            dynamic-offset
                            dynamic-size
                            got-offset
                            got-size
+                           plt-offset
+                           plt-size
                            total-size
                            alignment))
          (program-headers-size (bytevector-length program-headers))

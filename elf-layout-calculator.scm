@@ -1,11 +1,11 @@
 (define-module (elf-layout-calculator)
-  #:use-module (config)
-  #:use-module (utils)
-  #:use-module (rnrs bytevectors)
-  #:use-module (symbol-table)
-  #:use-module (string-table)
-  #:use-module (relocation-table)
-  #:export (calculate-elf-layout))
+               #:use-module (config)
+               #:use-module (utils)
+               #:use-module (rnrs bytevectors)
+               #:use-module (symbol-table)
+               #:use-module (string-table)
+               #:use-module (relocation-table)
+               #:export (calculate-elf-layout))
 
 (define (calculate-elf-layout code data-sections symbol-addresses)
   ;; Debug print statements to ensure variables are imported correctly
@@ -23,6 +23,8 @@
 
   (let* ((program-headers-offset elf-header-size)
          (code-size (bytevector-length code))
+         (rodata-size 0)  ; You may need to calculate this based on your actual data
+         (bss-size 0)     ; You may need to calculate this based on your actual data
          (data-size (apply + (map (lambda (pair) (bytevector-length (cdr pair))) data-sections)))
          (symtab (create-symbol-table symbol-addresses))
          (symtab-size (bytevector-length symtab))
@@ -35,7 +37,8 @@
          (relocation-table (create-relocation-table symbol-addresses))
          (relocation-table-size (bytevector-length relocation-table))
          (got-size (* (length symbol-addresses) got-entry-size))
-         (data-offset (align-to (+ code-offset code-size) alignment))
+         (plt-size (* (length symbol-addresses) 16))  ; Assuming 16 bytes per PLT entry
+         (data-offset (align-to (+ code-offset code-size rodata-size) alignment))
          (dynamic-offset (align-to (+ data-offset data-size) alignment))
          (dynamic-size (* 8 dynamic-entry-size))
          (dynsym-offset (align-to (+ dynamic-offset dynamic-size) 8))
@@ -45,23 +48,25 @@
          (plt-offset (align-to (+ got-offset got-size) 16))
          (total-dynamic-size (- plt-offset dynamic-offset))
          (section-headers-offset (align-to (+ dynamic-offset total-dynamic-size) alignment))
-         (shstrtab-addr (- section-headers-offset shstrtab-size)))  ; Calculate shstrtab-addr
+         (shstrtab-addr (- section-headers-offset shstrtab-size)))
 
     ;; Section header calculations
-    (let* ((data-addr (+ text-addr (align-to code-size alignment)))
+    (let* ((data-addr (+ text-addr (align-to (+ code-size rodata-size) alignment)))
            (dynamic-addr (align-to (+ data-addr data-size) alignment))
            (dynsym-addr (+ dynamic-addr dynamic-size))
            (dynstr-addr (+ dynsym-addr dynamic-symbol-table-size))
            (rela-addr rela-offset)
            (got-addr (align-to (+ rela-addr relocation-table-size) 8))
            (plt-addr (+ got-addr got-size))
-           (symtab-offset (+ section-offset code-size data-size))
+           (symtab-offset (+ section-offset code-size rodata-size data-size))
            (total-size (+ section-headers-offset (* num-sections section-header-size)))
            (strtab-offset (+ symtab-offset symtab-size)))
 
       (list
         (cons 'program-headers-offset program-headers-offset)
         (cons 'code-size code-size)
+        (cons 'rodata-size rodata-size)
+        (cons 'bss-size bss-size)
         (cons 'data-size data-size)
         (cons 'symtab-size symtab-size)
         (cons 'strtab-size strtab-size)
@@ -69,6 +74,7 @@
         (cons 'dynamic-symbol-table-size dynamic-symbol-table-size)
         (cons 'relocation-table-size relocation-table-size)
         (cons 'got-size got-size)
+        (cons 'plt-size plt-size)
         (cons 'data-offset data-offset)
         (cons 'dynamic-offset dynamic-offset)
         (cons 'dynamic-size dynamic-size)
@@ -79,8 +85,7 @@
         (cons 'plt-offset plt-offset)
         (cons 'total-dynamic-size total-dynamic-size)
         (cons 'section-headers-offset section-headers-offset)
-        (cons 'shstrtab-addr shstrtab-addr)  ; Add this line
-        ;; Section header variables
+        (cons 'shstrtab-addr shstrtab-addr)
         (cons 'data-addr data-addr)
         (cons 'dynamic-addr dynamic-addr)
         (cons 'dynsym-addr dynsym-addr)
@@ -88,6 +93,8 @@
         (cons 'rela-addr rela-addr)
         (cons 'got-addr got-addr)
         (cons 'plt-addr plt-addr)
+        (cons 'rodata-size rodata-size)
         (cons 'symtab-offset symtab-offset)
+        (cons 'strtab-offset strtab-offset)
         (cons 'total-size total-size)
-        (cons 'strtab-offset strtab-offset)))))
+        (cons 'text-addr text-addr)))))
