@@ -12,6 +12,7 @@
                #:use-module (ice-9 format)
                #:use-module (relocation-table)
                #:use-module (elf-layout-calculator)
+               #:use-module (elf-dynamic-calculator)
                #:export (create-shared-object))
 
 ;; Helper functions
@@ -183,6 +184,8 @@
          (num-program-headers (/ program-headers-size program-header-size))
          (section-headers-size (* num-sections section-header-size))
          (total-size (+ section-headers-offset section-headers-size))
+         (text-section-offset (calculate-text-section-offset elf-header-size program-headers-size))
+         (entry-point (calculate-entry-point text-addr text-section-offset))
          (elf-header (create-elf-header
                        entry-point
                        program-headers-offset

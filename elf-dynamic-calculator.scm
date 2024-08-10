@@ -1,4 +1,4 @@
-(define-module (elf-dynamic-calculations)
+(define-module (elf-dynamic-calculator)
   #:use-module (rnrs bytevectors)
   #:export (calculate-entry-point
             calculate-code-offset
@@ -7,7 +7,12 @@
             calculate-num-program-headers
             calculate-shstrtab-addr
             calculate-shstrtab-size
-            calculate-section-offset))
+            calculate-section-offset
+            calculate-text-section-offset))
+
+(define (calculate-text-section-offset elf-header-size program-headers-size)
+  "Calculate the offset of the .text section from the start of the file."
+  (+ elf-header-size program-headers-size))
 
 (define (calculate-entry-point text-addr text-section-offset)
   "Calculate the entry point based on the text address and offset within the .text section."
