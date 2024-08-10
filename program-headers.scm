@@ -26,10 +26,10 @@
           total-size alignment)
 
   (let* ((phdr-size (* num-program-headers program-header-size))
-         (text-segment-size (+ code-size rodata-size))
+         (text-segment-size (+ code-size rodata-size plt-size))  ; Include plt-size in text segment
          (text-segment-end (+ text-addr text-segment-size))
-         (data-segment-start text-segment-end)
-         (data-segment-file-size (- total-size text-segment-end))
+         (data-segment-start (align-up text-segment-end alignment))  ; Align data segment start
+         (data-segment-file-size (- total-size data-segment-start))
          (data-segment-mem-size (+ data-segment-file-size bss-size))
          (relro-size (- got-offset data-segment-start)))
 
@@ -44,13 +44,12 @@
               (make-program-header pt-phdr pf-r elf-header-size
                                    (+ text-addr elf-header-size) (+ text-addr elf-header-size)
                                    phdr-size phdr-size alignment)
-              ;; PT_LOAD for .text and .rodata (read-only, executable)
+              ;; PT_LOAD for .text, .rodata, and .plt (read-only, executable)
               (make-program-header pt-load (logior pf-r pf-x) 0
                                    text-addr text-addr
-                                   (+ elf-header-size phdr-size text-segment-size)
-                                   (+ elf-header-size phdr-size text-segment-size)
+                                   text-segment-end text-segment-end
                                    alignment)
-              ;; PT_LOAD for .data, .bss, .dynamic, .got, .plt (read-write)
+              ;; PT_LOAD for .data, .bss, .dynamic, .got (read-write)
               (make-program-header pt-load (logior pf-r pf-w) 
                                    data-segment-start
                                    data-segment-start data-segment-start
@@ -69,6 +68,13 @@
 
       (for-each log-program-header headers)
       (program-headers->bytevector headers))))
+
+;; Helper function to align addresses
+(define (align-up address alignment)
+  (let ((remainder (modulo address alignment)))
+    (if (zero? remainder)
+        address
+        (+ address (- alignment remainder)))))
 
 (define (log-addresses-and-sizes 
           text-addr data-addr dynamic-addr total-size
