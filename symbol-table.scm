@@ -8,9 +8,8 @@
             add-symbol!
             get-symbol
             create-symbol-table
-            create-dynamic-symbol-table))
-
-
+            create-dynamic-symbol-table
+            create-hash-section))
 
 ;; Define constants
 (define STT_OBJECT 1)
@@ -121,3 +120,24 @@
             (loop (cdr entries)
                   (+ index 1)
                   (+ str-offset (string-length name) 1)))))))
+
+;; New function to create a hash section
+(define (create-hash-section dynsym-table)
+  (let* ((nbucket 1)
+         (nchain (/ (bytevector-length dynsym-table) 24))  ; Each symbol is 24 bytes
+         (hash-size (+ (* 4 2) ; nbucket and nchain
+                       (* 4 nbucket)
+                       (* 4 nchain)))
+         (hash-section (make-bytevector hash-size 0)))
+    (format #t "Creating hash section with ~a buckets and ~a chain entries~%" nbucket nchain)
+    (bytevector-u32-set! hash-section 0 nbucket (endianness little))
+    (bytevector-u32-set! hash-section 4 nchain (endianness little))
+    ; All symbols hash to bucket 0 in this simple implementation
+    (bytevector-u32-set! hash-section 8 0 (endianness little))
+    ; Chain is just the index of each symbol
+    (let loop ((i 0))
+      (when (< i nchain)
+        (bytevector-u32-set! hash-section (+ 12 (* 4 i)) i (endianness little))
+        (loop (+ i 1))))
+    (format #t "Hash section created. Size: ~a bytes~%" (bytevector-length hash-section))
+    hash-section))

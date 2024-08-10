@@ -6,7 +6,8 @@
 
 ;; ELF Header structure
 (define-record-type <elf-header>
-  (make-elf-header entry-point ph-offset ph-size sh-offset ph-count sh-count total-size shstrtab-index)
+  (make-elf-header entry-point ph-offset ph-size sh-offset ph-count sh-count 
+                   total-size shstrtab-index hash-offset hash-size)
   elf-header?
   (entry-point elf-header-entry-point)
   (ph-offset elf-header-ph-offset)
@@ -15,20 +16,24 @@
   (ph-count elf-header-ph-count)
   (sh-count elf-header-sh-count)
   (total-size elf-header-total-size)
-  (shstrtab-index elf-header-shstrtab-index))
+  (shstrtab-index elf-header-shstrtab-index)
+  (hash-offset elf-header-hash-offset)
+  (hash-size elf-header-hash-size))
 
 (define (create-elf-header entry-point program-headers-offset program-headers-size 
                            section-headers-offset num-program-headers num-sections
-                           total-size shstrtab-index)
+                           total-size shstrtab-index hash-offset hash-size)
   (let ((header (make-elf-header 
                   (max entry-point #x1000)
                   program-headers-offset
                   program-headers-size
                   section-headers-offset
                   (max num-program-headers 3)
-                  (max num-sections 5)
+                  (max num-sections 6)  ; Increased to account for .hash section
                   total-size
-                  shstrtab-index)))
+                  shstrtab-index
+                  hash-offset
+                  hash-size)))
     (elf-header->bytevector header)))
 
 (define (elf-header->bytevector header)
@@ -53,3 +58,8 @@
     (bytevector-u16-set! bv 60 (elf-header-sh-count header) (endianness little))
     (bytevector-u16-set! bv 62 (elf-header-shstrtab-index header) (endianness little))
     bv))
+
+;; Helper function to get hash section information
+(define (get-hash-section-info header)
+  (values (elf-header-hash-offset header)
+          (elf-header-hash-size header)))

@@ -121,15 +121,22 @@
          (dynamic-addr (assoc-ref layout 'dynamic-addr))
          (bss-size (assoc-ref layout 'bss-size))
          (plt-size (assoc-ref layout 'plt-size))
+         (hash-offset (assoc-ref layout 'hash-offset))
+         (hash-size (assoc-ref layout 'hash-size))
          (symtab (create-symbol-table symbol-addresses))
          (strtab (create-string-table symbol-addresses))
          (shstrtab (create-section-header-string-table))
          (dynamic-symbol-table (create-dynamic-symbol-table symbol-addresses))
          (relocation-table (create-relocation-table symbol-addresses))
-         (dynamic-section (create-dynamic-section 
-                            dynstr-offset dynsym-offset strtab-size
-                            dynamic-symbol-table-size rela-offset relocation-table-size
-                            got-offset))
+         (dynamic-section (create-dynamic-section
+                            dynstr-offset
+                            dynsym-offset
+                            strtab-size
+                            dynamic-symbol-table-size
+                            rela-offset
+                            relocation-table-size
+                            got-offset
+                            hash-offset))
          (section-headers (create-section-headers
                             text-addr
                             code-size
@@ -155,30 +162,38 @@
                             (assoc-ref layout 'strtab-offset)
                             shstrtab-addr))  ; Use shstrtab-addr here
          (program-headers (create-program-headers 
-                           elf-header-size
-                           program-header-size
-                           num-program-headers
-                           text-addr
-                           code-size
-                           rodata-size
-                           bss-size
-                           data-size
-                           dynamic-addr
-                           dynamic-offset
-                           dynamic-size
-                           got-offset
-                           got-size
-                           plt-offset
-                           plt-size
-                           total-size
-                           alignment))
+                            elf-header-size
+                            program-header-size
+                            num-program-headers
+                            text-addr
+                            code-size
+                            rodata-size
+                            bss-size
+                            data-size
+                            dynamic-addr
+                            dynamic-offset
+                            dynamic-size
+                            got-offset
+                            got-size
+                            plt-offset
+                            plt-size
+                            total-size
+                            alignment))
          (program-headers-size (bytevector-length program-headers))
          (num-program-headers (/ program-headers-size program-header-size))
          (section-headers-size (* num-sections section-header-size))
          (total-size (+ section-headers-offset section-headers-size))
-         (elf-header (create-elf-header entry-point program-headers-offset program-headers-size 
-                                        section-headers-offset num-program-headers num-sections
-                                        total-size shstrtab-index)))
+         (elf-header (create-elf-header
+                       entry-point
+                       program-headers-offset
+                       program-headers-size
+                       section-headers-offset
+                       num-program-headers
+                       num-sections
+                       total-size
+                       shstrtab-index
+                       hash-offset
+                       hash-size)))
 
     (format #t "Total dynamic size: 0x~x~%" total-dynamic-size)
     (format #t "Dynamic offset: 0x~x~%" dynamic-offset)
