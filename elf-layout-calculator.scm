@@ -48,6 +48,8 @@
          (plt-offset (align-to (+ got-offset got-size) 16))
          (total-dynamic-size (- plt-offset dynamic-offset))
          (section-headers-offset (align-to (+ dynamic-offset total-dynamic-size) alignment))
+         (hash-size (calculate-hash-size symbol-addresses))
+         (hash-offset (align-to (+ dynamic-offset dynamic-size) 8))
          (shstrtab-addr (- section-headers-offset shstrtab-size)))
 
     ;; Section header calculations
@@ -97,4 +99,12 @@
         (cons 'symtab-offset symtab-offset)
         (cons 'strtab-offset strtab-offset)
         (cons 'total-size total-size)
+        (cons 'hash-size hash-size)
+        (cons 'hash-offset hash-offset)
         (cons 'text-addr text-addr)))))
+
+(define (calculate-hash-size symbol-addresses)
+  ;; Calculate the size of the hash table based on the number of symbols
+  ;; This is a simple implementation; adjust as needed
+  (let ((num-symbols (length symbol-addresses)))
+    (* 4 (+ 2 num-symbols))))  ; 2 for nbucket and nchain, then 4 bytes per symbol
