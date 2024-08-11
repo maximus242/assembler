@@ -3,6 +3,7 @@
                #:use-module (utils)
                #:use-module (srfi srfi-9)
                #:use-module (config)
+               #:use-module (elf-layout-calculator)
                #:export (create-program-headers))
 
 ;; Program header record
@@ -25,13 +26,13 @@
           got-offset got-size plt-offset plt-size
           total-size alignment)
 
-  (let* ((phdr-size (* num-program-headers program-header-size))
-         (text-segment-size (+ code-size rodata-size plt-size))  ; Include plt-size in text segment
-         (text-segment-end (+ text-addr text-segment-size))
-         (data-segment-start (align-up text-segment-end alignment))  ; Align data segment start
-         (data-segment-file-size (- total-size data-segment-start))
-         (data-segment-mem-size (+ data-segment-file-size bss-size))
-         (relro-size (- got-offset data-segment-start)))
+  (let* ((phdr-size (calculate-phdr-size num-program-headers program-header-size))
+         (text-segment-size (calculate-text-segment-size code-size rodata-size plt-size))
+         (text-segment-end (calculate-text-segment-end text-addr text-segment-size))
+         (data-segment-start (calculate-data-segment-start text-segment-end alignment))
+         (data-segment-file-size (calculate-data-segment-file-size total-size data-segment-start))
+         (data-segment-mem-size (calculate-data-segment-mem-size data-segment-file-size bss-size))
+         (relro-size (calculate-relro-size got-offset data-segment-start)))
 
     (log-addresses-and-sizes 
       text-addr data-segment-start dynamic-addr total-size

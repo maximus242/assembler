@@ -5,7 +5,41 @@
   #:use-module (symbol-table)
   #:use-module (string-table)
   #:use-module (relocation-table)
-  #:export (calculate-elf-layout))
+  #:export (calculate-elf-layout
+            calculate-phdr-size
+            calculate-text-segment-size
+            calculate-text-segment-end
+            calculate-data-segment-start
+            calculate-data-segment-file-size
+            calculate-data-segment-mem-size
+            calculate-relro-size))
+
+(define (align-up address alignment)
+  (let ((remainder (modulo address alignment)))
+    (if (zero? remainder)
+        address
+        (+ address (- alignment remainder)))))
+
+(define (calculate-phdr-size num-program-headers program-header-size)
+  (* num-program-headers program-header-size))
+
+(define (calculate-text-segment-size code-size rodata-size plt-size)
+  (+ code-size rodata-size plt-size))
+
+(define (calculate-text-segment-end text-addr text-segment-size)
+  (+ text-addr text-segment-size))
+
+(define (calculate-data-segment-start text-segment-end alignment)
+  (align-up text-segment-end alignment))
+
+(define (calculate-data-segment-file-size total-size data-segment-start)
+  (- total-size data-segment-start))
+
+(define (calculate-data-segment-mem-size data-segment-file-size bss-size)
+  (+ data-segment-file-size bss-size))
+
+(define (calculate-relro-size got-offset data-segment-start)
+  (- got-offset data-segment-start))
 
 (define (calculate-program-headers-offset)
   elf-header-size)
