@@ -31,12 +31,14 @@
 (define (calculate-data-segment-start text-segment-end alignment)
   (align-up text-segment-end alignment))
 
-;; Calculates the file size of the data segment
-(define (calculate-data-segment-file-size total-size data-segment-start)
-  (- total-size data-segment-start))
+;; Calculate the file size for the second PT_LOAD segment
+(define (calculate-data-segment-file-size total-size data-segment-start bss-size)
+  ;; Exclude the size of the .bss section from the total size for the file size
+  (- (- total-size bss-size) data-segment-start))
 
-;; Calculates the memory size of the data segment, including .bss
+;; Calculate the memory size for the second PT_LOAD segment
 (define (calculate-data-segment-mem-size data-segment-file-size bss-size)
+  ;; Include the size of the .bss section in the memory size
   (+ data-segment-file-size bss-size))
 
 ;; Calculates the size of the RELRO segment
@@ -54,7 +56,7 @@
   (let* ((text-segment-size (calculate-text-segment-size code-size rodata-size plt-size))
          (text-segment-end (calculate-text-segment-end text-addr text-segment-size))
          (data-segment-start (calculate-data-segment-start text-segment-end alignment))
-         (data-segment-file-size (calculate-data-segment-file-size total-size data-segment-start))
+         (data-segment-file-size (calculate-data-segment-file-size total-size data-segment-start bss-size))
          (data-segment-mem-size (calculate-data-segment-mem-size data-segment-file-size bss-size))
          (relro-size (calculate-relro-size got-offset data-segment-start))
          (phdr-size (calculate-phdr-size num-program-headers program-header-size)))
