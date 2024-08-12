@@ -14,6 +14,7 @@
             calculate-data-segment-mem-size
             calculate-relro-size))
 
+
 (define (align-up address alignment)
   (let ((remainder (modulo address alignment)))
     (if (zero? remainder)
@@ -75,7 +76,7 @@
   (* (length symbol-addresses) got-entry-size))
 
 (define (calculate-plt-size symbol-addresses)
-  (* (length symbol-addresses) 16))  ; Assuming 16 bytes per PLT entry
+  (* (length symbol-addresses) plt-entry-size))
 
 (define (calculate-data-offset code-size rodata-size)
   (align-to (+ code-offset code-size rodata-size) alignment))
@@ -84,22 +85,22 @@
   (align-to (+ data-offset data-size) alignment))
 
 (define (calculate-dynamic-size)
-  (* 8 dynamic-entry-size))
+  (* word-size dynamic-entry-size))
 
 (define (calculate-dynsym-offset dynamic-offset dynamic-size)
-  (align-to (+ dynamic-offset dynamic-size) 8))
+  (align-to (+ dynamic-offset dynamic-size) word-size))
 
 (define (calculate-dynstr-offset dynsym-offset dynamic-symbol-table-size)
-  (align-to (+ dynsym-offset dynamic-symbol-table-size) 8))
+  (align-to (+ dynsym-offset dynamic-symbol-table-size) word-size))
 
 (define (calculate-rela-offset dynstr-offset strtab-size)
-  (align-to (+ dynstr-offset strtab-size) 8))
+  (align-to (+ dynstr-offset strtab-size) word-size))
 
 (define (calculate-got-offset rela-offset relocation-table-size)
-  (align-to (+ rela-offset relocation-table-size) 8))
+  (align-to (+ rela-offset relocation-table-size) word-size))
 
 (define (calculate-plt-offset got-offset got-size)
-  (align-to (+ got-offset got-size) 16))
+  (align-to (+ got-offset got-size) double-word-size))
 
 (define (calculate-total-dynamic-size plt-offset dynamic-offset)
   (- plt-offset dynamic-offset))
@@ -112,7 +113,7 @@
     (* 4 (+ 2 num-symbols))))  ; 2 for nbucket and nchain, then 4 bytes per symbol
 
 (define (calculate-hash-offset dynamic-offset dynamic-size)
-  (align-to (+ dynamic-offset dynamic-size) 8))
+  (align-to (+ dynamic-offset dynamic-size) word-size))
 
 (define (calculate-shstrtab-addr section-headers-offset shstrtab-size)
   (- section-headers-offset shstrtab-size))
@@ -133,7 +134,7 @@
   rela-offset)
 
 (define (calculate-got-addr rela-addr relocation-table-size)
-  (align-to (+ rela-addr relocation-table-size) 8))
+  (align-to (+ rela-addr relocation-table-size) word-size))
 
 (define (calculate-plt-addr got-addr got-size)
   (+ got-addr got-size))

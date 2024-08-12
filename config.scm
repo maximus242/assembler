@@ -46,6 +46,11 @@
     shstrtab-addr
     shstrtab-size
     section-offset
+
+    ;; Elf Layout Constants
+    word-size
+    double-word-size
+    plt-entry-size
   ))
 
 ;; ELF Header Constants
@@ -94,3 +99,9 @@
 (define shstrtab-addr #x3f94)
 (define shstrtab-size 108)
 (define section-offset #x2000)
+
+;; Elf Layout Constants
+;; Constants for alignment and sizes
+(define word-size 8)
+(define double-word-size 16)
+(define plt-entry-size 16)
