@@ -19,6 +19,30 @@
   (memsz ph-memsz)
   (align ph-align))
 
+;; Calculates the size of the text segment
+(define (calculate-text-segment-size code-size rodata-size plt-size)
+  (+ code-size rodata-size plt-size))
+
+;; Calculates the end address of the text segment
+(define (calculate-text-segment-end text-addr text-segment-size)
+  (+ text-addr text-segment-size))
+
+;; Calculates the start address of the data segment based on the end of the text segment
+(define (calculate-data-segment-start text-segment-end alignment)
+  (align-up text-segment-end alignment))
+
+;; Calculates the file size of the data segment
+(define (calculate-data-segment-file-size total-size data-segment-start)
+  (- total-size data-segment-start))
+
+;; Calculates the memory size of the data segment, including .bss
+(define (calculate-data-segment-mem-size data-segment-file-size bss-size)
+  (+ data-segment-file-size bss-size))
+
+;; Calculates the size of the RELRO segment
+(define (calculate-relro-size got-offset data-segment-start)
+  (- got-offset data-segment-start))
+
 (define (create-program-headers 
           elf-header-size program-header-size num-program-headers
           text-addr code-size rodata-size bss-size data-size
@@ -26,13 +50,14 @@
           got-offset got-size plt-offset plt-size
           total-size alignment)
 
-  (let* ((phdr-size (calculate-phdr-size num-program-headers program-header-size))
-         (text-segment-size (calculate-text-segment-size code-size rodata-size plt-size))
+  ;; Calculate dependent values
+  (let* ((text-segment-size (calculate-text-segment-size code-size rodata-size plt-size))
          (text-segment-end (calculate-text-segment-end text-addr text-segment-size))
          (data-segment-start (calculate-data-segment-start text-segment-end alignment))
          (data-segment-file-size (calculate-data-segment-file-size total-size data-segment-start))
          (data-segment-mem-size (calculate-data-segment-mem-size data-segment-file-size bss-size))
-         (relro-size (calculate-relro-size got-offset data-segment-start)))
+         (relro-size (calculate-relro-size got-offset data-segment-start))
+         (phdr-size (calculate-phdr-size num-program-headers program-header-size)))
 
     (log-addresses-and-sizes 
       text-addr data-segment-start dynamic-addr total-size
@@ -74,8 +99,8 @@
 (define (align-up address alignment)
   (let ((remainder (modulo address alignment)))
     (if (zero? remainder)
-        address
-        (+ address (- alignment remainder)))))
+      address
+      (+ address (- alignment remainder)))))
 
 (define (log-addresses-and-sizes 
           text-addr data-addr dynamic-addr total-size
