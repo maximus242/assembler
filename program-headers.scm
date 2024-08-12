@@ -59,12 +59,21 @@
          (data-segment-file-size (calculate-data-segment-file-size total-size data-segment-start bss-size))
          (data-segment-mem-size (calculate-data-segment-mem-size data-segment-file-size bss-size))
          (relro-size (calculate-relro-size got-offset data-segment-start))
-         (phdr-size (calculate-phdr-size num-program-headers program-header-size)))
+         (phdr-size (calculate-phdr-size num-program-headers program-header-size))
+         (bss-addr (+ data-segment-start data-size)))
+
+    (format #t "BSS Placement Information:
+            data_segment_start=0x~x
+            data_size=0x~x
+            bss_addr=0x~x
+            bss_size=0x~x\n"
+            data-segment-start data-size bss-addr bss-size)
 
     (log-addresses-and-sizes 
       text-addr data-segment-start dynamic-addr total-size
       relro-size got-offset got-size plt-offset plt-size
-      text-segment-size data-segment-file-size data-segment-mem-size)
+      text-segment-size data-segment-file-size data-segment-mem-size
+      bss-size bss-addr) 
 
     (let ((headers
             (list
@@ -107,7 +116,8 @@
 (define (log-addresses-and-sizes 
           text-addr data-addr dynamic-addr total-size
           relro-size got-offset got-size plt-offset plt-size
-          text-segment-size data-segment-file-size data-segment-mem-size)
+          text-segment-size data-segment-file-size data-segment-mem-size
+          bss-size bss-addr)  ; Added bss-size and bss-addr
   (format #t "Computed addresses and sizes:
           text-addr=0x~x
           data-addr=0x~x
@@ -120,10 +130,13 @@
           plt-size=0x~x
           text-segment-size=0x~x
           data-segment-file-size=0x~x
-          data-segment-mem-size=0x~x\n"
+          data-segment-mem-size=0x~x
+          bss-size=0x~x
+          bss-addr=0x~x\n"
           text-addr data-addr dynamic-addr total-size
           relro-size got-offset got-size plt-offset plt-size
-          text-segment-size data-segment-file-size data-segment-mem-size))
+          text-segment-size data-segment-file-size data-segment-mem-size
+          bss-size bss-addr))
 
 (define (log-program-header ph)
   (format #t "Program Header:
