@@ -2,47 +2,44 @@
   #:use-module (rnrs bytevectors)
   #:export (create-dynamic-section))
 
+;; Constants for dynamic section entry tags
+(define DT_NULL    0)
+(define DT_PLTGOT  3)
+(define DT_HASH    4)
+(define DT_STRTAB  5)
+(define DT_SYMTAB  6)
+(define DT_RELA    7)
+(define DT_RELASZ  8)
+(define DT_RELAENT 9)
+(define DT_STRSZ   10)
+(define DT_SYMENT  11)
+
+;; Constants for sizes and offsets
+(define ENTRY_SIZE 16)
+(define VALUE_OFFSET 8)
+(define SYMENT_SIZE 24)
+(define RELAENT_SIZE 24)
+
+;; Helper function to set a dynamic section entry
+(define (set-dynamic-entry! section index tag value)
+  (let ((offset (* index ENTRY_SIZE)))
+    (bytevector-u64-set! section offset tag (endianness little))
+    (bytevector-u64-set! section (+ offset VALUE_OFFSET) value (endianness little))))
+
 (define (create-dynamic-section dynstr-offset dynsym-offset strtab-size dynsym-size 
                                 rela-offset rela-size got-offset hash-offset)
-  (let ((section (make-bytevector (* 11 16) 0)))  ; 11 entries including DT_NULL, DT_PLTGOT, and DT_HASH
-    ;; DT_HASH (new entry)
-    (bytevector-u64-set! section (* 0 16) 4 (endianness little))  ; tag (4 is DT_HASH)
-    (bytevector-u64-set! section (+ (* 0 16) 8) hash-offset (endianness little))  ; value
-
-    ;; DT_STRTAB
-    (bytevector-u64-set! section (* 1 16) 5 (endianness little))  ; tag
-    (bytevector-u64-set! section (+ (* 1 16) 8) dynstr-offset (endianness little))  ; value
+  (let* ((num-entries 10)
+         (section (make-bytevector (* num-entries ENTRY_SIZE) 0)))
     
-    ;; DT_SYMTAB
-    (bytevector-u64-set! section (* 2 16) 6 (endianness little))  ; tag
-    (bytevector-u64-set! section (+ (* 2 16) 8) dynsym-offset (endianness little))  ; value
-    
-    ;; DT_STRSZ
-    (bytevector-u64-set! section (* 3 16) 10 (endianness little))  ; tag
-    (bytevector-u64-set! section (+ (* 3 16) 8) strtab-size (endianness little))  ; value
-    
-    ;; DT_SYMENT
-    (bytevector-u64-set! section (* 4 16) 11 (endianness little))  ; tag
-    (bytevector-u64-set! section (+ (* 4 16) 8) 24 (endianness little))  ; value
-    
-    ;; DT_RELA
-    (bytevector-u64-set! section (* 5 16) 7 (endianness little))  ; tag
-    (bytevector-u64-set! section (+ (* 5 16) 8) rela-offset (endianness little))  ; value
-    
-    ;; DT_RELASZ
-    (bytevector-u64-set! section (* 6 16) 8 (endianness little))  ; tag
-    (bytevector-u64-set! section (+ (* 6 16) 8) rela-size (endianness little))  ; value
-    
-    ;; DT_RELAENT
-    (bytevector-u64-set! section (* 7 16) 9 (endianness little))  ; tag
-    (bytevector-u64-set! section (+ (* 7 16) 8) 24 (endianness little))  ; value
-    
-    ;; DT_PLTGOT
-    (bytevector-u64-set! section (* 8 16) 3 (endianness little))  ; tag (3 is DT_PLTGOT)
-    (bytevector-u64-set! section (+ (* 8 16) 8) got-offset (endianness little))  ; value
-    
-    ;; DT_NULL (end of dynamic section)
-    (bytevector-u64-set! section (* 9 16) 0 (endianness little))  ; tag
-    (bytevector-u64-set! section (+ (* 9 16) 8) 0 (endianness little))  ; value
+    (set-dynamic-entry! section 0 DT_HASH hash-offset)
+    (set-dynamic-entry! section 1 DT_STRTAB dynstr-offset)
+    (set-dynamic-entry! section 2 DT_SYMTAB dynsym-offset)
+    (set-dynamic-entry! section 3 DT_STRSZ strtab-size)
+    (set-dynamic-entry! section 4 DT_SYMENT SYMENT_SIZE)
+    (set-dynamic-entry! section 5 DT_RELA rela-offset)
+    (set-dynamic-entry! section 6 DT_RELASZ rela-size)
+    (set-dynamic-entry! section 7 DT_RELAENT RELAENT_SIZE)
+    (set-dynamic-entry! section 8 DT_PLTGOT got-offset)
+    (set-dynamic-entry! section 9 DT_NULL 0)
     
     section))
