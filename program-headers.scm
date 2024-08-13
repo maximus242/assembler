@@ -87,7 +87,7 @@
                                    text-segment-end text-segment-end
                                    alignment)
               ;; PT_LOAD for .data, .bss, .dynamic, .got (read-write)
-              (make-program-header pt-load (logior pf-r pf-w pf-x) 
+              (make-program-header pt-load (logior pf-r pf-w) 
                                    data-segment-start
                                    data-segment-start data-segment-start
                                    data-segment-file-size data-segment-mem-size
