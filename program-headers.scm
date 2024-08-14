@@ -32,9 +32,9 @@
   (align-up text-segment-end alignment))
 
 ;; Calculate the file size for the second PT_LOAD segment
-(define (calculate-data-segment-file-size total-size data-segment-start bss-size)
-  ;; Exclude the size of the .bss section from the total size for the file size
-  (- (- total-size bss-size) data-segment-start))
+(define (calculate-data-segment-file-size total-size data-segment-start)
+  ;; Since .bss is at the end and has no file size, the file size is calculated normally
+  (- total-size data-segment-start))
 
 ;; Calculate the memory size for the second PT_LOAD segment
 (define (calculate-data-segment-mem-size data-segment-file-size bss-size)
@@ -78,14 +78,15 @@
   (let* ((text-segment-size (calculate-text-segment-size code-size rodata-size plt-size))
          (text-segment-end (calculate-text-segment-end text-addr text-segment-size))
          (data-segment-start (calculate-data-segment-start text-segment-end alignment))
-         (data-segment-file-size (calculate-data-segment-file-size total-size data-segment-start bss-size))
+         (data-segment-file-size (calculate-data-segment-file-size total-size data-segment-start))
          (data-segment-mem-size (calculate-data-segment-mem-size data-segment-file-size bss-size))
          (relro-size (calculate-relro-size data-segment-start dynamic-addr))
          (phdr-size (calculate-phdr-size num-program-headers program-header-size))
-         (bss-addr (+ data-segment-start data-size))
+         ;; Place .bss at the end after all other sections, ensuring alignment
+         (bss-addr (align-up total-size alignment))
          (phdr-offset (align-up elf-header-size alignment))
          (first-load-size (max (+ text-addr text-segment-size)
-                               (+ phdr-offset phdr-size)))) ;; Corrected calculation
+                               (+ phdr-offset phdr-size))))
 
     (format #t "\n--- Calculated Values ---\n")
     (format #t "text-segment-size: 0x~x\n" text-segment-size)
@@ -119,19 +120,19 @@
                                    text-addr text-addr
                                    first-load-size first-load-size
                                    alignment)
-              ;; Second LOAD segment (RW) - for .data and .bss
-              (make-program-header pt-load (logior pf-r pf-w) 
+              ;; Second LOAD segment (RW) - for .data
+              (make-program-header pt-load (logior pf-r pf-w)
                                    data-segment-start
                                    data-segment-start data-segment-start
                                    (- dynamic-offset data-segment-start)
-                                   (- dynamic-offset data-segment-start)
+                                   (+ (- dynamic-offset data-segment-start) bss-size)
                                    alignment)
-              ;; Third LOAD segment (RWX) - starting from .dynamic, includes .plt
+              ;; Third LOAD segment (RWX) - starting from .dynamic, includes .plt and ends with .bss
               (make-program-header pt-load (logior pf-r pf-w pf-x) 
                                    dynamic-offset
                                    dynamic-addr dynamic-addr
-                                   (- total-size dynamic-offset) 
-                                   (- total-size dynamic-offset)
+                                   (- (+ bss-addr bss-size) dynamic-offset) 
+                                   (- (+ bss-addr bss-size) dynamic-offset)
                                    alignment)
               ;; PT_DYNAMIC
               (make-program-header pt-dynamic (logior pf-r pf-w) dynamic-offset
@@ -143,7 +144,20 @@
                                    data-segment-start
                                    data-segment-start data-segment-start
                                    relro-size relro-size
-                                   1))))
+                                   1)
+
+              (make-program-header
+                pt-load            ;; Type for LOAD segment
+                pf-r               ;; Writable flag for program header
+                #x0                ;; offset: File offset, should be 0 for NOBITS
+                #x5000             ;; vaddr: Hardcoded start address for .bss (virtual address)
+                #x5000             ;; paddr: Hardcoded physical address (same as virtual in this case)
+                #x0                ;; filesz: Should be 0 because .bss is NOBITS
+                #x0             ;; memsz: Hardcoded size for .bss in memory
+                #x1000             ;; align: Usually 0x1000 for page alignment
+                )
+
+              )))
 
       (format #t "\n--- Generated Program Headers ---\n")
       (for-each (lambda (ph index)
