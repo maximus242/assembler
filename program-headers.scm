@@ -42,8 +42,11 @@
   (+ data-segment-file-size bss-size))
 
 ;; Calculates the size of the RELRO segment
-(define (calculate-relro-size got-offset data-segment-start)
-  (- got-offset data-segment-start))
+(define (calculate-relro-size data-segment-start dynamic-addr)
+  (- dynamic-addr data-segment-start))
+
+(define (calculate-first-load-size text-addr code-size rodata-size)
+  (+ code-size rodata-size))
 
 (define (create-program-headers 
           elf-header-size program-header-size num-program-headers
@@ -52,22 +55,53 @@
           got-offset got-size plt-offset plt-size
           total-size alignment)
 
+  (format #t "\n--- Input Parameters ---\n")
+  (format #t "elf-header-size: 0x~x\n" elf-header-size)
+  (format #t "program-header-size: 0x~x\n" program-header-size)
+  (format #t "num-program-headers: ~a\n" num-program-headers)
+  (format #t "text-addr: 0x~x\n" text-addr)
+  (format #t "code-size: 0x~x\n" code-size)
+  (format #t "rodata-size: 0x~x\n" rodata-size)
+  (format #t "bss-size: 0x~x\n" bss-size)
+  (format #t "data-size: 0x~x\n" data-size)
+  (format #t "dynamic-addr: 0x~x\n" dynamic-addr)
+  (format #t "dynamic-offset: 0x~x\n" dynamic-offset)
+  (format #t "dynamic-size: 0x~x\n" dynamic-size)
+  (format #t "got-offset: 0x~x\n" got-offset)
+  (format #t "got-size: 0x~x\n" got-size)
+  (format #t "plt-offset: 0x~x\n" plt-offset)
+  (format #t "plt-size: 0x~x\n" plt-size)
+  (format #t "total-size: 0x~x\n" total-size)
+  (format #t "alignment: 0x~x\n" alignment)
+
   ;; Calculate dependent values
   (let* ((text-segment-size (calculate-text-segment-size code-size rodata-size plt-size))
          (text-segment-end (calculate-text-segment-end text-addr text-segment-size))
          (data-segment-start (calculate-data-segment-start text-segment-end alignment))
          (data-segment-file-size (calculate-data-segment-file-size total-size data-segment-start bss-size))
          (data-segment-mem-size (calculate-data-segment-mem-size data-segment-file-size bss-size))
-         (relro-size (calculate-relro-size got-offset data-segment-start))
+         (relro-size (calculate-relro-size data-segment-start dynamic-addr))
          (phdr-size (calculate-phdr-size num-program-headers program-header-size))
-         (bss-addr (+ data-segment-start data-size)))
+         (bss-addr (+ data-segment-start data-size))
+         (phdr-offset (align-up elf-header-size alignment))
+         (first-load-size (max (+ text-addr text-segment-size)
+                               (+ phdr-offset phdr-size)))) ;; Corrected calculation
 
-    (format #t "BSS Placement Information:
-            data_segment_start=0x~x
-            data_size=0x~x
-            bss_addr=0x~x
-            bss_size=0x~x\n"
-            data-segment-start data-size bss-addr bss-size)
+    (format #t "\n--- Calculated Values ---\n")
+    (format #t "text-segment-size: 0x~x\n" text-segment-size)
+    (format #t "text-segment-end: 0x~x\n" text-segment-end)
+    (format #t "data-segment-start: 0x~x\n" data-segment-start)
+    (format #t "data-segment-file-size: 0x~x\n" data-segment-file-size)
+    (format #t "data-segment-mem-size: 0x~x\n" data-segment-mem-size)
+    (format #t "relro-size: 0x~x\n" relro-size)
+    (format #t "phdr-size: 0x~x\n" phdr-size)
+    (format #t "bss-addr: 0x~x\n" bss-addr)
+
+    (format #t "\nBSS Placement Information:\n")
+    (format #t "data_segment_start: 0x~x\n" data-segment-start)
+    (format #t "data_size: 0x~x\n" data-size)
+    (format #t "bss_addr: 0x~x\n" bss-addr)
+    (format #t "bss-size: 0x~x\n" bss-size)
 
     (log-addresses-and-sizes 
       text-addr data-segment-start dynamic-addr total-size
@@ -77,33 +111,47 @@
 
     (let ((headers
             (list
-              ;; PT_PHDR
               (make-program-header pt-phdr pf-r elf-header-size
                                    (+ text-addr elf-header-size) (+ text-addr elf-header-size)
                                    phdr-size phdr-size alignment)
-              ;; PT_LOAD for .text, .rodata, and .plt (read-only, executable)
+              ;; First LOAD segment (RX) - includes .text and .rodata
               (make-program-header pt-load (logior pf-r pf-x) 0
                                    text-addr text-addr
-                                   text-segment-end text-segment-end
+                                   first-load-size first-load-size
                                    alignment)
-              ;; PT_LOAD for .data, .bss, .dynamic, .got (read-write)
+              ;; Second LOAD segment (RW) - for .data and .bss
               (make-program-header pt-load (logior pf-r pf-w) 
                                    data-segment-start
                                    data-segment-start data-segment-start
-                                   data-segment-file-size data-segment-mem-size
+                                   (- dynamic-offset data-segment-start)
+                                   (- dynamic-offset data-segment-start)
+                                   alignment)
+              ;; Third LOAD segment (RWX) - starting from .dynamic, includes .plt
+              (make-program-header pt-load (logior pf-r pf-w pf-x) 
+                                   dynamic-offset
+                                   dynamic-addr dynamic-addr
+                                   (- total-size dynamic-offset) 
+                                   (- total-size dynamic-offset)
                                    alignment)
               ;; PT_DYNAMIC
               (make-program-header pt-dynamic (logior pf-r pf-w) dynamic-offset
                                    dynamic-addr dynamic-addr
                                    dynamic-size dynamic-size alignment)
-              ;; PT_GNU_RELRO
+
+              ;; GNU_RELRO
               (make-program-header pt-gnu-relro pf-r 
                                    data-segment-start
                                    data-segment-start data-segment-start
                                    relro-size relro-size
                                    1))))
 
-      (for-each log-program-header headers)
+      (format #t "\n--- Generated Program Headers ---\n")
+      (for-each (lambda (ph index)
+                  (format #t "\nProgram Header ~a:\n" (+ index 1))
+                  (log-program-header ph))
+                headers
+                (iota (length headers)))
+
       (program-headers->bytevector headers))))
 
 ;; Helper function to align addresses
