@@ -1,0 +1,230 @@
+%%%% Starting test symbol-table-entries
+Group begin: symbol-table-entries
+Test begin:
+  test-name: "Number of entries should be correct"
+  source-file: "test-symbol-table.scm"
+  source-line: 72
+  source-form: (test-equal "Number of entries should be correct" (* (+ (length symbol-addresses) 1) 24) (bytevector-length sym-table))
+Test end:
+  result-kind: pass
+  actual-value: 120
+  expected-value: 120
+Test begin:
+  test-name: "buffer1 name offset"
+  source-file: "test-symbol-table.scm"
+  source-line: 81
+  source-form: (test-equal (string-append (symbol->string (car symbol)) " name offset") 0 (bytevector-u32-ref sym-table offset (endianness little)))
+Test end:
+  result-kind: pass
+  actual-value: 0
+  expected-value: 0
+Test begin:
+  test-name: "buffer1 address"
+  source-file: "test-symbol-table.scm"
+  source-line: 86
+  source-form: (test-equal (string-append (symbol->string (car symbol)) " address") (cdr symbol) (bytevector-u64-ref sym-table (+ offset 8) (endianness little)))
+Test end:
+  result-kind: pass
+  actual-value: 0
+  expected-value: 0
+Test begin:
+  test-name: "buffer1 size"
+  source-file: "test-symbol-table.scm"
+  source-line: 91
+  source-form: (test-equal (string-append (symbol->string (car symbol)) " size") 0 (bytevector-u64-ref sym-table (+ offset 16) (endianness little)))
+Test end:
+  result-kind: pass
+  actual-value: 0
+  expected-value: 0
+Test begin:
+  test-name: "buffer1 info"
+  source-file: "test-symbol-table.scm"
+  source-line: 96
+  source-form: (test-equal (string-append (symbol->string (car symbol)) " info") 1 (bytevector-u8-ref sym-table (+ offset 4)))
+Test end:
+  result-kind: fail
+  actual-value: 0
+  expected-value: 1
+Test begin:
+  test-name: "buffer1 other"
+  source-file: "test-symbol-table.scm"
+  source-line: 101
+  source-form: (test-equal (string-append (symbol->string (car symbol)) " other") 0 (bytevector-u8-ref sym-table (+ offset 5)))
+Test end:
+  result-kind: pass
+  actual-value: 0
+  expected-value: 0
+Test begin:
+  test-name: "buffer1 shndx"
+  source-file: "test-symbol-table.scm"
+  source-line: 106
+  source-form: (test-equal (string-append (symbol->string (car symbol)) " shndx") 0 (bytevector-u16-ref sym-table (+ offset 6) (endianness little)))
+Test end:
+  result-kind: pass
+  actual-value: 0
+  expected-value: 0
+Test begin:
+  test-name: "buffer2 name offset"
+  source-file: "test-symbol-table.scm"
+  source-line: 81
+  source-form: (test-equal (string-append (symbol->string (car symbol)) " name offset") 0 (bytevector-u32-ref sym-table offset (endianness little)))
+Test end:
+  result-kind: fail
+  actual-value: 32
+  expected-value: 0
+Test begin:
+  test-name: "buffer2 address"
+  source-file: "test-symbol-table.scm"
+  source-line: 86
+  source-form: (test-equal (string-append (symbol->string (car symbol)) " address") (cdr symbol) (bytevector-u64-ref sym-table (+ offset 8) (endianness little)))
+Test end:
+  result-kind: fail
+  actual-value: 0
+  expected-value: 32
+Test begin:
+  test-name: "buffer2 size"
+  source-file: "test-symbol-table.scm"
+  source-line: 91
+  source-form: (test-equal (string-append (symbol->string (car symbol)) " size") 0 (bytevector-u64-ref sym-table (+ offset 16) (endianness little)))
+Test end:
+  result-kind: pass
+  actual-value: 0
+  expected-value: 0
+Test begin:
+  test-name: "buffer2 info"
+  source-file: "test-symbol-table.scm"
+  source-line: 96
+  source-form: (test-equal (string-append (symbol->string (car symbol)) " info") 1 (bytevector-u8-ref sym-table (+ offset 4)))
+Test end:
+  result-kind: fail
+  actual-value: 0
+  expected-value: 1
+Test begin:
+  test-name: "buffer2 other"
+  source-file: "test-symbol-table.scm"
+  source-line: 101
+  source-form: (test-equal (string-append (symbol->string (car symbol)) " other") 0 (bytevector-u8-ref sym-table (+ offset 5)))
+Test end:
+  result-kind: pass
+  actual-value: 0
+  expected-value: 0
+Test begin:
+  test-name: "buffer2 shndx"
+  source-file: "test-symbol-table.scm"
+  source-line: 106
+  source-form: (test-equal (string-append (symbol->string (car symbol)) " shndx") 0 (bytevector-u16-ref sym-table (+ offset 6) (endianness little)))
+Test end:
+  result-kind: pass
+  actual-value: 0
+  expected-value: 0
+Test begin:
+  test-name: "result name offset"
+  source-file: "test-symbol-table.scm"
+  source-line: 81
+  source-form: (test-equal (string-append (symbol->string (car symbol)) " name offset") 0 (bytevector-u32-ref sym-table offset (endianness little)))
+Test end:
+  result-kind: fail
+  actual-value: 64
+  expected-value: 0
+Test begin:
+  test-name: "result address"
+  source-file: "test-symbol-table.scm"
+  source-line: 86
+  source-form: (test-equal (string-append (symbol->string (car symbol)) " address") (cdr symbol) (bytevector-u64-ref sym-table (+ offset 8) (endianness little)))
+Test end:
+  result-kind: fail
+  actual-value: 0
+  expected-value: 64
+Test begin:
+  test-name: "result size"
+  source-file: "test-symbol-table.scm"
+  source-line: 91
+  source-form: (test-equal (string-append (symbol->string (car symbol)) " size") 0 (bytevector-u64-ref sym-table (+ offset 16) (endianness little)))
+Test end:
+  result-kind: pass
+  actual-value: 0
+  expected-value: 0
+Test begin:
+  test-name: "result info"
+  source-file: "test-symbol-table.scm"
+  source-line: 96
+  source-form: (test-equal (string-append (symbol->string (car symbol)) " info") 1 (bytevector-u8-ref sym-table (+ offset 4)))
+Test end:
+  result-kind: fail
+  actual-value: 0
+  expected-value: 1
+Test begin:
+  test-name: "result other"
+  source-file: "test-symbol-table.scm"
+  source-line: 101
+  source-form: (test-equal (string-append (symbol->string (car symbol)) " other") 0 (bytevector-u8-ref sym-table (+ offset 5)))
+Test end:
+  result-kind: pass
+  actual-value: 0
+  expected-value: 0
+Test begin:
+  test-name: "result shndx"
+  source-file: "test-symbol-table.scm"
+  source-line: 106
+  source-form: (test-equal (string-append (symbol->string (car symbol)) " shndx") 0 (bytevector-u16-ref sym-table (+ offset 6) (endianness little)))
+Test end:
+  result-kind: pass
+  actual-value: 0
+  expected-value: 0
+Test begin:
+  test-name: "multiplier name offset"
+  source-file: "test-symbol-table.scm"
+  source-line: 81
+  source-form: (test-equal (string-append (symbol->string (car symbol)) " name offset") 0 (bytevector-u32-ref sym-table offset (endianness little)))
+Test end:
+  result-kind: fail
+  actual-value: 96
+  expected-value: 0
+Test begin:
+  test-name: "multiplier address"
+  source-file: "test-symbol-table.scm"
+  source-line: 86
+  source-form: (test-equal (string-append (symbol->string (car symbol)) " address") (cdr symbol) (bytevector-u64-ref sym-table (+ offset 8) (endianness little)))
+Test end:
+  result-kind: fail
+  actual-value: 0
+  expected-value: 96
+Test begin:
+  test-name: "multiplier size"
+  source-file: "test-symbol-table.scm"
+  source-line: 91
+  source-form: (test-equal (string-append (symbol->string (car symbol)) " size") 0 (bytevector-u64-ref sym-table (+ offset 16) (endianness little)))
+Test end:
+  result-kind: pass
+  actual-value: 0
+  expected-value: 0
+Test begin:
+  test-name: "multiplier info"
+  source-file: "test-symbol-table.scm"
+  source-line: 96
+  source-form: (test-equal (string-append (symbol->string (car symbol)) " info") 1 (bytevector-u8-ref sym-table (+ offset 4)))
+Test end:
+  result-kind: fail
+  actual-value: 0
+  expected-value: 1
+Test begin:
+  test-name: "multiplier other"
+  source-file: "test-symbol-table.scm"
+  source-line: 101
+  source-form: (test-equal (string-append (symbol->string (car symbol)) " other") 0 (bytevector-u8-ref sym-table (+ offset 5)))
+Test end:
+  result-kind: pass
+  actual-value: 0
+  expected-value: 0
+Test begin:
+  test-name: "multiplier shndx"
+  source-file: "test-symbol-table.scm"
+  source-line: 106
+  source-form: (test-equal (string-append (symbol->string (car symbol)) " shndx") 0 (bytevector-u16-ref sym-table (+ offset 6) (endianness little)))
+Test end:
+  result-kind: pass
+  actual-value: 0
+  expected-value: 0
+Group end: symbol-table-entries
+# of expected passes      15
+# of unexpected failures  10

@@ -1,0 +1,22 @@
+%%%% Starting test symbol-types
+Group begin: symbol-types
+Test begin:
+  test-name: "func_symbol should have FUNC type"
+  source-file: "test-symbol-table.scm"
+  source-line: 44
+  source-form: (test-eq "func_symbol should have FUNC type" (symbol-type (get-symbol-entry table (quote func_symbol))) (quote FUNC))
+Test end:
+  result-kind: pass
+  actual-value: FUNC
+  expected-value: FUNC
+Test begin:
+  test-name: "object_symbol should have OBJECT type"
+  source-file: "test-symbol-table.scm"
+  source-line: 47
+  source-form: (test-eq "object_symbol should have OBJECT type" (symbol-type (get-symbol-entry table (quote object_symbol))) (quote OBJECT))
+Test end:
+  result-kind: pass
+  actual-value: OBJECT
+  expected-value: OBJECT
+Group end: symbol-types
+# of expected passes      2

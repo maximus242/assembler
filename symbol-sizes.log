@@ -1,0 +1,13 @@
+%%%% Starting test symbol-sizes
+Group begin: symbol-sizes
+Test begin:
+  test-name: "sized_symbol should have correct size"
+  source-file: "test-symbol-table.scm"
+  source-line: 88
+  source-form: (test-eqv "sized_symbol should have correct size" (symbol-size (get-symbol-entry table (quote sized_symbol))) 64)
+Test end:
+  result-kind: pass
+  actual-value: 64
+  expected-value: 64
+Group end: symbol-sizes
+# of expected passes      1

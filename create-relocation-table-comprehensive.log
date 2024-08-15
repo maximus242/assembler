@@ -1,0 +1,166 @@
+%%%% Starting test create-relocation-table-comprehensive
+Group begin: create-relocation-table-comprehensive
+Test begin:
+  test-name: "relocation table should have the correct size for one entry"
+  source-file: "test-relocation-table.scm"
+  source-line: 12
+  source-form: (test-equal "relocation table should have the correct size for one entry" 24 (bytevector-length table))
+Test end:
+  result-kind: pass
+  actual-value: 24
+  expected-value: 24
+Test begin:
+  test-name: "r_offset should be correct for the first entry"
+  source-file: "test-relocation-table.scm"
+  source-line: 14
+  source-form: (test-equal "r_offset should be correct for the first entry" 4096 (bytevector-u64-ref table 0 little))
+Test end:
+  result-kind: pass
+  actual-value: 4096
+  expected-value: 4096
+Test begin:
+  test-name: "r_info should be correct for the first entry"
+  source-file: "test-relocation-table.scm"
+  source-line: 16
+  source-form: (test-equal "r_info should be correct for the first entry" 4294967297 (bytevector-u64-ref table 8 little))
+Test end:
+  result-kind: pass
+  actual-value: 4294967297
+  expected-value: 4294967297
+Test begin:
+  test-name: "r_addend should be zero for the first entry"
+  source-file: "test-relocation-table.scm"
+  source-line: 18
+  source-form: (test-equal "r_addend should be zero for the first entry" 0 (bytevector-u64-ref table 16 little))
+Test end:
+  result-kind: pass
+  actual-value: 0
+  expected-value: 0
+Test begin:
+  test-name: "relocation table should have the correct size for three entries"
+  source-file: "test-relocation-table.scm"
+  source-line: 26
+  source-form: (test-equal "relocation table should have the correct size for three entries" 72 (bytevector-length table))
+Test end:
+  result-kind: pass
+  actual-value: 72
+  expected-value: 72
+Test begin:
+  test-name: "r_offset should be correct for the first entry"
+  source-file: "test-relocation-table.scm"
+  source-line: 30
+  source-form: (test-equal "r_offset should be correct for the first entry" 4096 (bytevector-u64-ref table 0 little))
+Test end:
+  result-kind: pass
+  actual-value: 4096
+  expected-value: 4096
+Test begin:
+  test-name: "r_info should be correct for the first entry"
+  source-file: "test-relocation-table.scm"
+  source-line: 32
+  source-form: (test-equal "r_info should be correct for the first entry" 4294967297 (bytevector-u64-ref table 8 little))
+Test end:
+  result-kind: pass
+  actual-value: 4294967297
+  expected-value: 4294967297
+Test begin:
+  test-name: "r_addend should be zero for the first entry"
+  source-file: "test-relocation-table.scm"
+  source-line: 34
+  source-form: (test-equal "r_addend should be zero for the first entry" 0 (bytevector-u64-ref table 16 little))
+Test end:
+  result-kind: pass
+  actual-value: 0
+  expected-value: 0
+Test begin:
+  test-name: "r_offset should be correct for the second entry"
+  source-file: "test-relocation-table.scm"
+  source-line: 38
+  source-form: (test-equal "r_offset should be correct for the second entry" 8192 (bytevector-u64-ref table 24 little))
+Test end:
+  result-kind: pass
+  actual-value: 8192
+  expected-value: 8192
+Test begin:
+  test-name: "r_info should be correct for the second entry"
+  source-file: "test-relocation-table.scm"
+  source-line: 40
+  source-form: (test-equal "r_info should be correct for the second entry" 4294967298 (bytevector-u64-ref table 32 little))
+Test end:
+  result-kind: pass
+  actual-value: 4294967298
+  expected-value: 4294967298
+Test begin:
+  test-name: "r_addend should be zero for the second entry"
+  source-file: "test-relocation-table.scm"
+  source-line: 42
+  source-form: (test-equal "r_addend should be zero for the second entry" 0 (bytevector-u64-ref table 40 little))
+Test end:
+  result-kind: pass
+  actual-value: 0
+  expected-value: 0
+Test begin:
+  test-name: "r_offset should be correct for the third entry"
+  source-file: "test-relocation-table.scm"
+  source-line: 46
+  source-form: (test-equal "r_offset should be correct for the third entry" 12288 (bytevector-u64-ref table 48 little))
+Test end:
+  result-kind: pass
+  actual-value: 12288
+  expected-value: 12288
+Test begin:
+  test-name: "r_info should be correct for the third entry"
+  source-file: "test-relocation-table.scm"
+  source-line: 48
+  source-form: (test-equal "r_info should be correct for the third entry" 4294967299 (bytevector-u64-ref table 56 little))
+Test end:
+  result-kind: pass
+  actual-value: 4294967299
+  expected-value: 4294967299
+Test begin:
+  test-name: "r_addend should be zero for the third entry"
+  source-file: "test-relocation-table.scm"
+  source-line: 50
+  source-form: (test-equal "r_addend should be zero for the third entry" 0 (bytevector-u64-ref table 64 little))
+Test end:
+  result-kind: pass
+  actual-value: 0
+  expected-value: 0
+Test begin:
+  test-name: "relocation table should have the correct size with custom entry size"
+  source-file: "test-relocation-table.scm"
+  source-line: 61
+  source-form: (test-equal "relocation table should have the correct size with custom entry size" 32 (bytevector-length table))
+Test end:
+  result-kind: pass
+  actual-value: 32
+  expected-value: 32
+Test begin:
+  test-name: "r_offset should be correct with custom offset"
+  source-file: "test-relocation-table.scm"
+  source-line: 63
+  source-form: (test-equal "r_offset should be correct with custom offset" 4096 (bytevector-u64-ref table 0 little))
+Test end:
+  result-kind: pass
+  actual-value: 4096
+  expected-value: 4096
+Test begin:
+  test-name: "r_info should be correct with custom offset and type"
+  source-file: "test-relocation-table.scm"
+  source-line: 65
+  source-form: (test-equal "r_info should be correct with custom offset and type" 8589934593 (bytevector-u64-ref table 16 little))
+Test end:
+  result-kind: pass
+  actual-value: 8589934593
+  expected-value: 8589934593
+Test begin:
+  test-name: "r_addend should be zero with custom offset"
+  source-file: "test-relocation-table.scm"
+  source-line: 67
+  source-form: (test-equal "r_addend should be zero with custom offset" 0 (bytevector-u64-ref table 24 little))
+Test end:
+  result-kind: pass
+  actual-value: 0
+  expected-value: 0
+Group end: create-relocation-table-comprehensive
+# of expected passes      18

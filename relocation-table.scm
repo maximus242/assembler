@@ -20,8 +20,8 @@
             (let* ((symbol (car symbols))
                    (address (cdr symbol))
                    (entry-offset (* index reloc-entry-size))
-                   ;; Correct r_info calculation
-                   (r-info (logior (ash r-x86-64-64 32) index)))  ; type << 32 | index
+                   (symbol-index (+ index 1))  ; Adjust symbol index to start from 1
+                   (r-info (logior (ash r-x86-64-64 32) symbol-index)))
               (bytevector-u64-set! table 
                                    (+ entry-offset r-offset-offset) 
                                    address 
@@ -35,5 +35,3 @@
                                    0 
                                    (endianness little))  ; r_addend
               (loop (cdr symbols) (+ index 1))))))))
-
-(define little (endianness little))

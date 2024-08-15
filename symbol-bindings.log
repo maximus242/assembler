@@ -1,0 +1,22 @@
+%%%% Starting test symbol-bindings
+Group begin: symbol-bindings
+Test begin:
+  test-name: "global_symbol should have GLOBAL binding"
+  source-file: "test-symbol-table.scm"
+  source-line: 59
+  source-form: (test-eq "global_symbol should have GLOBAL binding" (symbol-binding (get-symbol-entry table (quote global_symbol))) (quote GLOBAL))
+Test end:
+  result-kind: pass
+  actual-value: GLOBAL
+  expected-value: GLOBAL
+Test begin:
+  test-name: "weak_symbol should have WEAK binding"
+  source-file: "test-symbol-table.scm"
+  source-line: 62
+  source-form: (test-eq "weak_symbol should have WEAK binding" (symbol-binding (get-symbol-entry table (quote weak_symbol))) (quote WEAK))
+Test end:
+  result-kind: pass
+  actual-value: WEAK
+  expected-value: WEAK
+Group end: symbol-bindings
+# of expected passes      2

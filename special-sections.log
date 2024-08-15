@@ -1,0 +1,22 @@
+%%%% Starting test special-sections
+Group begin: special-sections
+Test begin:
+  test-name: "abs_symbol should be in SHN_ABS section"
+  source-file: "test-symbol-table.scm"
+  source-line: 100
+  source-form: (test-eq "abs_symbol should be in SHN_ABS section" (symbol-section (get-symbol-entry table (quote abs_symbol))) (quote SHN_ABS))
+Test end:
+  result-kind: pass
+  actual-value: SHN_ABS
+  expected-value: SHN_ABS
+Test begin:
+  test-name: "common_symbol should be in SHN_COMMON section"
+  source-file: "test-symbol-table.scm"
+  source-line: 103
+  source-form: (test-eq "common_symbol should be in SHN_COMMON section" (symbol-section (get-symbol-entry table (quote common_symbol))) (quote SHN_COMMON))
+Test end:
+  result-kind: pass
+  actual-value: SHN_COMMON
+  expected-value: SHN_COMMON
+Group end: special-sections
+# of expected passes      2

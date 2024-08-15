@@ -19,6 +19,13 @@
   (unless condition
     (error message)))
 
+(define (print-relocation-table table)
+  (let ((size (bytevector-length table)))
+    (do ((i 0 (+ i 8)))
+        ((>= i size))
+      (let ((value (bytevector-u64-ref table i (endianness little))))
+        (format #t "~8,'0x: ~16,'0x~%" i value)))))
+
 (define (get-tag-name tag)
   (case tag
     ((1) "DT_NEEDED")
@@ -102,6 +109,7 @@
          (shstrtab (create-section-header-string-table))
          (dynamic-symbol-table (create-dynamic-symbol-table symbol-addresses))
          (relocation-table (create-relocation-table symbol-addresses))
+         (print-relocation-table relocation-table)
          (dynamic-section (create-dynamic-section
                             dynstr-offset
                             dynsym-offset

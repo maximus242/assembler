@@ -1,0 +1,36 @@
+%%%% Starting test create-relocation-table-max-address
+Group begin: create-relocation-table-max-address
+Test begin:
+  test-name: "relocation table should have the correct size for one entry with max address"
+  source-file: "test-relocation-table.scm"
+  source-line: 12
+  source-form: (test-assert "relocation table should have the correct size for one entry with max address" (= (bytevector-length table) 24))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Test begin:
+  test-name: "r_offset should be correct for the max address entry"
+  source-file: "test-relocation-table.scm"
+  source-line: 14
+  source-form: (test-assert "r_offset should be correct for the max address entry" (= (bytevector-u64-ref table 0 little) max-address))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Test begin:
+  test-name: "r_info should be correct for the max address entry"
+  source-file: "test-relocation-table.scm"
+  source-line: 16
+  source-form: (test-assert "r_info should be correct for the max address entry" (= (bytevector-u64-ref table 8 little) 4294967296))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Test begin:
+  test-name: "r_addend should be zero for the max address entry"
+  source-file: "test-relocation-table.scm"
+  source-line: 18
+  source-form: (test-assert "r_addend should be zero for the max address entry" (= (bytevector-u64-ref table 16 little) 0))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Group end: create-relocation-table-max-address
+# of expected passes      4

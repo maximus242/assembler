@@ -1,0 +1,22 @@
+%%%% Starting test symbol-visibility
+Group begin: symbol-visibility
+Test begin:
+  test-name: "default_symbol should have DEFAULT visibility"
+  source-file: "test-symbol-table.scm"
+  source-line: 74
+  source-form: (test-eq "default_symbol should have DEFAULT visibility" (symbol-visibility (get-symbol-entry table (quote default_symbol))) (quote DEFAULT))
+Test end:
+  result-kind: pass
+  actual-value: DEFAULT
+  expected-value: DEFAULT
+Test begin:
+  test-name: "hidden_symbol should have HIDDEN visibility"
+  source-file: "test-symbol-table.scm"
+  source-line: 77
+  source-form: (test-eq "hidden_symbol should have HIDDEN visibility" (symbol-visibility (get-symbol-entry table (quote hidden_symbol))) (quote HIDDEN))
+Test end:
+  result-kind: pass
+  actual-value: HIDDEN
+  expected-value: HIDDEN
+Group end: symbol-visibility
+# of expected passes      2
