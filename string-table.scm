@@ -6,6 +6,15 @@
             string-table-offset
             get-section-name-offset))
 
+(define (string-match? str bv offset)
+  (let ((str-len (string-length str)))
+    (and (<= (+ offset str-len) (bytevector-length bv))
+         (let loop ((i 0))
+           (or (= i str-len)
+               (and (= (char->integer (string-ref str i))
+                       (bytevector-u8-ref bv (+ offset i)))
+                    (loop (+ i 1))))))))
+
 (define* (create-string-table symbol-addresses #:optional (options '()))
   (let ((null-terminator-size (or (assoc-ref options 'null-terminator-size) 1)))
     (let* ((names (cons "" (map (lambda (pair) (symbol->string (car pair))) symbol-addresses)))
