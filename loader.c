@@ -26,7 +26,7 @@ int main() {
 
     int result = (*library_main)();
 
-    printf("Library main function returned: %d\n", result);
+    printf("Loader: The library_main function returned: %d\n", result);
 
     dlclose(handle);
     return 0;
