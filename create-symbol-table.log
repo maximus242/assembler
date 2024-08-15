@@ -1,0 +1,12 @@
+%%%% Starting test create-symbol-table
+Group begin: create-symbol-table
+Test begin:
+  test-name: "symbol table bytevector should be of the correct size"
+  source-file: "test-symbol-table.scm"
+  source-line: 77
+  source-form: (test-assert "symbol table bytevector should be of the correct size" (= (bytevector-length sym-table) (* (+ (length symbol-addresses) 1) 24)))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Group end: create-symbol-table
+# of expected passes      1

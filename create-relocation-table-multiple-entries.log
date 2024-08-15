@@ -1,0 +1,84 @@
+%%%% Starting test create-relocation-table-multiple-entries
+Group begin: create-relocation-table-multiple-entries
+Test begin:
+  test-name: "relocation table should have the correct size for three entries"
+  source-file: "test-relocation-table.scm"
+  source-line: 27
+  source-form: (test-assert "relocation table should have the correct size for three entries" (= (bytevector-length table) (* 3 24)))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Test begin:
+  test-name: "r_offset should be correct for the first entry"
+  source-file: "test-relocation-table.scm"
+  source-line: 31
+  source-form: (test-assert "r_offset should be correct for the first entry" (= (bytevector-u64-ref table 0 little) 4096))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Test begin:
+  test-name: "r_info should be correct for the first entry"
+  source-file: "test-relocation-table.scm"
+  source-line: 33
+  source-form: (test-assert "r_info should be correct for the first entry" (= (bytevector-u64-ref table 8 little) 4294967296))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Test begin:
+  test-name: "r_addend should be zero for the first entry"
+  source-file: "test-relocation-table.scm"
+  source-line: 35
+  source-form: (test-assert "r_addend should be zero for the first entry" (= (bytevector-u64-ref table 16 little) 0))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Test begin:
+  test-name: "r_offset should be correct for the second entry"
+  source-file: "test-relocation-table.scm"
+  source-line: 39
+  source-form: (test-assert "r_offset should be correct for the second entry" (= (bytevector-u64-ref table 24 little) 8192))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Test begin:
+  test-name: "r_info should be correct for the second entry"
+  source-file: "test-relocation-table.scm"
+  source-line: 41
+  source-form: (test-assert "r_info should be correct for the second entry" (= (bytevector-u64-ref table 32 little) 4294967297))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Test begin:
+  test-name: "r_addend should be zero for the second entry"
+  source-file: "test-relocation-table.scm"
+  source-line: 43
+  source-form: (test-assert "r_addend should be zero for the second entry" (= (bytevector-u64-ref table 40 little) 0))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Test begin:
+  test-name: "r_offset should be correct for the third entry"
+  source-file: "test-relocation-table.scm"
+  source-line: 47
+  source-form: (test-assert "r_offset should be correct for the third entry" (= (bytevector-u64-ref table 48 little) 12288))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Test begin:
+  test-name: "r_info should be correct for the third entry"
+  source-file: "test-relocation-table.scm"
+  source-line: 49
+  source-form: (test-assert "r_info should be correct for the third entry" (= (bytevector-u64-ref table 56 little) 4294967298))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Test begin:
+  test-name: "r_addend should be zero for the third entry"
+  source-file: "test-relocation-table.scm"
+  source-line: 51
+  source-form: (test-assert "r_addend should be zero for the third entry" (= (bytevector-u64-ref table 64 little) 0))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Group end: create-relocation-table-multiple-entries
+# of expected passes      10

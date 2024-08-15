@@ -1,0 +1,28 @@
+%%%% Starting test get-section-name-offset
+Group begin: get-section-name-offset
+Test begin:
+  test-name: "get-section-name-offset should return the correct offset for '.text'"
+  source-file: "test-string-table.scm"
+  source-line: 116
+  source-form: (test-assert "get-section-name-offset should return the correct offset for '.text'" (= (get-section-name-offset table ".text") 1))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Test begin:
+  test-name: "get-section-name-offset should return the correct offset for '.data'"
+  source-file: "test-string-table.scm"
+  source-line: 118
+  source-form: (test-assert "get-section-name-offset should return the correct offset for '.data'" (= (get-section-name-offset table ".data") 7))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Test begin:
+  test-name: "get-section-name-offset should return #f for a non-existent section name"
+  source-file: "test-string-table.scm"
+  source-line: 120
+  source-form: (test-assert "get-section-name-offset should return #f for a non-existent section name" (not (get-section-name-offset table ".foobar")))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Group end: get-section-name-offset
+# of expected passes      3

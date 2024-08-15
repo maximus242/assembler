@@ -1,0 +1,20 @@
+%%%% Starting test create-string-table-empty
+Group begin: create-string-table-empty
+Test begin:
+  test-name: "string table should be non-empty due to null terminator"
+  source-file: "test-string-table.scm"
+  source-line: 21
+  source-form: (test-assert "string table should be non-empty due to null terminator" (= (bytevector-length table) 1))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Test begin:
+  test-name: "string table should contain only the null terminator"
+  source-file: "test-string-table.scm"
+  source-line: 23
+  source-form: (test-assert "string table should contain only the null terminator" (= (bytevector-u8-ref table 0) 0))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Group end: create-string-table-empty
+# of expected passes      2

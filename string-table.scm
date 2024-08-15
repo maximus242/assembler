@@ -4,7 +4,8 @@
   #:export (create-string-table
             create-section-header-string-table
             string-table-offset
-            get-section-name-offset))
+            get-section-name-offset
+            string-match?))
 
 (define (string-match? str bv offset)
   (let ((str-len (string-length str)))
@@ -15,6 +16,7 @@
                        (bytevector-u8-ref bv (+ offset i)))
                     (loop (+ i 1))))))))
 
+
 (define* (create-string-table symbol-addresses #:optional (options '()))
   (let ((null-terminator-size (or (assoc-ref options 'null-terminator-size) 1)))
     (let* ((names (cons "" (map (lambda (pair) (symbol->string (car pair))) symbol-addresses)))
@@ -23,7 +25,11 @@
            (offset 0))
       (for-each (lambda (name)
                   (let ((len (string-length name)))
+                    ;; Copy the string to the bytevector at the current offset
                     (bytevector-copy! (string->utf8 name) 0 table offset len)
+                    ;; Add null terminator
+                    (bytevector-u8-set! table (+ offset len) 0)
+                    ;; Increment the offset by the length of the string plus the null terminator
                     (set! offset (+ offset len null-terminator-size))))
                 names)
       table)))

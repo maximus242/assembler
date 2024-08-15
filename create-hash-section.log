@@ -1,0 +1,28 @@
+%%%% Starting test create-hash-section
+Group begin: create-hash-section
+Test begin:
+  test-name: "hash section bytevector should be of the correct size"
+  source-file: "test-symbol-table.scm"
+  source-line: 146
+  source-form: (test-assert "hash section bytevector should be of the correct size" (= (bytevector-length hash-section) (+ 8 (* 4 1) (* 4 (+ (length symbol-addresses) 1)))))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Test begin:
+  test-name: "number of buckets should be 1"
+  source-file: "test-symbol-table.scm"
+  source-line: 150
+  source-form: (test-assert "number of buckets should be 1" (= (bytevector-u32-ref hash-section 0 little) 1))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Test begin:
+  test-name: "number of chains should match the number of symbols"
+  source-file: "test-symbol-table.scm"
+  source-line: 153
+  source-form: (test-assert "number of chains should match the number of symbols" (= (bytevector-u32-ref hash-section 4 little) (+ (length symbol-addresses) 1)))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Group end: create-hash-section
+# of expected passes      3

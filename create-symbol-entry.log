@@ -1,0 +1,28 @@
+%%%% Starting test create-symbol-entry
+Group begin: create-symbol-entry
+Test begin:
+  test-name: "symbol-entry should have the correct name"
+  source-file: "test-symbol-table.scm"
+  source-line: 89
+  source-form: (test-assert "symbol-entry should have the correct name" (eq? (symbol-entry-name entry) (quote symbol1)))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Test begin:
+  test-name: "symbol-entry should have the correct address"
+  source-file: "test-symbol-table.scm"
+  source-line: 91
+  source-form: (test-assert "symbol-entry should have the correct address" (= (symbol-entry-address entry) 4096))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Test begin:
+  test-name: "symbol-entry should have the correct shndx"
+  source-file: "test-symbol-table.scm"
+  source-line: 93
+  source-form: (test-assert "symbol-entry should have the correct shndx" (= (symbol-entry-shndx entry) 1))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Group end: create-symbol-entry
+# of expected passes      3

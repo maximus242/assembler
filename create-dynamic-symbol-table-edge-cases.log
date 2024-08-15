@@ -1,0 +1,20 @@
+%%%% Starting test create-dynamic-symbol-table-edge-cases
+Group begin: create-dynamic-symbol-table-edge-cases
+Test begin:
+  test-name: "dynamic symbol table should handle maximum address value"
+  source-file: "test-symbol-table.scm"
+  source-line: 125
+  source-form: (test-assert "dynamic symbol table should handle maximum address value" (= stored-value 18446744073709551615))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Test begin:
+  test-name: "dynamic symbol table should handle endianness correctly"
+  source-file: "test-symbol-table.scm"
+  source-line: 135
+  source-form: (test-assert "dynamic symbol table should handle endianness correctly" (= stored-value 72623859790382856))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Group end: create-dynamic-symbol-table-edge-cases
+# of expected passes      2

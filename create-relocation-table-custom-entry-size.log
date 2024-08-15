@@ -1,0 +1,12 @@
+%%%% Starting test create-relocation-table-custom-entry-size
+Group begin: create-relocation-table-custom-entry-size
+Test begin:
+  test-name: "relocation table should have the correct size with custom entry size"
+  source-file: "test-string-table.scm"
+  source-line: 77
+  source-form: (test-assert "relocation table should have the correct size with custom entry size" (= (bytevector-length table) (* 2 32)))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Group end: create-relocation-table-custom-entry-size
+# of expected passes      1

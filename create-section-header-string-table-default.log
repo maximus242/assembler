@@ -1,0 +1,44 @@
+%%%% Starting test create-section-header-string-table-default
+Group begin: create-section-header-string-table-default
+Test begin:
+  test-name: "string table should contain the correct default sections length"
+  source-file: "test-string-table.scm"
+  source-line: 71
+  source-form: (test-assert "string table should contain the correct default sections length" (= (bytevector-length table) 108))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Test begin:
+  test-name: "string '.text' should be found at the correct offset"
+  source-file: "test-string-table.scm"
+  source-line: 75
+  source-form: (test-assert "string '.text' should be found at the correct offset" (string-match? ".text" table 1))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Test begin:
+  test-name: "string '.data' should be found at the correct offset"
+  source-file: "test-string-table.scm"
+  source-line: 77
+  source-form: (test-assert "string '.data' should be found at the correct offset" (string-match? ".data" table 7))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Test begin:
+  test-name: "string '.symtab' should be found at the correct offset"
+  source-file: "test-string-table.scm"
+  source-line: 79
+  source-form: (test-assert "string '.symtab' should be found at the correct offset" (string-match? ".symtab" table 26))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Test begin:
+  test-name: "string '.shstrtab' should be found at the correct offset"
+  source-file: "test-string-table.scm"
+  source-line: 81
+  source-form: (test-assert "string '.shstrtab' should be found at the correct offset" (string-match? ".shstrtab" table 42))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Group end: create-section-header-string-table-default
+# of expected passes      5

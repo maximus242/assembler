@@ -1,0 +1,20 @@
+%%%% Starting test alignment-and-padding-in-symbol-table
+Group begin: alignment-and-padding-in-symbol-table
+Test begin:
+  test-name: "symbol table should have correct alignment for second entry"
+  source-file: "test-symbol-table.scm"
+  source-line: 163
+  source-form: (test-assert "symbol table should have correct alignment for second entry" (= (bytevector-u64-ref sym-table 24 little) 4096))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Test begin:
+  test-name: "symbol table should have correct alignment for third entry"
+  source-file: "test-symbol-table.scm"
+  source-line: 165
+  source-form: (test-assert "symbol table should have correct alignment for third entry" (= (bytevector-u64-ref sym-table 48 little) 8192))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Group end: alignment-and-padding-in-symbol-table
+# of expected passes      2

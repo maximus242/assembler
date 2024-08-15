@@ -9,7 +9,11 @@
             get-symbol
             create-symbol-table
             create-dynamic-symbol-table
-            create-hash-section))
+            create-hash-section
+            make-symbol-entry
+            symbol-entry-name
+            symbol-entry-address
+            symbol-entry-shndx))
 
 (define-record-type <symbol-entry>
   (make-symbol-entry name address info other shndx size)
@@ -20,6 +24,13 @@
   (other symbol-entry-other)
   (shndx symbol-entry-shndx)
   (size symbol-entry-size))
+
+;; Convert a bytevector to a list of its elements for debugging purposes
+(define (bytevector->list bv)
+  (let loop ((i 0) (lst '()))
+    (if (= i (bytevector-length bv))
+        (reverse lst)
+        (loop (+ i 1) (cons (bytevector-u8-ref bv i) lst)))))
 
 (define (make-symbol-table)
   (make-hash-table))
@@ -60,30 +71,55 @@
            (table-size (* symbol-count symbol-entry-size))
            (table (make-bytevector table-size 0))
            (string-table-offset initial-string-offset))
+      ;; Initialize the first symbol entry
       (bytevector-u32-set! table st-name-offset 0 (endianness little))
       (bytevector-u8-set! table st-info-offset 0)
       (bytevector-u8-set! table st-other-offset 0)
       (bytevector-u16-set! table st-shndx-offset 0 (endianness little))
       (bytevector-u64-set! table st-value-offset 0 (endianness little))
       (bytevector-u64-set! table st-size-offset 0 (endianness little))
+      ;; Process the symbol addresses
       (let loop ((symbols symbol-addresses)
                  (index 1)
                  (str-offset initial-string-offset))
         (if (null? symbols)
-          table
-          (let* ((symbol (car symbols))
-                 (name (symbol->string (car symbol)))
-                 (address (cdr symbol))
-                 (entry-offset (* index symbol-entry-size)))
-            (bytevector-u32-set! table (+ entry-offset st-name-offset) str-offset (endianness little))
-            (bytevector-u8-set! table (+ entry-offset st-info-offset) stt-object)
-            (bytevector-u8-set! table (+ entry-offset st-other-offset) 0)
-            (bytevector-u16-set! table (+ entry-offset st-shndx-offset) 0 (endianness little))
-            (bytevector-u64-set! table (+ entry-offset st-value-offset) address (endianness little))
-            (bytevector-u64-set! table (+ entry-offset st-size-offset) 0 (endianness little))
-            (loop (cdr symbols)
-                  (+ index 1)
-                  (+ str-offset (string-length name) null-terminator-size))))))))
+            table
+            (let* ((symbol (car symbols))
+                   (name (symbol->string (car symbol)))
+                   (address (cdr symbol))
+                   (entry-offset (* index symbol-entry-size)))
+              ;; Write the name offset
+              (bytevector-u32-set! table (+ entry-offset st-name-offset) str-offset (endianness little))
+              ;; Write the info and other fields
+              (bytevector-u8-set! table (+ entry-offset st-info-offset) stt-object)
+              (bytevector-u8-set! table (+ entry-offset st-other-offset) 0)
+              (bytevector-u16-set! table (+ entry-offset st-shndx-offset) 0 (endianness little))
+              ;; Write the address
+              (bytevector-u64-set! table (+ entry-offset st-value-offset) address (endianness little))
+              (display (format #f "Writing address: ~x at offset: ~a\n" address (+ entry-offset st-value-offset)))
+              (display (format #f "Stored bytevector content: ~a\n" (bytevector->list table)))
+              ;; Debug: Check stored value
+              (let* ((raw-bytes (let ((raw-content '()))
+                                  (do ((i 0 (+ i 1)))
+                                      ((= i 8) (reverse raw-content))
+                                    (set! raw-content 
+                                          (cons (bytevector-u8-ref table (+ (+ entry-offset st-value-offset) i))
+                                                raw-content)))))
+                     (stored-value (bytevector-u64-ref table (+ entry-offset st-value-offset) (endianness little)))
+                     (reconstructed-value 
+                      (let loop ((bytes (reverse raw-bytes)) (acc 0))
+                        (if (null? bytes)
+                            acc
+                            (loop (cdr bytes) (+ (* acc 256) (car bytes)))))))
+                (display (format #f "Stored value: ~x\n" stored-value))
+                (display (format #f "Expected value: ~x\n" address))
+                (display (format #f "Raw bytevector content: ~a\n" raw-bytes))
+                (display (format #f "Reconstructed value: ~x\n" reconstructed-value)))
+              ;; Set the size field to 0
+              (bytevector-u64-set! table (+ entry-offset st-size-offset) 0 (endianness little))
+              (loop (cdr symbols)
+                    (+ index 1)
+                    (+ str-offset (string-length name) null-terminator-size))))))))
 
 (define* (create-table symbol-addresses create-entry-func table-type #:optional (options '()))
   (let ((stt-object (or (assoc-ref options 'stt-object) 1))

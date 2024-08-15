@@ -1,0 +1,12 @@
+%%%% Starting test make-symbol-table
+Group begin: make-symbol-table
+Test begin:
+  test-name: "symbol table is a hash-table"
+  source-file: "test-symbol-table.scm"
+  source-line: 19
+  source-form: (test-assert "symbol table is a hash-table" (hash-table? (make-symbol-table)))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Group end: make-symbol-table
+# of expected passes      1

@@ -1,0 +1,28 @@
+%%%% Starting test create-string-table-single-entry
+Group begin: create-string-table-single-entry
+Test begin:
+  test-name: "string table should contain the correct length for one entry"
+  source-file: "test-string-table.scm"
+  source-line: 33
+  source-form: (test-assert "string table should contain the correct length for one entry" (= (bytevector-length table) 9))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Test begin:
+  test-name: "string table should start with a null terminator"
+  source-file: "test-string-table.scm"
+  source-line: 35
+  source-form: (test-assert "string table should start with a null terminator" (= (bytevector-u8-ref table 0) 0))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Test begin:
+  test-name: "string 'symbol1' should start at the correct offset"
+  source-file: "test-string-table.scm"
+  source-line: 37
+  source-form: (test-assert "string 'symbol1' should start at the correct offset" (string-match? "symbol1" table 1))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Group end: create-string-table-single-entry
+# of expected passes      3

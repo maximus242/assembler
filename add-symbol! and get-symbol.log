@@ -1,0 +1,20 @@
+%%%% Starting test add-symbol! and get-symbol
+Group begin: add-symbol! and get-symbol
+Test begin:
+  test-name: "symbol1 should be in the table with the correct address"
+  source-file: "test-symbol-table.scm"
+  source-line: 29
+  source-form: (test-assert "symbol1 should be in the table with the correct address" (= (get-symbol table (quote symbol1)) 4096))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Test begin:
+  test-name: "non-existent symbol should return #f"
+  source-file: "test-symbol-table.scm"
+  source-line: 32
+  source-form: (test-assert "non-existent symbol should return #f" (not (get-symbol table (quote symbol2))))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Group end: add-symbol! and get-symbol
+# of expected passes      2

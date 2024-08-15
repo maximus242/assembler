@@ -1,0 +1,28 @@
+%%%% Starting test create-dynamic-symbol-table
+Group begin: create-dynamic-symbol-table
+Test begin:
+  test-name: "dynamic symbol table bytevector should be of the correct size"
+  source-file: "test-symbol-table.scm"
+  source-line: 103
+  source-form: (test-assert "dynamic symbol table bytevector should be of the correct size" (= (bytevector-length dynsym-table) (* (+ (length symbol-addresses) 1) 24)))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Test begin:
+  test-name: "first entry name offset should be zero"
+  source-file: "test-symbol-table.scm"
+  source-line: 107
+  source-form: (test-assert "first entry name offset should be zero" (= (bytevector-u32-ref dynsym-table 0 little) 0))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Test begin:
+  test-name: "first entry info should be zero"
+  source-file: "test-symbol-table.scm"
+  source-line: 110
+  source-form: (test-assert "first entry info should be zero" (= (bytevector-u8-ref dynsym-table 4) 0))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Group end: create-dynamic-symbol-table
+# of expected passes      3

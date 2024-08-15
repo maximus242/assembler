@@ -1,0 +1,12 @@
+%%%% Starting test create-relocation-table-empty
+Group begin: create-relocation-table-empty
+Test begin:
+  test-name: "relocation table should be empty for empty input"
+  source-file: "test-relocation-table.scm"
+  source-line: 12
+  source-form: (test-assert "relocation table should be empty for empty input" (= (bytevector-length table) 0))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Group end: create-relocation-table-empty
+# of expected passes      1

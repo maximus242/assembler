@@ -1,0 +1,28 @@
+%%%% Starting test get-symbol-multiple-symbols
+Group begin: get-symbol-multiple-symbols
+Test begin:
+  test-name: "symbol1 should be in the table with the correct address"
+  source-file: "test-symbol-table.scm"
+  source-line: 58
+  source-form: (test-assert "symbol1 should be in the table with the correct address" (= (get-symbol table (quote symbol1)) 4096))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Test begin:
+  test-name: "symbol2 should be in the table with the correct address"
+  source-file: "test-symbol-table.scm"
+  source-line: 60
+  source-form: (test-assert "symbol2 should be in the table with the correct address" (= (get-symbol table (quote symbol2)) 8192))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Test begin:
+  test-name: "symbol3 should be in the table with the correct address"
+  source-file: "test-symbol-table.scm"
+  source-line: 62
+  source-form: (test-assert "symbol3 should be in the table with the correct address" (= (get-symbol table (quote symbol3)) 12288))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Group end: get-symbol-multiple-symbols
+# of expected passes      3

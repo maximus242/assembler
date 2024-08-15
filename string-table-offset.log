@@ -1,0 +1,36 @@
+%%%% Starting test string-table-offset
+Group begin: string-table-offset
+Test begin:
+  test-name: "string-table-offset should return the correct offset for 'symbol1'"
+  source-file: "test-string-table.scm"
+  source-line: 97
+  source-form: (test-assert "string-table-offset should return the correct offset for 'symbol1'" (= (string-table-offset "symbol1" table) 1))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Test begin:
+  test-name: "string-table-offset should return the correct offset for 'symbol2'"
+  source-file: "test-string-table.scm"
+  source-line: 99
+  source-form: (test-assert "string-table-offset should return the correct offset for 'symbol2'" (= (string-table-offset "symbol2" table) 9))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Test begin:
+  test-name: "string-table-offset should return the correct offset for 'symbol3'"
+  source-file: "test-string-table.scm"
+  source-line: 101
+  source-form: (test-assert "string-table-offset should return the correct offset for 'symbol3'" (= (string-table-offset "symbol3" table) 17))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Test begin:
+  test-name: "string-table-offset should return #f for a non-existent string"
+  source-file: "test-string-table.scm"
+  source-line: 103
+  source-form: (test-assert "string-table-offset should return #f for a non-existent string" (not (string-table-offset "symbol4" table)))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Group end: string-table-offset
+# of expected passes      4

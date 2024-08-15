@@ -1,0 +1,36 @@
+%%%% Starting test create-string-table-multiple-entries
+Group begin: create-string-table-multiple-entries
+Test begin:
+  test-name: "string table should contain the correct length for three entries"
+  source-file: "test-string-table.scm"
+  source-line: 48
+  source-form: (test-assert "string table should contain the correct length for three entries" (= (bytevector-length table) (+ 1 7 1 7 1 7 1)))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Test begin:
+  test-name: "string 'symbol1' should start at offset 1"
+  source-file: "test-string-table.scm"
+  source-line: 52
+  source-form: (test-assert "string 'symbol1' should start at offset 1" (string-match? "symbol1" table 1))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Test begin:
+  test-name: "string 'symbol2' should start at offset 9"
+  source-file: "test-string-table.scm"
+  source-line: 54
+  source-form: (test-assert "string 'symbol2' should start at offset 9" (string-match? "symbol2" table 9))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Test begin:
+  test-name: "string 'symbol3' should start at offset 17"
+  source-file: "test-string-table.scm"
+  source-line: 56
+  source-form: (test-assert "string 'symbol3' should start at offset 17" (string-match? "symbol3" table 17))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Group end: create-string-table-multiple-entries
+# of expected passes      4
