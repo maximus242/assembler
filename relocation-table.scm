@@ -9,7 +9,7 @@
         (r-offset-offset (or (assoc-ref options 'r-offset-offset) 0))
         (r-info-offset (or (assoc-ref options 'r-info-offset) 8))
         (r-addend-offset (or (assoc-ref options 'r-addend-offset) 16))
-        (r-x86-64-64 (or (assoc-ref options 'r-x86-64-64) 1)))
+        (r-x86-64-glob-dat (or (assoc-ref options 'r-x86-64-glob-dat) 6)))
     (let* ((reloc-count (length symbol-addresses))
            (table-size (* reloc-count reloc-entry-size))
            (table (make-bytevector table-size 0)))
@@ -21,7 +21,7 @@
                    (address (cdr symbol))
                    (entry-offset (* index reloc-entry-size))
                    (symbol-index (+ index 1))  ; Adjust symbol index to start from 1
-                   (r-info (logior (ash symbol-index 32) r-x86-64-64)))  ; Use R_X86_64_64 relocation type
+                   (r-info (logior (ash symbol-index 32) r-x86-64-glob-dat)))
               (bytevector-u64-set! table 
                                    (+ entry-offset r-offset-offset) 
                                    address 

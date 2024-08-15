@@ -23,9 +23,9 @@
 ;; Define symbol addresses (these will be relative to the start of .data section)
 (define symbol-addresses
   '((buffer1 . 0)
-    (buffer2 . 32)
-    (result . 64)
-    (multiplier . 96)))
+    (buffer2 . 8)
+    (result . 16)
+    (multiplier . 24)))
 
 ;; Updated code using RIP-relative addressing
 (define example-code
