@@ -4,6 +4,7 @@
   #:use-module (rnrs io ports)
   #:use-module (srfi srfi-1)
   #:use-module (srfi srfi-9)
+  #:use-module (string-table)
   #:export (make-symbol-table
             add-symbol!
             get-symbol
@@ -42,19 +43,51 @@
   (hash-ref table name #f))
 
 (define* (create-symbol-table symbol-addresses #:optional (options '()))
-  (let ((stt-object (or (assoc-ref options 'stt-object) 1))
-        (stt-func (or (assoc-ref options 'stt-func) 2))
+  (let ((symbol-entry-size (or (assoc-ref options 'symbol-entry-size) 24))
+        (st-name-offset (or (assoc-ref options 'st-name-offset) 0))
+        (st-info-offset (or (assoc-ref options 'st-info-offset) 4))
+        (st-other-offset (or (assoc-ref options 'st-other-offset) 5))
+        (st-shndx-offset (or (assoc-ref options 'st-shndx-offset) 6))
+        (st-value-offset (or (assoc-ref options 'st-value-offset) 8))
+        (st-size-offset (or (assoc-ref options 'st-size-offset) 16))
+        (stt-object (or (assoc-ref options 'stt-object) 1))
         (stb-global (or (assoc-ref options 'stb-global) 1))
-        (shn-text (or (assoc-ref options 'shn-text) 1))
-        (shn-data (or (assoc-ref options 'shn-data) 2))
-        (symbol-entry-size (or (assoc-ref options 'symbol-entry-size) 24)))
-    (create-table symbol-addresses create-symbol-entry "symbol"
-                  `((stt-object . ,stt-object)
-                    (stt-func . ,stt-func)
-                    (stb-global . ,stb-global)
-                    (shn-text . ,shn-text)
-                    (shn-data . ,shn-data)
-                    (symbol-entry-size . ,symbol-entry-size)))))
+        (shn-data (or (assoc-ref options 'shn-data) 2)))
+    (let* ((symbol-count (+ (length symbol-addresses) 1))
+           (table-size (* symbol-count symbol-entry-size))
+           (table (make-bytevector table-size 0))
+           (string-table (create-string-table symbol-addresses)))
+      ;; Initialize the first symbol entry (null symbol)
+      (bytevector-u32-set! table st-name-offset 0 (endianness little))
+      (bytevector-u8-set! table st-info-offset 0)
+      (bytevector-u8-set! table st-other-offset 0)
+      (bytevector-u16-set! table st-shndx-offset 0 (endianness little))
+      (bytevector-u64-set! table st-value-offset 0 (endianness little))
+      (bytevector-u64-set! table st-size-offset 0 (endianness little))
+      ;; Process the symbol addresses
+      (let loop ((symbols symbol-addresses)
+                 (index 1)
+                 (str-offset 1))  ; Start at 1 to skip the null byte
+        (if (null? symbols)
+            (cons table string-table)
+            (let* ((symbol (car symbols))
+                   (name (symbol->string (car symbol)))
+                   (address (cdr symbol))
+                   (entry-offset (* index symbol-entry-size))
+                   (st-info (logior (ash stb-global 4) stt-object)))
+              ;; Write the name offset
+              (bytevector-u32-set! table (+ entry-offset st-name-offset) str-offset (endianness little))
+              ;; Write the info (global object) and other fields
+              (bytevector-u8-set! table (+ entry-offset st-info-offset) st-info)
+              (bytevector-u8-set! table (+ entry-offset st-other-offset) 0)
+              (bytevector-u16-set! table (+ entry-offset st-shndx-offset) shn-data (endianness little))
+              ;; Write the address
+              (bytevector-u64-set! table (+ entry-offset st-value-offset) address (endianness little))
+              ;; Set the size field to 8 (64-bit values)
+              (bytevector-u64-set! table (+ entry-offset st-size-offset) 8 (endianness little))
+              (loop (cdr symbols)
+                    (+ index 1)
+                    (+ str-offset (string-length name) 1))))))))  ; +1 for null terminator
 
 (define* (create-dynamic-symbol-table symbol-addresses #:optional (options '()))
   (let ((symbol-entry-size (or (assoc-ref options 'symbol-entry-size) 24))
@@ -66,12 +99,14 @@
         (st-size-offset (or (assoc-ref options 'st-size-offset) 16))
         (null-terminator-size (or (assoc-ref options 'null-terminator-size) 1))
         (initial-string-offset (or (assoc-ref options 'initial-string-offset) 1))
-        (stt-object (or (assoc-ref options 'stt-object) 1)))
+        (stt-object (or (assoc-ref options 'stt-object) 1))
+        (stb-global (or (assoc-ref options 'stb-global) 1))
+        (shn-data (or (assoc-ref options 'shn-data) 2)))  ; Section index for .data
     (let* ((symbol-count (+ (length symbol-addresses) 1))
            (table-size (* symbol-count symbol-entry-size))
            (table (make-bytevector table-size 0))
            (string-table-offset initial-string-offset))
-      ;; Initialize the first symbol entry
+      ;; Initialize the first symbol entry (null symbol)
       (bytevector-u32-set! table st-name-offset 0 (endianness little))
       (bytevector-u8-set! table st-info-offset 0)
       (bytevector-u8-set! table st-other-offset 0)
@@ -87,35 +122,17 @@
             (let* ((symbol (car symbols))
                    (name (symbol->string (car symbol)))
                    (address (cdr symbol))
-                   (entry-offset (* index symbol-entry-size)))
+                   (entry-offset (* index symbol-entry-size))
+                   (st-info (logior (ash stb-global 4) stt-object)))
               ;; Write the name offset
               (bytevector-u32-set! table (+ entry-offset st-name-offset) str-offset (endianness little))
-              ;; Write the info and other fields
-              (bytevector-u8-set! table (+ entry-offset st-info-offset) stt-object)
+              ;; Write the info (global object) and other fields
+              (bytevector-u8-set! table (+ entry-offset st-info-offset) st-info)
               (bytevector-u8-set! table (+ entry-offset st-other-offset) 0)
-              (bytevector-u16-set! table (+ entry-offset st-shndx-offset) 0 (endianness little))
+              (bytevector-u16-set! table (+ entry-offset st-shndx-offset) shn-data (endianness little))
               ;; Write the address
               (bytevector-u64-set! table (+ entry-offset st-value-offset) address (endianness little))
-              (display (format #f "Writing address: ~x at offset: ~a\n" address (+ entry-offset st-value-offset)))
-              (display (format #f "Stored bytevector content: ~a\n" (bytevector->list table)))
-              ;; Debug: Check stored value
-              (let* ((raw-bytes (let ((raw-content '()))
-                                  (do ((i 0 (+ i 1)))
-                                      ((= i 8) (reverse raw-content))
-                                    (set! raw-content 
-                                          (cons (bytevector-u8-ref table (+ (+ entry-offset st-value-offset) i))
-                                                raw-content)))))
-                     (stored-value (bytevector-u64-ref table (+ entry-offset st-value-offset) (endianness little)))
-                     (reconstructed-value 
-                      (let loop ((bytes (reverse raw-bytes)) (acc 0))
-                        (if (null? bytes)
-                            acc
-                            (loop (cdr bytes) (+ (* acc 256) (car bytes)))))))
-                (display (format #f "Stored value: ~x\n" stored-value))
-                (display (format #f "Expected value: ~x\n" address))
-                (display (format #f "Raw bytevector content: ~a\n" raw-bytes))
-                (display (format #f "Reconstructed value: ~x\n" reconstructed-value)))
-              ;; Set the size field to 0
+              ;; Set the size field to 0 (or actual size if known)
               (bytevector-u64-set! table (+ entry-offset st-size-offset) 0 (endianness little))
               (loop (cdr symbols)
                     (+ index 1)

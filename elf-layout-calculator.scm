@@ -14,7 +14,6 @@
             calculate-data-segment-mem-size
             calculate-relro-size))
 
-
 (define (align-up address alignment)
   (let ((remainder (modulo address alignment)))
     (if (zero? remainder)
@@ -58,10 +57,10 @@
   (apply + (map (lambda (pair) (bytevector-length (cdr pair))) data-sections)))
 
 (define (calculate-symtab-size symbol-addresses)
-  (bytevector-length (create-symbol-table symbol-addresses)))
+  (bytevector-length (car (create-symbol-table symbol-addresses))))
 
 (define (calculate-strtab-size symbol-addresses)
-  (bytevector-length (create-string-table symbol-addresses)))
+  (bytevector-length (cdr (create-symbol-table symbol-addresses))))
 
 (define (calculate-shstrtab-size)
   (bytevector-length (create-section-header-string-table)))

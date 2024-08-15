@@ -21,7 +21,7 @@
                    (address (cdr symbol))
                    (entry-offset (* index reloc-entry-size))
                    (symbol-index (+ index 1))  ; Adjust symbol index to start from 1
-                   (r-info (logior (ash r-x86-64-64 32) symbol-index)))
+                   (r-info (logior (ash symbol-index 32) r-x86-64-64)))  ; Use R_X86_64_64 relocation type
               (bytevector-u64-set! table 
                                    (+ entry-offset r-offset-offset) 
                                    address 

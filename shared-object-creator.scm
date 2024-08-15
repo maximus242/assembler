@@ -104,11 +104,16 @@
          (plt-size (assoc-ref layout 'plt-size))
          (hash-offset (assoc-ref layout 'hash-offset))
          (hash-size (assoc-ref layout 'hash-size))
-         (symtab (create-symbol-table symbol-addresses))
-         (strtab (create-string-table symbol-addresses))
+         (symtab-offset (assoc-ref layout 'symtab-offset))
+         (strtab-offset (assoc-ref layout 'strtab-offset))
+         (symtab-and-strtab (create-symbol-table symbol-addresses))
+         (symtab (car symtab-and-strtab))
+         (strtab (cdr symtab-and-strtab))
          (shstrtab (create-section-header-string-table))
          (dynamic-symbol-table (create-dynamic-symbol-table symbol-addresses))
          (relocation-table (create-relocation-table symbol-addresses))
+         (dynamic-symbol-table (create-dynamic-symbol-table symbol-addresses))
+         (print-relocation-table relocation-table)
          (print-relocation-table relocation-table)
          (dynamic-section (create-dynamic-section
                             dynstr-offset
@@ -140,8 +145,8 @@
                             (assoc-ref layout 'rela-addr)
                             (assoc-ref layout 'got-addr)
                             (assoc-ref layout 'plt-addr)
-                            (assoc-ref layout 'symtab-offset)
-                            (assoc-ref layout 'strtab-offset)
+                            symtab-offset
+                            strtab-offset
                             shstrtab-addr))
          (program-headers (create-program-headers 
                             elf-header-size
@@ -209,6 +214,13 @@
       (bytevector-copy! strtab 0 elf-file dynstr-offset strtab-size)
       (bytevector-copy! dynamic-symbol-table 0 elf-file dynsym-offset dynamic-symbol-table-size)
       (bytevector-copy! relocation-table 0 elf-file rela-offset relocation-table-size)
+      
+      ;; Add .symtab section
+      (bytevector-copy! symtab 0 elf-file symtab-offset (bytevector-length symtab))
+      
+      ;; Add .strtab section
+      (bytevector-copy! strtab 0 elf-file strtab-offset (bytevector-length strtab))
+      
       (bytevector-copy! shstrtab 0 elf-file (- section-headers-offset shstrtab-size) shstrtab-size)
       (bytevector-copy! section-headers 0 elf-file section-headers-offset section-headers-size)
 
