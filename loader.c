@@ -3,31 +3,31 @@
 
 int main() {
     void *handle;
-    int (*library_main)();
+    double *buffer1;
     char *error;
 
-    handle = dlopen("./output.so", RTLD_LAZY);
+    // Open the shared object file
+    handle = dlopen("./output.so", RTLD_LAZY | RTLD_GLOBAL);
     if (!handle) {
         fprintf(stderr, "Error loading library: %s\n", dlerror());
         return 1;
     }
 
-    dlerror(); // Clear any existing error
+    // Clear any existing error
+    dlerror();
 
-    library_main = (int (*)()) dlsym(handle, "library_main");
+    // Try to get the address of the buffer1 symbol
+    buffer1 = (double *) dlsym(handle, "buffer1");
     if ((error = dlerror()) != NULL) {
-        fprintf(stderr, "Error finding library_main function: %s\n", error);
+        fprintf(stderr, "Error getting symbol: %s\n", error);
         dlclose(handle);
         return 1;
     }
 
-    printf("Library main function symbol loaded\n");
-    printf("Attempting to call library main function\n");
+    // If we get here, we successfully got the symbol
+    printf("Successfully loaded buffer1. First value: %f\n", buffer1[0]);
 
-    int result = (*library_main)();
-
-    printf("Loader: The library_main function returned: %d\n", result);
-
+    // Close the library
     dlclose(handle);
     return 0;
 }

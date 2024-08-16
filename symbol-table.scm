@@ -53,7 +53,7 @@
         (stt-object (or (assoc-ref options 'stt-object) 1))
         (stb-global (or (assoc-ref options 'stb-global) 1))
         (stv-default (or (assoc-ref options 'stv-default) 0))
-        (shn-bss (or (assoc-ref options 'shn-bss) 3)))
+        (shn-data (or (assoc-ref options 'shn-data) 2)))  ; Changed to .data section
     (let* ((symbol-count (+ (length symbol-addresses) 1))
            (table-size (* symbol-count symbol-entry-size))
            (table (make-bytevector table-size 0))
@@ -81,11 +81,11 @@
               ;; Write the info (global object) and other fields
               (bytevector-u8-set! table (+ entry-offset st-info-offset) st-info)
               (bytevector-u8-set! table (+ entry-offset st-other-offset) stv-default)
-              (bytevector-u16-set! table (+ entry-offset st-shndx-offset) shn-bss (endianness little))
+              ;; Set the section index to .data instead of .bss
+              (bytevector-u16-set! table (+ entry-offset st-shndx-offset) shn-data (endianness little))
               ;; Write the address
               (bytevector-u64-set! table (+ entry-offset st-value-offset) address (endianness little))
-              ;; Set the size field to 8 (64-bit values)
-              (bytevector-u64-set! table (+ entry-offset st-size-offset) 8 (endianness little))
+              (bytevector-u64-set! table (+ entry-offset st-size-offset) 32 (endianness little))
               (loop (cdr symbols)
                     (+ index 1)
                     (+ str-offset (string-length name) 1))))))))
@@ -134,7 +134,7 @@
               ;; Write the address
               (bytevector-u64-set! table (+ entry-offset st-value-offset) address (endianness little))
               ;; Set the size field to 0 (or actual size if known)
-              (bytevector-u64-set! table (+ entry-offset st-size-offset) 0 (endianness little))
+              (bytevector-u64-set! table (+ entry-offset st-size-offset) 32 (endianness little))
               (loop (cdr symbols)
                     (+ index 1)
                     (+ str-offset (string-length name) null-terminator-size))))))))
