@@ -22,10 +22,11 @@
 
 ;; Define symbol addresses (these will be relative to the start of .data section)
 (define symbol-addresses
-  '((buffer1 . 0)
-    (buffer2 . 8)
-    (result . 16)
-    (multiplier . 24)))
+  '((buffer1 . 8192)        ; Updated to a valid address in the .data section
+    (buffer2 . 8200)        ; Keeping in line with previous offset, now valid
+    (result . 8208)         ; Keeping in line with previous offset, now valid
+    (multiplier . 8216)))   ; Keeping in line with previous offset, now valid
+
 
 ;; Updated code using RIP-relative addressing
 (define example-code
