@@ -13,7 +13,11 @@
                #:use-module (relocation-table)
                #:use-module (elf-layout-calculator)
                #:use-module (elf-dynamic-calculator)
-               #:export (create-shared-object))
+               #:export (create-shared-object
+                        custom-assert
+                        verify-dynamic-section
+                        check-section-overlaps
+                        verify-segment-contents))
 
 (define (custom-assert condition message)
   (unless condition

@@ -1,0 +1,72 @@
+%%%% Starting test shared-object-creator
+Group begin: shared-object-creator
+Group begin: custom-assert
+Test begin:
+  source-file: "test-shared-object-creator.scm"
+  source-line: 50
+  source-form: (test-assert (custom-assert #t "This should not raise an error"))
+Test end:
+  result-kind: pass
+  actual-value: #<unspecified>
+Test begin:
+  source-file: "test-shared-object-creator.scm"
+  source-line: 51
+  source-form: (test-error (custom-assert #f "This should raise an error"))
+Test end:
+  result-kind: pass
+  actual-error: (misc-error #f "~A" ("This should raise an error") #f)
+  expected-error: #t
+Group end: custom-assert
+Group begin: verify-dynamic-section
+Test begin:
+  source-file: "test-shared-object-creator.scm"
+  source-line: 65
+  source-form: (test-assert (verify-dynamic-section dynamic-section (assoc-ref mock-layout (quote dynstr-offset)) (assoc-ref mock-layout (quote dynsym-offset)) (assoc-ref mock-layout (quote strtab-size)) (assoc-ref mock-layout (quote dynamic-symbol-table-size)) (assoc-ref mock-layout (quote rela-offset)) (assoc-ref mock-layout (quote relocation-table-size))))
+Test end:
+  result-kind: pass
+  actual-value: #<unspecified>
+Group end: verify-dynamic-section
+Group begin: check-section-overlaps
+Test begin:
+  source-file: "test-shared-object-creator.scm"
+  source-line: 76
+  source-form: (test-assert (check-section-overlaps (quote ((4096 256 "Section1") (4608 256 "Section2") (5120 256 "Section3")))))
+Test end:
+  result-kind: pass
+  actual-value: #<unspecified>
+Test begin:
+  source-file: "test-shared-object-creator.scm"
+  source-line: 80
+  source-form: (test-error (check-section-overlaps (quote ((4096 512 "Section1") (4352 512 "Section2")))))
+Test end:
+  result-kind: pass
+  actual-error: (misc-error #f "~A" ("Section overlap: Section1 and Section2") #f)
+  expected-error: #t
+Group end: check-section-overlaps
+Group begin: verify-segment-contents
+Test begin:
+  source-file: "test-shared-object-creator.scm"
+  source-line: 87
+  source-form: (test-assert (verify-segment-contents (assoc-ref mock-layout (quote data-offset)) (+ (assoc-ref mock-layout (quote dynamic-offset)) (assoc-ref mock-layout (quote total-dynamic-size))) (assoc-ref mock-layout (quote dynstr-offset)) (assoc-ref mock-layout (quote dynsym-offset)) (assoc-ref mock-layout (quote rela-offset)) (assoc-ref mock-layout (quote relocation-table-size))))
+Test end:
+  result-kind: pass
+  actual-value: #<unspecified>
+Group end: verify-segment-contents
+Group begin: create-shared-object
+Test begin:
+  source-file: "test-shared-object-creator.scm"
+  source-line: 103
+  source-form: (test-assert (> (create-shared-object mock-code (quasiquote ((data unquote mock-data))) output-file mock-symbol-addresses mock-label-positions) 0))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Test begin:
+  source-file: "test-shared-object-creator.scm"
+  source-line: 110
+  source-form: (test-assert (file-exists? output-file))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Group end: create-shared-object
+Group end: shared-object-creator
+# of expected passes      8
