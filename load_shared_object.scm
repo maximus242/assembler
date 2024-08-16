@@ -4,7 +4,12 @@
 
 ;; Get the directory of the current script
 (define current-directory
-  (dirname (canonicalize-path (car (command-line)))))
+  (dirname (current-filename)))
 
-;; Load the shared object from the current directory
-(load-extension (string-append current-directory "/output.so") "main")
+(display "Current directory: ")
+(display current-directory)
+(newline)
+
+;; Use absolute path to load the shared object
+(display "Attempting to load: /tmp/output.so\n")
+(load-extension "/tmp/output.so" "main")
