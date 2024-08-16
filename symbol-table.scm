@@ -73,11 +73,8 @@
       (convert-old-format-to-new symbol-addresses label-positions)
       (convert-old-format-to-new symbol-addresses label-positions)))
 
-(define* (create-dynamic-symbol-table symbol-table-or-addresses #:optional (label-positions '()) (options '()))
-  (let* ((symbol-table (if (hash-table? symbol-table-or-addresses)
-                           symbol-table-or-addresses
-                           (convert-old-format-to-new symbol-table-or-addresses label-positions)))
-         (symbol-entry-size (or (assoc-ref options 'symbol-entry-size) 24))
+(define* (create-dynamic-symbol-table symbol-table #:optional (options '()))
+  (let* ((symbol-entry-size (or (assoc-ref options 'symbol-entry-size) 24))
          (st-name-offset (or (assoc-ref options 'st-name-offset) 0))
          (st-info-offset (or (assoc-ref options 'st-info-offset) 4))
          (st-other-offset (or (assoc-ref options 'st-other-offset) 5))
@@ -91,9 +88,14 @@
          (stb-global (or (assoc-ref options 'stb-global) 1))
          (shn-data (or (assoc-ref options 'shn-data) 2))
          (shn-text (or (assoc-ref options 'shn-text) 1))
-         (symbol-count (+ (hash-fold (lambda (key value acc) (+ acc 1)) 0 symbol-table) 1))
+         (symbol-count (+ (hash-count (const #t) symbol-table) 1))
          (table-size (* symbol-count symbol-entry-size))
          (table (make-bytevector table-size 0))
+         (string-table-size (+ 1 (hash-fold (lambda (key value acc) 
+                                              (+ acc (string-length (symbol->string key)) 1))
+                                            0 
+                                            symbol-table)))
+         (string-table (make-bytevector string-table-size 0))
          (string-table-offset initial-string-offset))
     ;; Initialize the first symbol entry (null symbol)
     (bytevector-u32-set! table st-name-offset 0 (endianness little))
@@ -107,7 +109,7 @@
                (index 1)
                (str-offset initial-string-offset))
       (if (null? symbols)
-          table
+          (cons table string-table)
           (let* ((symbol (car symbols))
                  (name (symbol->string (car symbol)))
                  (value (cdr symbol))
@@ -115,7 +117,11 @@
                  (is-function (cdr value))
                  (entry-offset (* index symbol-entry-size))
                  (st-info (logior (ash stb-global 4) (if is-function stt-func stt-object)))
-                 (shndx (if is-function shn-text shn-data)))
+                 (shndx (if is-function shn-text shn-data))
+                 (name-bytes (string->utf8 name)))
+            ;; Add name to string table
+            (bytevector-copy! name-bytes 0 string-table str-offset (bytevector-length name-bytes))
+            (bytevector-u8-set! string-table (+ str-offset (bytevector-length name-bytes)) 0)
             ;; Write the name offset
             (bytevector-u32-set! table (+ entry-offset st-name-offset) str-offset (endianness little))
             ;; Write the info (global object/function) and other fields
@@ -128,7 +134,7 @@
             (bytevector-u64-set! table (+ entry-offset st-size-offset) (if is-function 0 32) (endianness little))
             (loop (cdr symbols)
                   (+ index 1)
-                  (+ str-offset (string-length name) null-terminator-size)))))))
+                  (+ str-offset (bytevector-length name-bytes) null-terminator-size)))))))
 
 (define* (create-hash-section dynsym-table #:optional (options '()))
   (let ((hash-header-size (or (assoc-ref options 'hash-header-size) 8))

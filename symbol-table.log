@@ -113,16 +113,18 @@ Test begin:
   source-line: 70
   source-form: (test-assert "dynamic symbol table bytevector should be of the correct size" (= (bytevector-length dynsym-table) (* (+ (length symbol-addresses) (length label-positions) 1) 24)))
 Test end:
-  result-kind: pass
-  actual-value: #t
+  result-kind: fail
+  actual-value: #f
+  actual-error: (wrong-type-arg "bv-length" "Wrong type argument in position 1 (expecting bytevector): ~S" ((#vu8(0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 17 0 2 0 0 16 0 0 0 0 0 0 32 0 0 0 0 0 0 0 9 0 0 0 18 0 1 0 0 49 0 0 0 0 0 0 0 0 0 0 0 0 0 0 15 0 0 0 17 0 2 0 0 32 0 0 0 0 0 0 32 0 0 0 0 0 0 0 23 0 0 0 18 0 1 0 0 48 0 0 0 0 0 0 0 0 0 0 0 0 0 0) . #vu8(0 115 121 109 98 111 108 49 0 102 117 110 99 49 0 115 121 109 98 111 108 50 0 109 97 105 110 0))) ((#vu8(0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 17 0 2 0 0 16 0 0 0 0 0 0 32 0 0 0 0 0 0 0 9 0 0 0 18 0 1 0 0 49 0 0 0 0 0 0 0 0 0 0 0 0 0 0 15 0 0 0 17 0 2 0 0 32 0 0 0 0 0 0 32 0 0 0 0 0 0 0 23 0 0 0 18 0 1 0 0 48 0 0 0 0 0 0 0 0 0 0 0 0 0 0) . #vu8(0 115 121 109 98 111 108 49 0 102 117 110 99 49 0 115 121 109 98 111 108 50 0 109 97 105 110 0))))
 Test begin:
   test-name: "first entry name offset should be zero"
   source-file: "test-symbol-table.scm"
   source-line: 72
   source-form: (test-equal "first entry name offset should be zero" 0 (bytevector-u32-ref dynsym-table 0 little))
 Test end:
-  result-kind: pass
-  actual-value: 0
+  result-kind: fail
+  actual-value: #f
+  actual-error: (wrong-type-arg "bytevector-u32-ref" "Wrong type argument in position ~A (expecting ~A): ~S" (1 "bytevector" (#vu8(0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 17 0 2 0 0 16 0 0 0 0 0 0 32 0 0 0 0 0 0 0 9 0 0 0 18 0 1 0 0 49 0 0 0 0 0 0 0 0 0 0 0 0 0 0 15 0 0 0 17 0 2 0 0 32 0 0 0 0 0 0 32 0 0 0 0 0 0 0 23 0 0 0 18 0 1 0 0 48 0 0 0 0 0 0 0 0 0 0 0 0 0 0) . #vu8(0 115 121 109 98 111 108 49 0 102 117 110 99 49 0 115 121 109 98 111 108 50 0 109 97 105 110 0))) ((#vu8(0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 17 0 2 0 0 16 0 0 0 0 0 0 32 0 0 0 0 0 0 0 9 0 0 0 18 0 1 0 0 49 0 0 0 0 0 0 0 0 0 0 0 0 0 0 15 0 0 0 17 0 2 0 0 32 0 0 0 0 0 0 32 0 0 0 0 0 0 0 23 0 0 0 18 0 1 0 0 48 0 0 0 0 0 0 0 0 0 0 0 0 0 0) . #vu8(0 115 121 109 98 111 108 49 0 102 117 110 99 49 0 115 121 109 98 111 108 50 0 109 97 105 110 0))))
   expected-value: 0
 Test begin:
   test-name: "first entry info should be zero"
@@ -130,8 +132,9 @@ Test begin:
   source-line: 74
   source-form: (test-equal "first entry info should be zero" 0 (bytevector-u8-ref dynsym-table 4))
 Test end:
-  result-kind: pass
-  actual-value: 0
+  result-kind: fail
+  actual-value: #f
+  actual-error: (wrong-type-arg "bytevector-u8-ref" "Wrong type argument in position 1 (expecting bytevector): ~S" ((#vu8(0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 17 0 2 0 0 16 0 0 0 0 0 0 32 0 0 0 0 0 0 0 9 0 0 0 18 0 1 0 0 49 0 0 0 0 0 0 0 0 0 0 0 0 0 0 15 0 0 0 17 0 2 0 0 32 0 0 0 0 0 0 32 0 0 0 0 0 0 0 23 0 0 0 18 0 1 0 0 48 0 0 0 0 0 0 0 0 0 0 0 0 0 0) . #vu8(0 115 121 109 98 111 108 49 0 102 117 110 99 49 0 115 121 109 98 111 108 50 0 109 97 105 110 0))) ((#vu8(0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 17 0 2 0 0 16 0 0 0 0 0 0 32 0 0 0 0 0 0 0 9 0 0 0 18 0 1 0 0 49 0 0 0 0 0 0 0 0 0 0 0 0 0 0 15 0 0 0 17 0 2 0 0 32 0 0 0 0 0 0 32 0 0 0 0 0 0 0 23 0 0 0 18 0 1 0 0 48 0 0 0 0 0 0 0 0 0 0 0 0 0 0) . #vu8(0 115 121 109 98 111 108 49 0 102 117 110 99 49 0 115 121 109 98 111 108 50 0 109 97 105 110 0))))
   expected-value: 0
 Group end: create-dynamic-symbol-table
 Group begin: create-dynamic-symbol-table-edge-cases
@@ -141,8 +144,9 @@ Test begin:
   source-line: 85
   source-form: (test-equal "dynamic symbol table should handle maximum address value" max-address (bytevector-u64-ref dynsym-table 32 little))
 Test end:
-  result-kind: pass
-  actual-value: 18446744073709551615
+  result-kind: fail
+  actual-value: #f
+  actual-error: (wrong-type-arg "bytevector-u64-ref" "Wrong type argument in position ~A (expecting ~A): ~S" (1 "bytevector" (#vu8(0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 17 0 2 0 255 255 255 255 255 255 255 255 32 0 0 0 0 0 0 0 9 0 0 0 18 0 1 0 0 16 0 0 0 0 0 0 0 0 0 0 0 0 0 0) . #vu8(0 115 121 109 98 111 108 49 0 109 97 105 110 0))) ((#vu8(0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 17 0 2 0 255 255 255 255 255 255 255 255 32 0 0 0 0 0 0 0 9 0 0 0 18 0 1 0 0 16 0 0 0 0 0 0 0 0 0 0 0 0 0 0) . #vu8(0 115 121 109 98 111 108 49 0 109 97 105 110 0))))
   expected-value: 18446744073709551615
 Test begin:
   test-name: "dynamic symbol table should handle endianness correctly"
@@ -150,37 +154,10 @@ Test begin:
   source-line: 94
   source-form: (test-equal "dynamic symbol table should handle endianness correctly" test-address (bytevector-u64-ref dynsym-table 32 little))
 Test end:
-  result-kind: pass
-  actual-value: 72623859790382856
+  result-kind: fail
+  actual-value: #f
+  actual-error: (wrong-type-arg "bytevector-u64-ref" "Wrong type argument in position ~A (expecting ~A): ~S" (1 "bytevector" (#vu8(0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 17 0 2 0 8 7 6 5 4 3 2 1 32 0 0 0 0 0 0 0 9 0 0 0 18 0 1 0 0 16 0 0 0 0 0 0 0 0 0 0 0 0 0 0) . #vu8(0 115 121 109 98 111 108 49 0 109 97 105 110 0))) ((#vu8(0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 17 0 2 0 8 7 6 5 4 3 2 1 32 0 0 0 0 0 0 0 9 0 0 0 18 0 1 0 0 16 0 0 0 0 0 0 0 0 0 0 0 0 0 0) . #vu8(0 115 121 109 98 111 108 49 0 109 97 105 110 0))))
   expected-value: 72623859790382856
 Group end: create-dynamic-symbol-table-edge-cases
 Group begin: create-hash-section
-Test begin:
-  test-name: "hash section bytevector should be of the correct size"
-  source-file: "test-symbol-table.scm"
-  source-line: 104
-  source-form: (test-assert "hash section bytevector should be of the correct size" (= (bytevector-length hash-section) (+ 8 (* 4 1) (* 4 (+ (length symbol-addresses) (length label-positions) 1)))))
-Test end:
-  result-kind: pass
-  actual-value: #t
-Test begin:
-  test-name: "number of buckets should be 1"
-  source-file: "test-symbol-table.scm"
-  source-line: 106
-  source-form: (test-equal "number of buckets should be 1" 1 (bytevector-u32-ref hash-section 0 little))
-Test end:
-  result-kind: pass
-  actual-value: 1
-  expected-value: 1
-Test begin:
-  test-name: "number of chains should match the total number of symbols"
-  source-file: "test-symbol-table.scm"
-  source-line: 108
-  source-form: (test-equal "number of chains should match the total number of symbols" (+ (length symbol-addresses) (length label-positions) 1) (bytevector-u32-ref hash-section 4 little))
-Test end:
-  result-kind: pass
-  actual-value: 5
-  expected-value: 5
 Group end: create-hash-section
-Group end: symbol-table
-# of expected passes      20
