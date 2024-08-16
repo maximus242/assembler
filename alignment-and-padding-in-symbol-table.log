@@ -6,15 +6,17 @@ Test begin:
   source-line: 163
   source-form: (test-assert "symbol table should have correct alignment for second entry" (= (bytevector-u64-ref sym-table 24 little) 4096))
 Test end:
-  result-kind: pass
-  actual-value: #t
+  result-kind: fail
+  actual-value: #f
+  actual-error: (wrong-type-arg "bytevector-u64-ref" "Wrong type argument in position ~A (expecting ~A): ~S" (1 "bytevector" (#vu8(0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 17 0 2 0 0 16 0 0 0 0 0 0 32 0 0 0 0 0 0 0 9 0 0 0 17 0 2 0 0 32 0 0 0 0 0 0 32 0 0 0 0 0 0 0) . #vu8(0 115 121 109 98 111 108 49 0 115 121 109 98 111 108 50 0))) ((#vu8(0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 17 0 2 0 0 16 0 0 0 0 0 0 32 0 0 0 0 0 0 0 9 0 0 0 17 0 2 0 0 32 0 0 0 0 0 0 32 0 0 0 0 0 0 0) . #vu8(0 115 121 109 98 111 108 49 0 115 121 109 98 111 108 50 0))))
 Test begin:
   test-name: "symbol table should have correct alignment for third entry"
   source-file: "test-symbol-table.scm"
   source-line: 165
   source-form: (test-assert "symbol table should have correct alignment for third entry" (= (bytevector-u64-ref sym-table 48 little) 8192))
 Test end:
-  result-kind: pass
-  actual-value: #t
+  result-kind: fail
+  actual-value: #f
+  actual-error: (wrong-type-arg "bytevector-u64-ref" "Wrong type argument in position ~A (expecting ~A): ~S" (1 "bytevector" (#vu8(0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 17 0 2 0 0 16 0 0 0 0 0 0 32 0 0 0 0 0 0 0 9 0 0 0 17 0 2 0 0 32 0 0 0 0 0 0 32 0 0 0 0 0 0 0) . #vu8(0 115 121 109 98 111 108 49 0 115 121 109 98 111 108 50 0))) ((#vu8(0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 17 0 2 0 0 16 0 0 0 0 0 0 32 0 0 0 0 0 0 0 9 0 0 0 17 0 2 0 0 32 0 0 0 0 0 0 32 0 0 0 0 0 0 0) . #vu8(0 115 121 109 98 111 108 49 0 115 121 109 98 111 108 50 0))))
 Group end: alignment-and-padding-in-symbol-table
-# of expected passes      2
+# of unexpected failures  2

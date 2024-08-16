@@ -1,0 +1,147 @@
+%%%% Starting test symbol-table
+Group begin: symbol-table
+Group begin: make-symbol-table
+Test begin:
+  test-name: "symbol table is a hash-table"
+  source-file: "test-symbol-table.scm"
+  source-line: 17
+  source-form: (test-assert "symbol table is a hash-table" (hash-table? (make-symbol-table)))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Group end: make-symbol-table
+Group begin: add-symbol! and get-symbol
+Test begin:
+  test-name: "symbol1 should be in the table with the correct address"
+  source-file: "test-symbol-table.scm"
+  source-line: 24
+  source-form: (test-equal "symbol1 should be in the table with the correct address" 4096 (get-symbol table (quote symbol1)))
+Test end:
+  result-kind: pass
+  actual-value: 4096
+  expected-value: 4096
+Test begin:
+  test-name: "non-existent symbol should return #f"
+  source-file: "test-symbol-table.scm"
+  source-line: 26
+  source-form: (test-assert "non-existent symbol should return #f" (not (get-symbol table (quote symbol2))))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Group end: add-symbol! and get-symbol
+Group begin: create-symbol-table
+Test begin:
+  test-name: "symbol table bytevector should be of the correct size"
+  source-file: "test-symbol-table.scm"
+  source-line: 35
+  source-form: (test-assert "symbol table bytevector should be of the correct size" (= (bytevector-length sym-table) (* (+ (length symbol-addresses) 1) 24)))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Test begin:
+  test-name: "string table should be created"
+  source-file: "test-symbol-table.scm"
+  source-line: 37
+  source-form: (test-assert "string table should be created" (bytevector? string-table))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Group end: create-symbol-table
+Group begin: create-dynamic-symbol-table
+Test begin:
+  test-name: "dynamic symbol table bytevector should be of the correct size"
+  source-file: "test-symbol-table.scm"
+  source-line: 44
+  source-form: (test-assert "dynamic symbol table bytevector should be of the correct size" (= (bytevector-length dynsym-table) (* (+ (length symbol-addresses) 1) 24)))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Test begin:
+  test-name: "first entry name offset should be zero"
+  source-file: "test-symbol-table.scm"
+  source-line: 46
+  source-form: (test-equal "first entry name offset should be zero" 0 (bytevector-u32-ref dynsym-table 0 little))
+Test end:
+  result-kind: pass
+  actual-value: 0
+  expected-value: 0
+Test begin:
+  test-name: "first entry info should be zero"
+  source-file: "test-symbol-table.scm"
+  source-line: 48
+  source-form: (test-equal "first entry info should be zero" 0 (bytevector-u8-ref dynsym-table 4))
+Test end:
+  result-kind: pass
+  actual-value: 0
+  expected-value: 0
+Group end: create-dynamic-symbol-table
+Group begin: create-dynamic-symbol-table-edge-cases
+Test begin:
+  test-name: "dynamic symbol table should handle maximum address value"
+  source-file: "test-symbol-table.scm"
+  source-line: 57
+  source-form: (test-equal "dynamic symbol table should handle maximum address value" max-address (bytevector-u64-ref dynsym-table 32 little))
+Test end:
+  result-kind: pass
+  actual-value: 18446744073709551615
+  expected-value: 18446744073709551615
+Test begin:
+  test-name: "dynamic symbol table should handle endianness correctly"
+  source-file: "test-symbol-table.scm"
+  source-line: 64
+  source-form: (test-equal "dynamic symbol table should handle endianness correctly" test-address (bytevector-u64-ref dynsym-table 32 little))
+Test end:
+  result-kind: pass
+  actual-value: 72623859790382856
+  expected-value: 72623859790382856
+Group end: create-dynamic-symbol-table-edge-cases
+Group begin: create-hash-section
+Test begin:
+  test-name: "hash section bytevector should be of the correct size"
+  source-file: "test-symbol-table.scm"
+  source-line: 72
+  source-form: (test-assert "hash section bytevector should be of the correct size" (= (bytevector-length hash-section) (+ 8 (* 4 1) (* 4 (+ (length symbol-addresses) 1)))))
+Test end:
+  result-kind: pass
+  actual-value: #t
+Test begin:
+  test-name: "number of buckets should be 1"
+  source-file: "test-symbol-table.scm"
+  source-line: 74
+  source-form: (test-equal "number of buckets should be 1" 1 (bytevector-u32-ref hash-section 0 little))
+Test end:
+  result-kind: pass
+  actual-value: 1
+  expected-value: 1
+Test begin:
+  test-name: "number of chains should match the number of symbols"
+  source-file: "test-symbol-table.scm"
+  source-line: 76
+  source-form: (test-equal "number of chains should match the number of symbols" (+ (length symbol-addresses) 1) (bytevector-u32-ref hash-section 4 little))
+Test end:
+  result-kind: pass
+  actual-value: 3
+  expected-value: 3
+Group end: create-hash-section
+Group begin: alignment-and-padding-in-symbol-table
+Test begin:
+  test-name: "symbol table should have correct alignment for second entry"
+  source-file: "test-symbol-table.scm"
+  source-line: 84
+  source-form: (test-equal "symbol table should have correct alignment for second entry" 4096 (bytevector-u64-ref sym-table 32 little))
+Test end:
+  result-kind: pass
+  actual-value: 4096
+  expected-value: 4096
+Test begin:
+  test-name: "symbol table should have correct alignment for third entry"
+  source-file: "test-symbol-table.scm"
+  source-line: 86
+  source-form: (test-equal "symbol table should have correct alignment for third entry" 8192 (bytevector-u64-ref sym-table 56 little))
+Test end:
+  result-kind: pass
+  actual-value: 8192
+  expected-value: 8192
+Group end: alignment-and-padding-in-symbol-table
+Group end: symbol-table
+# of expected passes      15

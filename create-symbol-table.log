@@ -6,7 +6,8 @@ Test begin:
   source-line: 77
   source-form: (test-assert "symbol table bytevector should be of the correct size" (= (bytevector-length sym-table) (* (+ (length symbol-addresses) 1) 24)))
 Test end:
-  result-kind: pass
-  actual-value: #t
+  result-kind: fail
+  actual-value: #f
+  actual-error: (wrong-type-arg "bv-length" "Wrong type argument in position 1 (expecting bytevector): ~S" ((#vu8(0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 17 0 2 0 0 16 0 0 0 0 0 0 32 0 0 0 0 0 0 0 9 0 0 0 17 0 2 0 0 32 0 0 0 0 0 0 32 0 0 0 0 0 0 0) . #vu8(0 115 121 109 98 111 108 49 0 115 121 109 98 111 108 50 0))) ((#vu8(0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 17 0 2 0 0 16 0 0 0 0 0 0 32 0 0 0 0 0 0 0 9 0 0 0 17 0 2 0 0 32 0 0 0 0 0 0 32 0 0 0 0 0 0 0) . #vu8(0 115 121 109 98 111 108 49 0 115 121 109 98 111 108 50 0))))
 Group end: create-symbol-table
-# of expected passes      1
+# of unexpected failures  1
