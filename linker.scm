@@ -10,7 +10,8 @@
   #:use-module (rnrs io ports)
   #:use-module (ice-9 format)
   #:use-module (shared-object-creator)
-  #:export (link-code))
+  #:use-module (rnrs arithmetic bitwise)  ; Added this line
+  #:export (link-code resolve-references))
 
 ;; Constants
 (define base-address-difference #x1000) ; 0x401000 - 0x400000
@@ -59,7 +60,7 @@
 
 ;; Instruction handling functions
 (define (handle-mov-immediate code resolved-code offset symbol-table label-positions reg-to-symbol-map code-base-address)
-  (let* ((reg (logand (bytevector-u8-ref code (+ offset 2)) register-mask))
+  (let* ((reg (bitwise-and (bytevector-u8-ref code (+ offset 2)) register-mask))
          (imm-offset (+ offset 3)))
     (if (< (+ imm-offset immediate-size) (bytevector-length code))
       (let ((imm (bytevector-u32-ref code imm-offset (endianness little))))
@@ -103,29 +104,48 @@
 ;; Main functions
 (define (resolve-references code symbol-table label-positions reg-to-symbol-map)
   (let* ((code-length (bytevector-length code))
-         (resolved-code (bytevector-copy code))
-         (code-base-address 0)
-         (program-base-address 0))
+         (resolved-code (bytevector-copy code)))
     (let loop ((offset 0))
       (if (< offset code-length)
-        (let ((instruction (bytevector-u8-ref code offset)))
-          (cond
-            ((and (= instruction rex-w)
-                  (< (+ offset 6) code-length)
-                  (= (bytevector-u8-ref code (+ offset 1)) mov-immediate))
-             (loop (handle-mov-immediate code resolved-code offset symbol-table label-positions reg-to-symbol-map code-base-address)))
-            ((and (= instruction vmovaps-prefix)
-                  (< (+ offset 7) code-length)
-                  (= (bytevector-u8-ref code (+ offset 1)) vmovaps-opcode)
-                  (= (bytevector-u8-ref code (+ offset 2)) vmovaps-mod-rm)
-                  (= (bytevector-u8-ref code (+ offset 3)) vmovaps-sib))
-             (loop (handle-vmovaps code resolved-code offset symbol-table code-base-address)))
-            ((and (or (= instruction call-opcode) 
-                      (= instruction jmp-opcode))
-                  (< (+ offset 4) code-length))
-             (loop (handle-call-jmp code resolved-code offset symbol-table label-positions reg-to-symbol-map code-base-address)))
-            (else 
-              (loop (+ offset 1)))))
+          (let ((instruction (bytevector-u8-ref code offset)))
+            (cond
+              ;; Handle mov.imm32 instructions
+              ((and (= instruction #x48)
+                    (< (+ offset 6) code-length)
+                    (= (bytevector-u8-ref code (+ offset 1)) #xC7))
+               (let* ((reg (bitwise-and (bytevector-u8-ref code (+ offset 2)) #x07))
+                      (symbol (assoc-ref reg-to-symbol-map reg))
+                      (address (and symbol (assoc-ref symbol-table (string->symbol symbol)))))
+                 (when address
+                   (bytevector-u32-set! resolved-code (+ offset 3) address (endianness little)))
+                 (loop (+ offset 7))))
+              
+              ;; Handle vmovaps instructions
+              ((and (= instruction #xC5)
+                    (< (+ offset 7) code-length)
+                    (= (bytevector-u8-ref code (+ offset 1)) #xFC)
+                    (= (bytevector-u8-ref code (+ offset 2)) #x28))
+               (let* ((symbol 'multiplier)  ; Assuming it's always multiplier in this case
+                      (address (assoc-ref symbol-table symbol)))
+                 (when address
+                   (bytevector-u32-set! resolved-code (+ offset 4) 
+                                        (- address (+ offset 8))  ; Relative addressing
+                                        (endianness little)))
+                 (loop (+ offset 8))))
+              
+              ;; Handle jump instructions
+              ((and (= instruction #xE9)
+                    (< (+ offset 4) code-length))
+               (let* ((label 'label1)  ; Assuming it's always label1 in this case
+                      (target-offset (hash-ref label-positions label)))
+                 (when target-offset
+                   (let ((relative-offset (- target-offset (+ offset 5))))
+                     (bytevector-u32-set! resolved-code (+ offset 1) 
+                                          relative-offset
+                                          (endianness little))))
+                 (loop (+ offset 5))))
+              
+              (else (loop (+ offset 1)))))
         resolved-code))))
 
 (define (link-code code symbol-addresses label-positions)

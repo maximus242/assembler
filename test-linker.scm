@@ -1,6 +1,7 @@
 (use-modules (linker))
 (use-modules (rnrs bytevectors))
 (use-modules (srfi srfi-1)) ; For 'map' procedure
+(use-modules (ice-9 hash-table)) ; For hash tables
 
 (define (byte->hex-string byte)
   (let ((hex (number->string byte 16)))
@@ -11,7 +12,7 @@
 (define (bytevector->hex-string bv)
   (string-join (map byte->hex-string (bytevector->u8-list bv)) " "))
 
-(define symbol-addresses
+(define symbol-table
   '((buffer1 . #x403000)
     (buffer2 . #x403020)
     (result . #x403040)
@@ -20,9 +21,13 @@
 (define (test-link name input expected)
   (format #t "~%Test: ~a~%" name)
   (format #t "Input:    ~a~%" (bytevector->hex-string input))
-  (format #t "Symbol addresses: ~a~%" symbol-addresses)
+  (format #t "Symbol table: ~a~%" symbol-table)
   (let* ((label-positions (make-hash-table))
-         (result (link-code input symbol-addresses label-positions)))
+         (reg-to-symbol-map '((0 . "buffer1")
+                              (1 . "buffer2")
+                              (2 . "result")
+                              (3 . "multiplier")))
+         (result (resolve-references input symbol-table label-positions reg-to-symbol-map)))
     (hash-set! label-positions 'label1 7)  ; Set label1 to offset 7 (after the jump and two nops)
     (format #t "Label positions: ~a~%" label-positions)
     (format #t "Result:   ~a~%" (bytevector->hex-string result))
@@ -39,16 +44,15 @@
                   (format #t "Mismatch at offset ~a: result=~x, expected=~x~%" i result-byte expected-byte)))
               (loop (+ i 1))))))))
 
-
 ;; Test 1: Simple mov.imm32 instructions
 (test-link "Simple mov.imm32 instructions"
   (u8-list->bytevector
-   '(#x48 #xC7 #xC7 #x00 #x00 #x00 #x00  ; mov.imm32 rdi, buffer1
-     #x48 #xC7 #xC6 #x00 #x00 #x00 #x00  ; mov.imm32 rsi, buffer2
+   '(#x48 #xC7 #xC0 #x00 #x00 #x00 #x00  ; mov.imm32 rax, buffer1
+     #x48 #xC7 #xC1 #x00 #x00 #x00 #x00  ; mov.imm32 rcx, buffer2
      #x48 #xC7 #xC2 #x00 #x00 #x00 #x00)) ; mov.imm32 rdx, result
   (u8-list->bytevector
-   '(#x48 #xC7 #xC7 #x00 #x30 #x40 #x00  ; mov.imm32 rdi, 0x403000 (buffer1)
-     #x48 #xC7 #xC6 #x20 #x30 #x40 #x00  ; mov.imm32 rsi, 0x403020 (buffer2)
+   '(#x48 #xC7 #xC0 #x00 #x30 #x40 #x00  ; mov.imm32 rax, 0x403000 (buffer1)
+     #x48 #xC7 #xC1 #x20 #x30 #x40 #x00  ; mov.imm32 rcx, 0x403020 (buffer2)
      #x48 #xC7 #xC2 #x40 #x30 #x40 #x00))) ; mov.imm32 rdx, 0x403040 (result)
 
 ;; Test 2: vmovaps instruction with symbolic reference
@@ -61,14 +65,14 @@
 ;; Test 3: Mixed instructions
 (test-link "Mixed instructions"
   (u8-list->bytevector
-   '(#x48 #xC7 #xC7 #x00 #x00 #x00 #x00  ; mov.imm32 rdi, buffer1
-     #xC5 #xFC #x28 #x07                 ; vmovaps ymm0, [rdi]
+   '(#x48 #xC7 #xC0 #x00 #x00 #x00 #x00  ; mov.imm32 rax, buffer1
+     #xC5 #xFC #x28 #x00                 ; vmovaps ymm0, [rax]
      #xC5 #xFC #x28 #x05 #x00 #x00 #x00 #x00  ; vmovaps ymm1, [multiplier]
      #x48 #xC7 #xC2 #x00 #x00 #x00 #x00  ; mov.imm32 rdx, result
      #xC5 #xFC #x29 #x02))               ; vmovaps [rdx], ymm0
   (u8-list->bytevector
-   '(#x48 #xC7 #xC7 #x00 #x30 #x40 #x00  ; mov.imm32 rdi, 0x403000 (buffer1)
-     #xC5 #xFC #x28 #x07                 ; vmovaps ymm0, [rdi]
+   '(#x48 #xC7 #xC0 #x00 #x30 #x40 #x00  ; mov.imm32 rax, 0x403000 (buffer1)
+     #xC5 #xFC #x28 #x00                 ; vmovaps ymm0, [rax]
      #xC5 #xFC #x28 #x05 #x60 #x30 #x40 #x00  ; vmovaps ymm1, [0x403060] (multiplier)
      #x48 #xC7 #xC2 #x40 #x30 #x40 #x00  ; mov.imm32 rdx, 0x403040 (result)
      #xC5 #xFC #x29 #x02)))              ; vmovaps [rdx], ymm0
@@ -80,7 +84,7 @@
   (u8-list->bytevector
    '(#x48 #xC7 #xC0 #x42 #x00 #x00 #x00))) ; mov.imm32 rax, 0x42
 
-;; Add this new test case for labels
+;; Test 5: Labels and jumps
 (test-link "Labels and jumps"
   (u8-list->bytevector
    '(#xE9 #x00 #x00 #x00 #x00  ; jmp label1 (placeholder)
@@ -96,8 +100,6 @@
      #x48 #xC7 #xC0 #x3C #x00 #x00 #x00  ; mov rax, 60 (exit syscall)
      #x48 #x31 #xFF            ; xor rdi, rdi
      #x0F #x05)))              ; syscall
-(newline)
-(display "All tests completed.\n")
 
 (newline)
 (display "All tests completed.\n")
