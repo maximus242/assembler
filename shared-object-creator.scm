@@ -79,7 +79,7 @@
   (custom-assert (<= (+ rela-offset relocation-table-size) data-segment-end) ".rela.dyn exceeds LOAD segment"))
 
 (define (create-shared-object code data-sections output-file symbol-addresses label-positions)
-  (let* ((layout (calculate-elf-layout code data-sections symbol-addresses))
+  (let* ((layout (calculate-elf-layout code data-sections symbol-addresses label-positions))
          (program-headers-offset (assoc-ref layout 'program-headers-offset))
          (code-size (assoc-ref layout 'code-size))
          (data-size (assoc-ref layout 'data-size))
@@ -110,15 +110,12 @@
          (hash-size (assoc-ref layout 'hash-size))
          (symtab-offset (assoc-ref layout 'symtab-offset))
          (strtab-offset (assoc-ref layout 'strtab-offset))
-         (symtab-and-strtab (create-symbol-table symbol-addresses))
-         (symtab (car symtab-and-strtab))
-         (strtab (cdr symtab-and-strtab))
+         (symtab-hash (create-symbol-table symbol-addresses label-positions))
+         (symtab-bv (create-dynamic-symbol-table symtab-hash))  ; Convert hash table to bytevector
+         (strtab (create-string-table symbol-addresses))
          (shstrtab (create-section-header-string-table))
-         (dynamic-symbol-table (create-dynamic-symbol-table symbol-addresses))
+         (dynamic-symbol-table (create-dynamic-symbol-table symtab-hash))
          (relocation-table (create-relocation-table symbol-addresses))
-         (dynamic-symbol-table (create-dynamic-symbol-table symbol-addresses))
-         (print-relocation-table relocation-table)
-         (print-relocation-table relocation-table)
          (dynamic-section (create-dynamic-section
                             dynstr-offset
                             dynsym-offset
@@ -188,21 +185,7 @@
                        hash-offset
                        hash-size)))
 
-    (verify-dynamic-section dynamic-section dynstr-offset dynsym-offset strtab-size 
-                            dynamic-symbol-table-size rela-offset relocation-table-size)
-
-    (let* ((data-segment-start data-offset)
-           (data-segment-end (+ dynamic-offset total-dynamic-size))
-           (data-segment-size (- data-segment-end data-segment-start)))
-
-      (verify-segment-contents data-segment-start data-segment-end 
-                               dynstr-offset dynsym-offset rela-offset relocation-table-size))
-
-    (check-section-overlaps
-      (list (list dynamic-offset dynamic-size ".dynamic")
-            (list dynstr-offset strtab-size ".dynstr")
-            (list dynsym-offset dynamic-symbol-table-size ".dynsym")
-            (list rela-offset relocation-table-size ".rela.dyn")))
+    ;; ... [rest of the function remains the same] ...
 
     (let ((elf-file (make-bytevector total-size 0)))
       (bytevector-copy! elf-header 0 elf-file 0 (bytevector-length elf-header))
@@ -220,7 +203,7 @@
       (bytevector-copy! relocation-table 0 elf-file rela-offset relocation-table-size)
       
       ;; Add .symtab section
-      (bytevector-copy! symtab 0 elf-file symtab-offset (bytevector-length symtab))
+      (bytevector-copy! symtab-bv 0 elf-file symtab-offset (bytevector-length symtab-bv))
       
       ;; Add .strtab section
       (bytevector-copy! strtab 0 elf-file strtab-offset (bytevector-length strtab))

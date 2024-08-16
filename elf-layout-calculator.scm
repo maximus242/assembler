@@ -56,11 +56,14 @@
 (define (calculate-data-size data-sections)
   (apply + (map (lambda (pair) (bytevector-length (cdr pair))) data-sections)))
 
-(define (calculate-symtab-size symbol-addresses)
-  (bytevector-length (car (create-symbol-table symbol-addresses))))
+(define (calculate-symtab-size symbol-addresses label-positions)
+  (let* ((symbol-table (convert-old-format-to-new symbol-addresses label-positions))
+         (dynsym-table (create-dynamic-symbol-table symbol-table))
+         (size (bytevector-length dynsym-table)))
+    size))
 
 (define (calculate-strtab-size symbol-addresses)
-  (bytevector-length (cdr (create-symbol-table symbol-addresses))))
+  (bytevector-length (create-string-table symbol-addresses)))
 
 (define (calculate-shstrtab-size)
   (bytevector-length (create-section-header-string-table)))
@@ -147,13 +150,13 @@
 (define (calculate-strtab-offset symtab-offset symtab-size)
   (+ symtab-offset symtab-size))
 
-(define (calculate-elf-layout code data-sections symbol-addresses)
+(define (calculate-elf-layout code data-sections symbol-addresses label-positions)
   (let* ((program-headers-offset (calculate-program-headers-offset))
          (code-size (calculate-code-size code))
          (rodata-size (calculate-rodata-size))
          (bss-size (calculate-bss-size))
          (data-size (calculate-data-size data-sections))
-         (symtab-size (calculate-symtab-size symbol-addresses))
+         (symtab-size (calculate-symtab-size symbol-addresses label-positions))
          (strtab-size (calculate-strtab-size symbol-addresses))
          (shstrtab-size (calculate-shstrtab-size))
          (dynamic-symbol-table-size (calculate-dynamic-symbol-table-size symbol-addresses))
