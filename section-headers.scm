@@ -166,12 +166,12 @@
             ;; .rela.dyn section (relocation entries for non-PLT objects)
             (make-section-header
               88                                 ; name: Index of ".rela.dyn" in string table
-              sht-rela                           ; type: Relocation entries with addends
+              4                                  ; type: Relocation entries with addends
               shf-alloc                          ; flags: Allocate memory
               rela-addr                          ; addr: Virtual address of .rela.dyn section
               rela-addr                          ; offset: File offset of .rela.dyn section
               rela-size                          ; size: Size of .rela.dyn section
-              6                                  ; link: Index of .dynsym section
+              6                                  ; link: Index
               0                                  ; info: No additional info
               8                                  ; align: Align to 8 bytes
               24)                                ; entsize: Size of each relocation entry (usually 24 bytes)

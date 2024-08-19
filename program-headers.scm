@@ -162,7 +162,7 @@
               ; Third LOAD segment (RWX) - starting from .dynamic, includes .plt and ends with .bss
               (make-program-header 
                 pt-load                  ; Type: Loadable segment
-                (logior pf-r pf-w pf-x)  ; Flags: Read, write, and execute permissions
+                (logior pf-r pf-w)  ; Flags: Read, write, and execute permissions
                 dynamic-offset           ; Offset: Start of dynamic section
                 dynamic-addr             ; Virtual address: Address of dynamic section
                 dynamic-addr             ; Physical address: Same as virtual address
