@@ -47,7 +47,7 @@
           symtab-offset 
           strtab-offset 
           shstrtab-addr)
-
+  (format #t "SECION HEADER DATA SIZE ~a" data-size)
   ;; Log all input parameters for debugging
   (log-addresses-and-sizes text-addr data-addr dynamic-addr dynsym-addr 
                            dynstr-addr rela-addr got-addr plt-addr 

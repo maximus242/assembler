@@ -17,16 +17,17 @@
 (define multiplier
   (u8-list->bytevector
    (apply append (make-list 8 '(0 0 0 64)))))
+(bytevector-length multiplier)  ; Should return 32
+(format #t "Buffer 1 Value:  ~a \n" (bytevector-length buffer1))
 
 (define result (make-bytevector 32 0))
 
 ;; Define symbol addresses (these will be relative to the start of .data section)
 (define symbol-addresses
-  '((buffer1 . 8192)        ; Updated to a valid address in the .data section
-    (buffer2 . 8200)        ; Keeping in line with previous offset, now valid
-    (result . 8208)         ; Keeping in line with previous offset, now valid
-    (multiplier . 8216)))   ; Keeping in line with previous offset, now valid
-
+  '((buffer1    . #x2000)  ; 8192 in decimal
+    (buffer2    . #x2020)  ; 8224 in decimal
+    (result     . #x2040)  ; 8256 in decimal
+    (multiplier . #x2060)))  ; 8288 in decimal
 
 ;; Updated code using RIP-relative addressing
 (define example-code

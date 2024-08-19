@@ -12,7 +12,13 @@
                           calculate-data-segment-start
                           calculate-data-segment-file-size
                           calculate-data-segment-mem-size
+                          align-to
                           calculate-relro-size))
+
+(define (align-to value alignment)
+  (if (= (modulo value alignment) 0)
+      value
+      (+ value (- alignment (modulo value alignment)))))
 
 (define (align-up address alignment)
   (let ((remainder (modulo address alignment)))
@@ -54,7 +60,16 @@
   0)  ; You may need to implement this based on your actual data
 
 (define (calculate-data-size data-sections)
-  (apply + (map (lambda (pair) (bytevector-length (cdr pair))) data-sections)))
+  (let ((total-size 0))
+    (for-each (lambda (pair)
+                (let* ((name (car pair))
+                       (data (cdr pair))
+                       (size (bytevector-length data)))
+                  (format #t "Data section ~a size: ~a bytes~%" name size)
+                  (set! total-size (+ total-size size))))
+              data-sections)
+    (format #t "Total calculated data size: ~a bytes~%" total-size)
+    total-size))
 
 (define (calculate-symtab-size symbol-addresses label-positions)
   (let* ((symbol-table (convert-old-format-to-new symbol-addresses label-positions))

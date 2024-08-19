@@ -1,23 +1,23 @@
 (define-module (shared-object-creator)
-  #:use-module (config)
-  #:use-module (elf-header)
-  #:use-module (program-headers)
-  #:use-module (section-headers)
-  #:use-module (dynamic-section)
-  #:use-module (symbol-table)
-  #:use-module (string-table)
-  #:use-module (utils)
-  #:use-module (rnrs bytevectors)
-  #:use-module (rnrs io ports)
-  #:use-module (ice-9 format)
-  #:use-module (relocation-table)
-  #:use-module (elf-layout-calculator)
-  #:use-module (elf-dynamic-calculator)
-  #:export (create-shared-object
-            custom-assert
-            verify-dynamic-section
-            check-section-overlaps
-            verify-segment-contents))
+               #:use-module (config)
+               #:use-module (elf-header)
+               #:use-module (program-headers)
+               #:use-module (section-headers)
+               #:use-module (dynamic-section)
+               #:use-module (symbol-table)
+               #:use-module (string-table)
+               #:use-module (utils)
+               #:use-module (rnrs bytevectors)
+               #:use-module (rnrs io ports)
+               #:use-module (ice-9 format)
+               #:use-module (relocation-table)
+               #:use-module (elf-layout-calculator)
+               #:use-module (elf-dynamic-calculator)
+               #:export (create-shared-object
+                          custom-assert
+                          verify-dynamic-section
+                          check-section-overlaps
+                          verify-segment-contents))
 
 (define (custom-assert condition message)
   (unless condition
@@ -26,7 +26,7 @@
 (define (print-relocation-table table)
   (let ((size (bytevector-length table)))
     (do ((i 0 (+ i 8)))
-        ((>= i size))
+      ((>= i size))
       (let ((value (bytevector-u64-ref table i (endianness little))))
         (format #t "~8,'0x: ~16,'0x~%" i value)))))
 
@@ -57,7 +57,7 @@
           ((10) (custom-assert (= value strtab-size) "DT_STRSZ value mismatch"))
           ((11) (custom-assert (= value 24) "DT_SYMENT value mismatch")))
         (if (not (= tag 0))
-            (loop (+ offset 16)))))))
+          (loop (+ offset 16)))))))
 
 (define (check-section-overlaps sections)
   (let loop ((remaining sections))
@@ -65,11 +65,11 @@
       (let* ((current (car remaining))
              (others (cdr remaining)))
         (for-each
-         (lambda (other)
-           (custom-assert (or (<= (+ (car current) (cadr current)) (car other))
-                              (>= (car current) (+ (car other) (cadr other))))
-                          (format #f "Section overlap: ~a and ~a" (caddr current) (caddr other))))
-         others)
+          (lambda (other)
+            (custom-assert (or (<= (+ (car current) (cadr current)) (car other))
+                               (>= (car current) (+ (car other) (cadr other))))
+                           (format #f "Section overlap: ~a and ~a" (caddr current) (caddr other))))
+          others)
         (loop (cdr remaining))))))
 
 (define (verify-segment-contents data-segment-start data-segment-end dynstr-offset dynsym-offset rela-offset relocation-table-size)
@@ -121,57 +121,57 @@
          (data-segment-size (+ data-size total-dynamic-size))
          (shstrtab (create-section-header-string-table))
          (dynamic-section (create-dynamic-section
-                           dynstr-offset
-                           dynsym-offset
-                           dynstr-size
-                           dynsym-size
-                           rela-offset
-                           relocation-table-size
-                           got-offset
-                           hash-offset))
+                            dynstr-offset
+                            dynsym-offset
+                            dynstr-size
+                            dynsym-size
+                            rela-offset
+                            relocation-table-size
+                            got-offset
+                            hash-offset))
          (section-headers (create-section-headers
-                           text-addr
-                           code-size
-                           data-segment-size
-                           symtab-size
-                           strtab-size
-                           shstrtab-size
-                           dynamic-symbol-table-size
-                           strtab-size
-                           relocation-table-size
-                           total-dynamic-size
-                           dynamic-size
-                           rela-offset
-                           got-size
-                           data-addr
-                           dynamic-addr
-                           (+ dynamic-addr (- dynsym-offset dynamic-offset))
-                           (+ dynamic-addr (- dynstr-offset dynamic-offset))
-                           (+ dynamic-addr (- rela-offset dynamic-offset))
-                           (+ dynamic-addr (- got-offset dynamic-offset))
-                           (+ dynamic-addr (- plt-offset dynamic-offset))
-                           symtab-offset
-                           strtab-offset
-                           shstrtab-addr))
+                            text-addr
+                            code-size
+                            data-size
+                            symtab-size
+                            strtab-size
+                            shstrtab-size
+                            dynamic-symbol-table-size
+                            strtab-size
+                            relocation-table-size
+                            total-dynamic-size
+                            dynamic-size
+                            rela-offset
+                            got-size
+                            data-addr
+                            dynamic-addr
+                            (+ dynamic-addr (- dynsym-offset dynamic-offset))
+                            (+ dynamic-addr (- dynstr-offset dynamic-offset))
+                            (+ dynamic-addr (- rela-offset dynamic-offset))
+                            (+ dynamic-addr (- got-offset dynamic-offset))
+                            (+ dynamic-addr (- plt-offset dynamic-offset))
+                            symtab-offset
+                            strtab-offset
+                            shstrtab-addr))
          (program-headers (create-program-headers 
-                           elf-header-size
-                           program-header-size
-                           num-program-headers
-                           text-addr
-                           code-size
-                           rodata-size
-                           bss-size
-                           data-segment-size
-                           dynamic-addr
-                           dynamic-offset
-                           dynamic-size
-                           total-dynamic-size
-                           got-offset
-                           got-size
-                           plt-offset
-                           plt-size
-                           (+ data-addr data-segment-size)
-                           alignment))
+                            elf-header-size
+                            program-header-size
+                            num-program-headers
+                            text-addr
+                            code-size
+                            rodata-size
+                            bss-size
+                            data-segment-size
+                            dynamic-addr
+                            dynamic-offset
+                            dynamic-size
+                            total-dynamic-size
+                            got-offset
+                            got-size
+                            plt-offset
+                            plt-size
+                            (+ data-addr data-segment-size)
+                            alignment))
          (program-headers-size (bytevector-length program-headers))
          (num-program-headers (/ program-headers-size program-header-size))
          (section-headers-size (* num-sections section-header-size))
@@ -179,16 +179,16 @@
          (text-section-offset (calculate-text-section-offset elf-header-size program-headers-size))
          (entry-point (calculate-entry-point text-addr text-section-offset))
          (elf-header (create-elf-header
-                      entry-point
-                      program-headers-offset
-                      program-headers-size
-                      section-headers-offset
-                      num-program-headers
-                      num-sections
-                      total-size
-                      shstrtab-index
-                      hash-offset
-                      hash-size)))
+                       entry-point
+                       program-headers-offset
+                       program-headers-size
+                       section-headers-offset
+                       num-program-headers
+                       num-sections
+                       total-size
+                       shstrtab-index
+                       hash-offset
+                       hash-size)))
 
     (verify-dynamic-section dynamic-section dynstr-offset dynsym-offset 
                             dynstr-size
@@ -204,41 +204,60 @@
                                dynstr-offset dynsym-offset rela-offset relocation-table-size))
 
     (check-section-overlaps
-     (list (list dynamic-offset dynamic-size ".dynamic")
-           (list dynsym-offset dynsym-size ".dynsym")
-           (list dynstr-offset dynstr-size ".dynstr")
-           (list rela-offset relocation-table-size ".rela.dyn")
-           (list hash-offset hash-size ".hash")
-           (list got-offset got-size ".got")
-           (list plt-offset plt-size ".plt")))
+      (list (list dynamic-offset dynamic-size ".dynamic")
+            (list dynsym-offset dynsym-size ".dynsym")
+            (list dynstr-offset dynstr-size ".dynstr")
+            (list rela-offset relocation-table-size ".rela.dyn")
+            (list hash-offset hash-size ".hash")
+            (list got-offset got-size ".got")
+            (list plt-offset plt-size ".plt")))
 
     (let ((elf-file (make-bytevector total-size 0)))
       (bytevector-copy! elf-header 0 elf-file 0 (bytevector-length elf-header))
       (bytevector-copy! program-headers 0 elf-file program-headers-offset program-headers-size)
       (bytevector-copy! code 0 elf-file code-offset code-size)
 
-      (for-each (lambda (pair)
-                  (bytevector-copy! (cdr pair) 0 elf-file data-offset (bytevector-length (cdr pair)))
-                  (set! data-offset (+ data-offset (bytevector-length (cdr pair)))))
-                data-sections)
+
+      (format #t "Data section details:~%")
+      (format #t "data-offset: ~a~%" data-offset)
+      (format #t "data-size: ~a~%" data-size)
+
+      (let ((total-data-size 0))
+        (for-each (lambda (pair)
+                    (let* ((name (car pair))
+                           (data (cdr pair))
+                           (size (bytevector-length data)))
+                      (format #t "Writing data section: ~a~%" name)
+                      (format #t "  Offset: ~a~%" data-offset)
+                      (format #t "  Size: ~a bytes~%" size)
+                      (format #t "  Data~a bytes~%" data)
+                      (bytevector-copy! data 0 elf-file data-offset size)
+                      (set! data-offset (+ data-offset size))
+                      (set! total-data-size (+ total-data-size size))))
+                  data-sections)
+
+        (format #t "Total data size written: ~a bytes~%" total-data-size)
+        (format #t "Expected data size: ~a bytes~%" data-size)
+        (when (not (= total-data-size data-size))
+          (format #t "WARNING: Mismatch in data size!~%")))
 
       (bytevector-copy! dynamic-section 0 elf-file dynamic-offset dynamic-size)
       (bytevector-copy! symtab-bv 0 elf-file dynsym-offset dynsym-size)
       (bytevector-copy! strtab 0 elf-file dynstr-offset dynstr-size)
       (bytevector-copy! relocation-table 0 elf-file rela-offset relocation-table-size)
       (bytevector-copy! hash-table 0 elf-file hash-offset hash-size)
-      
+
       ;; Add .symtab section
       (bytevector-copy! symtab-bv 0 elf-file symtab-offset dynsym-size)
-      
+
       ;; Add .strtab section
       (bytevector-copy! strtab 0 elf-file strtab-offset dynstr-size)
-      
+
       (bytevector-copy! shstrtab 0 elf-file (- section-headers-offset shstrtab-size) shstrtab-size)
       (bytevector-copy! section-headers 0 elf-file section-headers-offset section-headers-size)
 
       (call-with-output-file output-file
-        (lambda (port)
-          (put-bytevector port elf-file)))
+                             (lambda (port)
+                               (put-bytevector port elf-file)))
 
       total-size)))
