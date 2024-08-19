@@ -102,9 +102,9 @@
             (make-section-header
               13                                 ; name: Index of ".bss" in string table
               sht-nobits                         ; type: No bits (uninitialized data)
-              0                                  ; flags: No flags (removed shf-write and shf-alloc)
-              #x5000                             ; addr: Virtual address for .bss
-              #x5000                             ; offset: File offset (should be 0 for NOBITS, but keeping consistent)
+              (logior shf-write shf-alloc)       ; flags: Writable and allocate memory
+              #x5000; addr: Virtual address for .bss (updated)
+              #x5000; offset: File offset (should be 0 for NOBITS, but keeping consistent)
               0                                  ; size: No size in file (uninitialized)
               0                                  ; link: No link
               0                                  ; info: No additional info
@@ -146,7 +146,7 @@
               dynsym-addr                        ; offset: File offset of .dynsym section
               dynsym-size                        ; size: Size of .dynsym section
               7                                  ; link: Index of .dynstr section
-              5                                  ; info: Index of first non-local symbol
+              1                                  ; info: Index of first non-local symbol
               8                                  ; align: Align to 8 bytes
               24)                                ; entsize: Size of each symbol entry (usually 24 bytes)
 
@@ -211,7 +211,7 @@
               symtab-offset                      ; offset: File offset of .symtab section
               symtab-size                        ; size: Size of .symtab section
               12                                 ; link: Index of .strtab section
-              5                                  ; info: Index of first non-local symbol
+              1                                  ; info: Index of first non-local symbol
               8                                  ; align: Align to 8 bytes
               24)                                ; entsize: Size of each symbol entry (usually 24 bytes)
 

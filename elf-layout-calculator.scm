@@ -1,24 +1,24 @@
 (define-module (elf-layout-calculator)
-  #:use-module (config)
-  #:use-module (utils)
-  #:use-module (rnrs bytevectors)
-  #:use-module (symbol-table)
-  #:use-module (string-table)
-  #:use-module (relocation-table)
-  #:export (calculate-elf-layout
-            calculate-phdr-size
-            calculate-text-segment-size
-            calculate-text-segment-end
-            calculate-data-segment-start
-            calculate-data-segment-file-size
-            calculate-data-segment-mem-size
-            calculate-relro-size))
+               #:use-module (config)
+               #:use-module (utils)
+               #:use-module (rnrs bytevectors)
+               #:use-module (symbol-table)
+               #:use-module (string-table)
+               #:use-module (relocation-table)
+               #:export (calculate-elf-layout
+                          calculate-phdr-size
+                          calculate-text-segment-size
+                          calculate-text-segment-end
+                          calculate-data-segment-start
+                          calculate-data-segment-file-size
+                          calculate-data-segment-mem-size
+                          calculate-relro-size))
 
 (define (align-up address alignment)
   (let ((remainder (modulo address alignment)))
     (if (zero? remainder)
-        address
-        (+ address (- alignment remainder)))))
+      address
+      (+ address (- alignment remainder)))))
 
 (define (calculate-phdr-size num-program-headers program-header-size)
   (* num-program-headers program-header-size))
@@ -118,8 +118,25 @@
 (define (calculate-plt-offset got-offset got-size)
   (align-to (+ got-offset got-size) double-word-size))
 
-(define (calculate-total-dynamic-size plt-offset dynamic-offset)
-  (- plt-offset dynamic-offset))
+(define (calculate-total-dynamic-size dynamic-offset dynamic-size got-offset got-size plt-offset plt-size bss-size alignment)
+  (format #t "Calculating total dynamic size:~%")
+  (format #t "  Dynamic offset:        0x~8,'0x~%" dynamic-offset)
+  (format #t "  Dynamic size:          0x~8,'0x (~a bytes)~%" dynamic-size dynamic-size)
+  (format #t "  GOT offset:            0x~8,'0x~%" got-offset)
+  (format #t "  GOT size:              0x~8,'0x (~a bytes)~%" got-size got-size)
+  (format #t "  PLT offset:            0x~8,'0x~%" plt-offset)
+  (format #t "  PLT size:              0x~8,'0x (~a bytes)~%" plt-size plt-size)
+  (format #t "  BSS size:              0x~8,'0x (~a bytes)~%" bss-size bss-size)
+  (let* ((last-offset (+ plt-offset plt-size))
+         (total-size (- last-offset dynamic-offset))
+         (aligned-size (align-up total-size alignment))
+         (total-size-with-bss (+ aligned-size bss-size)))
+    (format #t "Total dynamic size (without BSS):     0x~8,'0x (~a bytes)~%" total-size total-size)
+    (format #t "Aligned total dynamic size:           0x~8,'0x (~a bytes)~%" aligned-size aligned-size)
+    (format #t "Total dynamic size (with BSS):        0x~8,'0x (~a bytes)~%" total-size-with-bss total-size-with-bss)
+    (format #t "Difference from actual (0x1f0):       0x~8,'0x (~a bytes)~%" 
+            (- #x1f0 aligned-size) (- #x1f0 aligned-size))
+    aligned-size))
 
 (define (calculate-section-headers-offset dynamic-offset total-dynamic-size)
   (align-to (+ dynamic-offset total-dynamic-size) alignment))
@@ -185,7 +202,16 @@
          (rela-offset (calculate-rela-offset dynstr-offset strtab-size))
          (got-offset (calculate-got-offset rela-offset relocation-table-size))
          (plt-offset (calculate-plt-offset got-offset got-size))
-         (total-dynamic-size (calculate-total-dynamic-size plt-offset dynamic-offset))
+         (total-dynamic-size 
+           (calculate-total-dynamic-size 
+             dynamic-offset 
+             dynamic-size 
+             got-offset 
+             got-size 
+             plt-offset 
+             plt-size 
+             bss-size
+             alignment))
          (section-headers-offset (calculate-section-headers-offset dynamic-offset total-dynamic-size))
          (hash-size (calculate-hash-size symbol-addresses))
          (hash-offset (calculate-hash-offset dynamic-offset dynamic-size))
