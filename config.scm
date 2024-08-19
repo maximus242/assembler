@@ -41,6 +41,7 @@
 
     ;; Other Constants
     dynamic-entry-size
+    num-dynamic-entries
     got-entry-size
     text-addr
     shstrtab-addr
@@ -94,6 +95,7 @@
 
 ;; Other Constants
 (define dynamic-entry-size 16)
+(define num-dynamic-entries 9)
 (define got-entry-size 8)
 (define text-addr #x1000)
 (define shstrtab-addr #x3f94)

@@ -93,7 +93,7 @@
   (align-to (+ data-offset data-size) alignment))
 
 (define (calculate-dynamic-size)
-  (* word-size dynamic-entry-size))
+  (* num-dynamic-entries dynamic-entry-size))
 
 (define (calculate-dynsym-offset dynamic-offset dynamic-size)
   (align-to (+ dynamic-offset dynamic-size) word-size))

@@ -1,0 +1,49 @@
+%%%% Starting test calculate-dynamic-size
+Group begin: calculate-dynamic-size
+Test begin:
+  test-name: "No symbols, no GOT, no PLT"
+  source-file: "test-calculate-dynamic-size.scm"
+  source-line: 18
+  source-form: (test-equal "No symbols, no GOT, no PLT" result (* 2 word-size))
+Test end:
+  result-kind: fail
+  actual-value: 16
+  expected-value: 112
+Test begin:
+  test-name: "Some symbols, no GOT, no PLT"
+  source-file: "test-calculate-dynamic-size.scm"
+  source-line: 26
+  source-form: (test-equal "Some symbols, no GOT, no PLT" result (* 4 word-size))
+Test end:
+  result-kind: fail
+  actual-value: 32
+  expected-value: 176
+Test begin:
+  test-name: "No symbols, GOT, no PLT"
+  source-file: "test-calculate-dynamic-size.scm"
+  source-line: 34
+  source-form: (test-equal "No symbols, GOT, no PLT" result (* 4 word-size))
+Test end:
+  result-kind: fail
+  actual-value: 32
+  expected-value: 144
+Test begin:
+  test-name: "Symbols, GOT, and PLT"
+  source-file: "test-calculate-dynamic-size.scm"
+  source-line: 42
+  source-form: (test-equal "Symbols, GOT, and PLT" result (* 9 word-size))
+Test end:
+  result-kind: fail
+  actual-value: 72
+  expected-value: 224
+Test begin:
+  test-name: "Large GOT and PLT"
+  source-file: "test-calculate-dynamic-size.scm"
+  source-line: 50
+  source-form: (test-equal "Large GOT and PLT" result (* 9 word-size))
+Test end:
+  result-kind: fail
+  actual-value: 72
+  expected-value: 224
+Group end: calculate-dynamic-size
+# of unexpected failures  5
