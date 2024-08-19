@@ -1,32 +1,35 @@
 (define-module (section-headers)
-               #:use-module (rnrs bytevectors)
-               #:use-module (utils)
-               #:use-module (string-table)
-               #:use-module (srfi srfi-9)
-               #:use-module (config)
-               #:export (create-section-headers))
+  #:use-module (rnrs bytevectors)
+  #:use-module (utils)
+  #:use-module (string-table)
+  #:use-module (srfi srfi-9)
+  #:use-module (config)
+  #:export (create-section-headers))
 
 ;; Define a record type for section headers
+;; This allows us to create structured data for each section header
 (define-record-type <section-header>
   (make-section-header name type flags addr offset size link info align entsize)
   section-header?
-  (name sh-name)
-  (type sh-type)
-  (flags sh-flags)
-  (addr sh-addr)
-  (offset sh-offset)
-  (size sh-size)
-  (link sh-link)
-  (info sh-info)
-  (align sh-align)
-  (entsize sh-entsize))
+  (name sh-name)     ; Index into the section header string table
+  (type sh-type)     ; Type of section (e.g., SHT_PROGBITS, SHT_NOBITS)
+  (flags sh-flags)   ; Section attributes
+  (addr sh-addr)     ; Virtual address of the section in memory
+  (offset sh-offset) ; Offset of the section in the file
+  (size sh-size)     ; Size of the section
+  (link sh-link)     ; Section header table index link
+  (info sh-info)     ; Extra information about the section
+  (align sh-align)   ; Section alignment
+  (entsize sh-entsize)) ; Size of each entry, for sections with fixed-size entries
 
+;; Main function to create section headers
 (define (create-section-headers
           text-addr code-size data-size symtab-size strtab-size shstrtab-size 
           dynsym-size dynstr-size rela-size total-dynamic-size dynamic-size
           rela-offset got-size data-addr dynamic-addr dynsym-addr dynstr-addr
           rela-addr got-addr plt-addr symtab-offset strtab-offset shstrtab-addr)
 
+  ;; Log all input parameters for debugging
   (log-addresses-and-sizes text-addr data-addr dynamic-addr dynsym-addr 
                            dynstr-addr rela-addr got-addr plt-addr 
                            shstrtab-addr shstrtab-size got-size
@@ -34,45 +37,199 @@
                            dynsym-size dynstr-size rela-size total-dynamic-size 
                            dynamic-size rela-offset)
 
+  ;; Create a list of all section headers
   (let ((headers
           (list
-            (make-section-header 0 sht-null 0 0 0 0 0 0 0 0)
-            (make-section-header 1 sht-progbits (logior shf-alloc shf-execinstr) 
-                                 text-addr text-addr code-size 0 0 16 0)
-            (make-section-header 7 sht-progbits (logior shf-write shf-alloc) 
-                                 data-addr data-addr data-size 0 0 8 0)
-            (make-section-header 13 sht-nobits (logior shf-write shf-alloc) 
-                                 #x5000 ;; Virtual address for .bss
-                                 #x5000      ;; Offset in the file, should be 0 for NOBITS
-                                 0      ;; Size in the file, should be 0 for NOBITS
-                                 0      ;; Link
-                                 0      ;; Info
-                                 8      ;; Alignment, typically 8 for .bss
-                                 0)     ;; Entry size, 0 for NOBITS
-            (make-section-header 18 sht-progbits shf-alloc 
-                                 (+ text-addr code-size) (+ text-addr code-size) 0 0 0 8 0)
-            (make-section-header 63 sht-dynamic (logior shf-write shf-alloc) 
-                                 dynamic-addr dynamic-addr dynamic-size 7 0 8 dynamic-entry-size)
-            (make-section-header 80 sht-dynsym shf-alloc 
-                                 dynsym-addr dynsym-addr dynsym-size 7 5 8 24)
-            (make-section-header 72 sht-strtab shf-alloc 
-                                 dynstr-addr dynstr-addr dynstr-size 0 0 1 0)
-            (make-section-header 88 sht-rela shf-alloc 
-                                 rela-addr rela-addr rela-size 6 0 8 24)
-            (make-section-header 98 sht-progbits (logior shf-write shf-alloc) 
-                                 got-addr got-addr got-size 0 0 8 got-entry-size)
-            (make-section-header 103 sht-progbits (logior shf-alloc shf-execinstr) 
-                                 plt-addr plt-addr #x20 0 0 16 16)
-            (make-section-header 26 sht-symtab 0 0 
-                                 symtab-offset symtab-size 12 5 8 24)
-            (make-section-header 34 sht-strtab 0 0 
-                                 strtab-offset strtab-size 0 0 1 0)
-            (make-section-header 42 sht-strtab 0 0 
-                                 shstrtab-addr shstrtab-size 0 0 1 0))))
+            ;; Null section (always first)
+            (make-section-header
+              0          ; name: No name (index 0 in string table)
+              sht-null   ; type: Null section type
+              0          ; flags: No flags
+              0          ; addr: No address
+              0          ; offset: No file offset
+              0          ; size: No size
+              0          ; link: No link
+              0          ; info: No additional info
+              0          ; align: No alignment
+              0)         ; entsize: No entry size
 
+            ;; .text section (code)
+            (make-section-header
+              1                                  ; name: Index of ".text" in string table
+              sht-progbits                       ; type: Program bits (executable code)
+              (logior shf-alloc shf-execinstr)   ; flags: Allocate memory and executable
+              text-addr                          ; addr: Virtual address of .text section
+              text-addr                          ; offset: File offset (same as addr for simplicity)
+              code-size                          ; size: Size of the code
+              0                                  ; link: No link
+              0                                  ; info: No additional info
+              16                                 ; align: Align to 16 bytes
+              0)                                 ; entsize: No fixed entry size
+
+            ;; .data section (initialized data)
+            (make-section-header
+              7                                  ; name: Index of ".data" in string table
+              sht-progbits                       ; type: Program bits (initialized data)
+              (logior shf-write shf-alloc)       ; flags: Writable and allocate memory
+              data-addr                          ; addr: Virtual address of .data section
+              data-addr                          ; offset: File offset (same as addr for simplicity)
+              data-size                          ; size: Size of initialized data
+              0                                  ; link: No link
+              0                                  ; info: No additional info
+              8                                  ; align: Align to 8 bytes
+              0)                                 ; entsize: No fixed entry size
+
+            ;; .bss section (uninitialized data)
+            (make-section-header
+              13                                 ; name: Index of ".bss" in string table
+              sht-nobits                         ; type: No bits (uninitialized data)
+              (logior shf-write shf-alloc)       ; flags: Writable and allocate memory
+              #x5000                             ; addr: Virtual address for .bss
+              #x5000                             ; offset: File offset (should be 0 for NOBITS, but keeping consistent)
+              0                                  ; size: No size in file (uninitialized)
+              0                                  ; link: No link
+              0                                  ; info: No additional info
+              8                                  ; align: Align to 8 bytes
+              0)                                 ; entsize: No fixed entry size
+
+            ;; .rodata section (read-only data)
+            (make-section-header
+              18                                 ; name: Index of ".rodata" in string table
+              sht-progbits                       ; type: Program bits (read-only data)
+              shf-alloc                          ; flags: Allocate memory (read-only)
+              (+ text-addr code-size)            ; addr: Virtual address after .text section
+              (+ text-addr code-size)            ; offset: File offset after .text section
+              0                                  ; size: Size of read-only data (0 in this case)
+              0                                  ; link: No link
+              0                                  ; info: No additional info
+              8                                  ; align: Align to 8 bytes
+              0)                                 ; entsize: No fixed entry size
+
+            ;; .dynamic section (dynamic linking information)
+            (make-section-header
+              63                                 ; name: Index of ".dynamic" in string table
+              sht-dynamic                        ; type: Dynamic linking information
+              (logior shf-write shf-alloc)       ; flags: Writable and allocate memory
+              dynamic-addr                       ; addr: Virtual address of .dynamic section
+              dynamic-addr                       ; offset: File offset of .dynamic section
+              dynamic-size                       ; size: Size of .dynamic section
+              7                                  ; link: Index of .dynstr section
+              0                                  ; info: No additional info
+              8                                  ; align: Align to 8 bytes
+              dynamic-entry-size)                ; entsize: Size of each dynamic entry
+
+            ;; .dynsym section (dynamic linking symbol table)
+            (make-section-header
+              80                                 ; name: Index of ".dynsym" in string table
+              sht-dynsym                         ; type: Dynamic symbol table
+              shf-alloc                          ; flags: Allocate memory
+              dynsym-addr                        ; addr: Virtual address of .dynsym section
+              dynsym-addr                        ; offset: File offset of .dynsym section
+              dynsym-size                        ; size: Size of .dynsym section
+              7                                  ; link: Index of .dynstr section
+              5                                  ; info: Index of first non-local symbol
+              8                                  ; align: Align to 8 bytes
+              24)                                ; entsize: Size of each symbol entry (usually 24 bytes)
+
+            ;; .dynstr section (dynamic linking string table)
+            (make-section-header
+              72                                 ; name: Index of ".dynstr" in string table
+              sht-strtab                         ; type: String table
+              shf-alloc                          ; flags: Allocate memory
+              dynstr-addr                        ; addr: Virtual address of .dynstr section
+              dynstr-addr                        ; offset: File offset of .dynstr section
+              dynstr-size                        ; size: Size of .dynstr section
+              0                                  ; link: No link
+              0                                  ; info: No additional info
+              1                                  ; align: Align to 1 byte (no alignment)
+              0)                                 ; entsize: No fixed entry size for string tables
+
+            ;; .rela.dyn section (relocation entries for non-PLT objects)
+            (make-section-header
+              88                                 ; name: Index of ".rela.dyn" in string table
+              sht-rela                           ; type: Relocation entries with addends
+              shf-alloc                          ; flags: Allocate memory
+              rela-addr                          ; addr: Virtual address of .rela.dyn section
+              rela-addr                          ; offset: File offset of .rela.dyn section
+              rela-size                          ; size: Size of .rela.dyn section
+              6                                  ; link: Index of .dynsym section
+              0                                  ; info: No additional info
+              8                                  ; align: Align to 8 bytes
+              24)                                ; entsize: Size of each relocation entry (usually 24 bytes)
+
+            ;; .got section (global offset table)
+            (make-section-header
+              98                                 ; name: Index of ".got" in string table
+              sht-progbits                       ; type: Program bits
+              (logior shf-write shf-alloc)       ; flags: Writable and allocate memory
+              got-addr                           ; addr: Virtual address of .got section
+              got-addr                           ; offset: File offset of .got section
+              got-size                           ; size: Size of .got section
+              0                                  ; link: No link
+              0                                  ; info: No additional info
+              8                                  ; align: Align to 8 bytes
+              got-entry-size)                    ; entsize: Size of each GOT entry
+
+            ;; .plt section (procedure linkage table)
+            (make-section-header
+              103                                ; name: Index of ".plt" in string table
+              sht-progbits                       ; type: Program bits
+              (logior shf-alloc shf-execinstr)   ; flags: Allocate memory and executable
+              plt-addr                           ; addr: Virtual address of .plt section
+              plt-addr                           ; offset: File offset of .plt section
+              #x20                               ; size: Size of .plt section (hardcoded to 32 bytes)
+              0                                  ; link: No link
+              0                                  ; info: No additional info
+              16                                 ; align: Align to 16 bytes
+              16)                                ; entsize: Size of each PLT entry (usually 16 bytes)
+
+            ;; .symtab section (symbol table)
+            (make-section-header
+              26                                 ; name: Index of ".symtab" in string table
+              sht-symtab                         ; type: Symbol table
+              0                                  ; flags: No flags (not loaded at runtime)
+              0                                  ; addr: No virtual address (not loaded)
+              symtab-offset                      ; offset: File offset of .symtab section
+              symtab-size                        ; size: Size of .symtab section
+              12                                 ; link: Index of .strtab section
+              5                                  ; info: Index of first non-local symbol
+              8                                  ; align: Align to 8 bytes
+              24)                                ; entsize: Size of each symbol entry (usually 24 bytes)
+
+            ;; .strtab section (string table)
+            (make-section-header
+              34                                 ; name: Index of ".strtab" in string table
+              sht-strtab                         ; type: String table
+              0                                  ; flags: No flags (not loaded at runtime)
+              0                                  ; addr: No virtual address (not loaded)
+              strtab-offset                      ; offset: File offset of .strtab section
+              strtab-size                        ; size: Size of .strtab section
+              0                                  ; link: No link
+              0                                  ; info: No additional info
+              1                                  ; align: Align to 1 byte (no alignment)
+              0)                                 ; entsize: No fixed entry size for string tables
+
+            ;; .shstrtab section (section header string table)
+            (make-section-header
+              42                                 ; name: Index of ".shstrtab" in string table
+              sht-strtab                         ; type: String table
+              0                                  ; flags: No flags (not loaded at runtime)
+              0                                  ; addr: No virtual address (not loaded)
+              shstrtab-addr                      ; offset: File offset of .shstrtab section
+              shstrtab-size                      ; size: Size of .shstrtab section
+              0                                  ; link: No link
+              0                                  ; info: No additional info
+              1                                  ; align: Align to 1 byte (no alignment)
+              0)                                 ; entsize: No fixed entry size for string tables
+            )))
+
+    ;; Log the final section headers for debugging
     (log-section-headers headers)
+    
+    ;; Convert the section headers to a bytevector
     (section-headers->bytevector headers)))
 
+;; Helper function to log all input parameters
 (define (log-addresses-and-sizes text-addr data-addr dynamic-addr dynsym-addr 
                                  dynstr-addr rela-addr got-addr plt-addr 
                                  shstrtab-addr shstrtab-size got-size
@@ -91,6 +248,7 @@
                   code-size data-size symtab-size strtab-size dynsym-size dynstr-size
                   rela-size total-dynamic-size dynamic-size rela-offset)))
 
+;; Helper function to log the final section headers
 (define (log-section-headers headers)
   (format #t "Final section headers:\n")
   (for-each
