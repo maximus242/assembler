@@ -74,7 +74,7 @@
 (define sht-progbits 1)
 (define sht-symtab 2)
 (define sht-strtab 3)
-(define sht-rela 4)
+(define sht-rela 6)
 (define sht-dynamic 6)
 (define sht-nobits 8)
 (define sht-dynsym 11)
