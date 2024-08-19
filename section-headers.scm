@@ -1,10 +1,10 @@
 (define-module (section-headers)
-  #:use-module (rnrs bytevectors)
-  #:use-module (utils)
-  #:use-module (string-table)
-  #:use-module (srfi srfi-9)
-  #:use-module (config)
-  #:export (create-section-headers))
+               #:use-module (rnrs bytevectors)
+               #:use-module (utils)
+               #:use-module (string-table)
+               #:use-module (srfi srfi-9)
+               #:use-module (config)
+               #:export (create-section-headers))
 
 ;; Define a record type for section headers
 ;; This allows us to create structured data for each section header
@@ -102,7 +102,7 @@
             (make-section-header
               13                                 ; name: Index of ".bss" in string table
               sht-nobits                         ; type: No bits (uninitialized data)
-              (logior shf-write shf-alloc)       ; flags: Writable and allocate memory
+              0                                  ; flags: No flags (removed shf-write and shf-alloc)
               #x5000                             ; addr: Virtual address for .bss
               #x5000                             ; offset: File offset (should be 0 for NOBITS, but keeping consistent)
               0                                  ; size: No size in file (uninitialized)
@@ -193,7 +193,7 @@
             (make-section-header
               103                                ; name: Index of ".plt" in string table
               sht-progbits                       ; type: Program bits
-              (logior shf-alloc shf-execinstr)   ; flags: Allocate memory and executable
+              shf-execinstr                      ; flags: Executable instruction only (removed shf-alloc)
               plt-addr                           ; addr: Virtual address of .plt section
               plt-addr                           ; offset: File offset of .plt section
               #x20                               ; size: Size of .plt section (hardcoded to 32 bytes)
@@ -244,7 +244,7 @@
 
     ;; Log the final section headers for debugging
     (log-section-headers headers)
-    
+
     ;; Convert the section headers to a bytevector
     (section-headers->bytevector headers)))
 
