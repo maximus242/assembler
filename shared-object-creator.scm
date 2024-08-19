@@ -164,6 +164,7 @@
                            data-segment-size
                            dynamic-addr
                            dynamic-offset
+                           dynamic-size
                            total-dynamic-size
                            got-offset
                            got-size

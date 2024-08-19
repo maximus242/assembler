@@ -93,7 +93,15 @@
   (align-to (+ data-offset data-size) alignment))
 
 (define (calculate-dynamic-size)
-  (* num-dynamic-entries dynamic-entry-size))
+  (let* ((calculated-size (* num-dynamic-entries dynamic-entry-size))
+         (hex-size (number->string calculated-size 16)))
+    (format #t "Calculating dynamic size:~%")
+    (format #t "  Number of dynamic entries: ~a~%" num-dynamic-entries)
+    (format #t "  Size of each dynamic entry: 0x~a bytes~%" 
+            (number->string dynamic-entry-size 16))
+    (format #t "  Calculated size: 0x~a bytes~%" hex-size)
+    (format #t "  Decimal size: ~a bytes~%" calculated-size)
+    calculated-size))
 
 (define (calculate-dynsym-offset dynamic-offset dynamic-size)
   (align-to (+ dynamic-offset dynamic-size) word-size))

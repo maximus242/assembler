@@ -49,11 +49,24 @@
   (+ code-size rodata-size))
 
 (define (create-program-headers 
-          elf-header-size program-header-size num-program-headers
-          text-addr code-size rodata-size bss-size data-size
-          dynamic-addr dynamic-offset dynamic-size
-          got-offset got-size plt-offset plt-size
-          total-size alignment)
+          elf-header-size 
+          program-header-size 
+          num-program-headers
+          text-addr 
+          code-size 
+          rodata-size 
+          bss-size 
+          data-size
+          dynamic-addr 
+          dynamic-offset 
+          dynamic-size
+          total-dynamic-size
+          got-offset 
+          got-size 
+          plt-offset 
+          plt-size
+          total-size 
+          alignment)
 
   (format #t "\n--- Input Parameters ---\n")
   (format #t "elf-header-size: 0x~x\n" elf-header-size)
@@ -97,6 +110,8 @@
     (format #t "relro-size: 0x~x\n" relro-size)
     (format #t "phdr-size: 0x~x\n" phdr-size)
     (format #t "bss-addr: 0x~x\n" bss-addr)
+    (format #t "PROGRAM HEADER dynamic-size: 0x~x\n" dynamic-size)
+
 
     (format #t "\nBSS Placement Information:\n")
     (format #t "data_segment_start: 0x~x\n" data-segment-start)
@@ -130,7 +145,7 @@
               ;; Third LOAD segment (RWX) - starting from .dynamic, includes .plt and ends with .bss
               (make-program-header pt-load (logior pf-r pf-w pf-x) dynamic-offset
                                    dynamic-addr dynamic-addr
-                                   dynamic-size dynamic-size alignment)
+                                   total-dynamic-size total-dynamic-size alignment)
               ;; PT_DYNAMIC
               (make-program-header pt-dynamic (logior pf-r pf-w) dynamic-offset
                                    dynamic-addr dynamic-addr
@@ -143,6 +158,7 @@
                                    relro-size relro-size
                                    1)
 
+              ;; BSS
               (make-program-header
                 pt-load            ;; Type for LOAD segment
                 pf-r               ;; Writable flag for program header
@@ -150,7 +166,7 @@
                 #x5000             ;; vaddr: Hardcoded start address for .bss (virtual address)
                 #x5000             ;; paddr: Hardcoded physical address (same as virtual in this case)
                 #x0                ;; filesz: Should be 0 because .bss is NOBITS
-                #x0             ;; memsz: Hardcoded size for .bss in memory
+                #x0                ;; memsz: Hardcoded size for .bss in memory
                 #x1000             ;; align: Usually 0x1000 for page alignment
                 )
 

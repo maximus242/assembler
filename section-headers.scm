@@ -24,10 +24,29 @@
 
 ;; Main function to create section headers
 (define (create-section-headers
-          text-addr code-size data-size symtab-size strtab-size shstrtab-size 
-          dynsym-size dynstr-size rela-size total-dynamic-size dynamic-size
-          rela-offset got-size data-addr dynamic-addr dynsym-addr dynstr-addr
-          rela-addr got-addr plt-addr symtab-offset strtab-offset shstrtab-addr)
+          text-addr 
+          code-size 
+          data-size 
+          symtab-size 
+          strtab-size 
+          shstrtab-size 
+          dynsym-size 
+          dynstr-size 
+          rela-size 
+          total-dynamic-size 
+          dynamic-size
+          rela-offset 
+          got-size 
+          data-addr 
+          dynamic-addr 
+          dynsym-addr 
+          dynstr-addr
+          rela-addr 
+          got-addr 
+          plt-addr 
+          symtab-offset 
+          strtab-offset 
+          shstrtab-addr)
 
   ;; Log all input parameters for debugging
   (log-addresses-and-sizes text-addr data-addr dynamic-addr dynsym-addr 
