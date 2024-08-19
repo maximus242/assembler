@@ -128,12 +128,9 @@
                                    (+ (- dynamic-offset data-segment-start) bss-size)
                                    alignment)
               ;; Third LOAD segment (RWX) - starting from .dynamic, includes .plt and ends with .bss
-              (make-program-header pt-load (logior pf-r pf-w pf-x) 
-                                   dynamic-offset
+              (make-program-header pt-load (logior pf-r pf-w pf-x) dynamic-offset
                                    dynamic-addr dynamic-addr
-                                   (- (+ bss-addr bss-size) dynamic-offset) 
-                                   (- (+ bss-addr bss-size) dynamic-offset)
-                                   alignment)
+                                   dynamic-size dynamic-size alignment)
               ;; PT_DYNAMIC
               (make-program-header pt-dynamic (logior pf-r pf-w) dynamic-offset
                                    dynamic-addr dynamic-addr
