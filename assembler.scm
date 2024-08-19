@@ -202,7 +202,7 @@
 (define (assemble instructions)
   (hash-clear! label-positions)
   (let* ((encoded-instructions (map encode-instruction instructions))
-         (current-position 0))
+         (current-position #x1000))
     ;; First pass: collect label positions
     (for-each
      (lambda (inst encoded-inst)
