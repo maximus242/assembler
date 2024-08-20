@@ -185,11 +185,11 @@
               (make-program-header 
                 pt-gnu-relro             ; Type: GNU read-only after relocation
                 pf-r                     ; Flags: Read permission
-                data-segment-start       ; Offset: Start of data segment
-                data-segment-start       ; Virtual address: Start of data segment
-                data-segment-start       ; Physical address: Same as virtual address
-                relro-size               ; File size: Size of read-only after relocation section
-                relro-size               ; Memory size: Same as file size
+                dynamic-offset           ; Offset: Start of data segment
+                dynamic-addr             ; Virtual address: Start of data segment
+                dynamic-addr             ; Physical address: Same as virtual address
+                dynamic-size             ; File size: Size of read-only after relocation section
+                dynamic-size             ; Memory size: Same as file size
                 1)                       ; Alignment: 1 byte alignment
 
               ; BSS
