@@ -19,14 +19,14 @@
       ((rbp ebp) 5)
       ((rsi esi) 6)
       ((rdi edi) 7)
-      ((r8 r8d) 8)
-      ((r9 r9d) 9)
-      ((r10 r10d) 10)
-      ((r11 r11d) 11)
-      ((r12 r12d) 12)
-      ((r13 r13d) 13)
-      ((r14 r14d) 14)
-      ((r15 r15d) 15)
+      ((r8 r8d) 0)  ; Note: r8 is encoded as 0 when used with REX.R
+      ((r9 r9d) 1)
+      ((r10 r10d) 2)
+      ((r11 r11d) 3)
+      ((r12 r12d) 4)
+      ((r13 r13d) 5)
+      ((r14 r14d) 6)
+      ((r15 r15d) 7)
       (else (error "Unknown register" reg-sym)))))
 
 (define (ymm-register->code reg)
@@ -101,17 +101,28 @@
      ;; Memory destination
      (let ((dest-reg (car dest))
            (src-code (ymm-register->code src)))
-       (u8-list->bytevector (list #xC5 #xFC #x29 (logior #x00 (ash src-code 3) (register->code dest-reg))))))
+       (u8-list->bytevector 
+        (list #xC5 #xFC #x29 
+              (logior #x00 
+                      (ash src-code 3) 
+                      (if (>= (register->code dest-reg) 8)
+                          (- (register->code dest-reg) 8)
+                          (register->code dest-reg)))))))
     ((and (list? src) (= (length src) 1))
      ;; Memory source
      (let ((dest-code (ymm-register->code dest))
-           (src-sym (car src)))
-       (if (symbolic-reference? src-sym)
+           (src-reg (car src)))
+       (if (symbolic-reference? src-reg)
            (bytevector-append
             (u8-list->bytevector (list #xC5 #xFC #x28 #x05))
             (make-bytevector 4 0))  ; Placeholder for symbolic reference
-           (let ((src-code (register->code src-sym)))
-             (u8-list->bytevector (list #xC5 #xFC #x28 (logior #x00 (ash dest-code 3) src-code)))))))
+           (u8-list->bytevector 
+            (list #xC5 #xFC #x28 
+                  (logior #x00 
+                          (ash dest-code 3) 
+                          (if (>= (register->code src-reg) 8)
+                              (- (register->code src-reg) 8)
+                              (register->code src-reg))))))))
     ((symbol? src)
      ;; Register to register
      (let ((dest-code (ymm-register->code dest))
@@ -123,13 +134,13 @@
   (let ((dest-code (ymm-register->code dest))
         (src1-code (ymm-register->code src1))
         (src2-code (ymm-register->code src2)))
-    (u8-list->bytevector (list #xC5 #xF4 #x58 (logior #xC0 (ash src1-code 3) dest-code)))))
+    (u8-list->bytevector (list #xC5 #xF4 #x58 (logior #xC0 (ash src2-code 3) dest-code)))))
 
 (define (encode-vfmadd132ps dest src1 src2)
   (let ((dest-code (ymm-register->code dest))
-        (src1-code (ymm-register->code src1))
+        (src1-code (ymm-register->code src1))  ; This is ymm3, encoded in VEX prefix
         (src2-code (ymm-register->code src2)))
-    (u8-list->bytevector (list #xC4 #xE2 #xED #x98 (logior #xC0 (ash src1-code 3) dest-code)))))
+    (u8-list->bytevector (list #xC4 #xE2 #x65 #x98 (logior #xC0 (ash dest-code 3) src2-code)))))
 
 (define (encode-vxorps dest src1 src2)
   (let ((dest-code (ymm-register->code dest))
@@ -155,21 +166,25 @@
   (match instruction
     (('lea dest ('rip label))
      (let* ((opcode #x8D)
-            (mod-rm #x05)
             (rex-prefix (if (>= (register->code dest) 8) #x4C #x48))
+            (reg-code (if (>= (register->code dest) 8)
+                          (- (register->code dest) 8)
+                          (register->code dest)))
             (displacement 0)) ; This will be filled in during linking
        (bytevector-append
         (u8-list->bytevector (list rex-prefix opcode))
-        (encode-mod-rm-sib 0 (if (>= (register->code dest) 8) (- (register->code dest) 8) dest) 5)
+        (encode-mod-rm-sib 0 reg-code 5)
         (integer->bytevector displacement 4))))
     (('lea dest ('rip (? (lambda (x) (string-suffix? "@GOTPCREL" (symbol->string x))) label)))
      (let* ((opcode #x8D)
-            (mod-rm #x05)
             (rex-prefix (if (>= (register->code dest) 8) #x4C #x48))
+            (reg-code (if (>= (register->code dest) 8)
+                          (- (register->code dest) 8)
+                          (register->code dest)))
             (displacement 0)) ; This will be filled in during linking
        (bytevector-append
         (u8-list->bytevector (list rex-prefix opcode))
-        (encode-mod-rm-sib 0 (if (>= (register->code dest) 8) (- (register->code dest) 8) dest) 5)
+        (encode-mod-rm-sib 0 reg-code 5)
         (integer->bytevector displacement 4))))
     (_ (error "Unsupported lea instruction" instruction))))
 

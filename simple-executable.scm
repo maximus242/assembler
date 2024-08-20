@@ -41,7 +41,7 @@
     (mov rdx (rdx))
     (vmovaps ymm0 (rdi))
     (vmovaps ymm1 (rsi))
-    (vaddps ymm2 ymm1 ymm1)
+    (vaddps ymm1 ymm1 ymm2)
     (lea r8 (rip multiplier@GOTPCREL))
     (mov r8 (r8))
     (vmovaps ymm3 (r8))
