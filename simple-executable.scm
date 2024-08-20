@@ -30,26 +30,51 @@
     (multiplier . #x2060)))  ; 8288 in decimal
 
 (define example-code
-  '((label main)
+  '((label perform_operations)
     (push rbp)
     (mov rbp rsp)
+    
+    ; Load addresses using GOTPCREL for PIC
     (lea rdi (rip buffer1@GOTPCREL))
-    (mov rdi (rdi))
     (lea rsi (rip buffer2@GOTPCREL))
-    (mov rsi (rsi))
     (lea rdx (rip result@GOTPCREL))
+    (lea r8 (rip multiplier@GOTPCREL))
+    
+    ; Check for null pointers
+    (test rdi rdi)
+    (jz error)
+    (test rsi rsi)
+    (jz error)
+    (test rdx rdx)
+    (jz error)
+    (test r8 r8)
+    (jz error)
+    
+    ; Dereference GOT entries
+    (mov rdi (rdi))
+    (mov rsi (rsi))
     (mov rdx (rdx))
+    (mov r8 (r8))
+    
+    ; SIMD operations
     (vmovaps ymm0 (rdi))
     (vmovaps ymm1 (rsi))
-    (vaddps ymm1 ymm1 ymm2)
-    (lea r8 (rip multiplier@GOTPCREL))
-    (mov r8 (r8))
+    (vaddps ymm2 ymm1 ymm1)
     (vmovaps ymm3 (r8))
     (vfmadd132ps ymm2 ymm3 ymm0)
     (vmovaps (rdx) ymm2)
+    
+    ; XOR operation
     (vxorps ymm2 ymm1 ymm2)
     (vmovaps (rdx) ymm2)
-    (mov.imm32 rax 0)
+    
+    ; End of function
+    (xor eax eax)
+    (pop rbp)
+    (ret)
+    
+    (label error)
+    (mov.imm32 rax -1)  ; Return -1 to indicate error
     (pop rbp)
     (ret)))
 
