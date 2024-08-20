@@ -3,7 +3,7 @@
 
 int main() {
     // Load the shared object
-    void *handle = dlopen("./example.so", RTLD_LAZY);
+    void *handle = dlopen("./output.so", RTLD_LAZY);
     if (!handle) {
         fprintf(stderr, "Error loading shared object: %s\n", dlerror());
         return 1;

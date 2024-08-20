@@ -52,6 +52,14 @@
 (define (encode-pop reg)
   (u8-list->bytevector (list #x5D)))  ; Always encode as pop %rbp
 
+(define (encode-test reg1 reg2)
+  (let ((reg1-code (register->code reg1))
+        (reg2-code (register->code reg2)))
+    (u8-list->bytevector 
+     (list #x48  ; REX.W prefix for 64-bit operands
+           #x85  ; TEST opcode
+           (logior #xC0 (ash reg2-code 3) reg1-code)))))
+
 (define (encode-mov dest src)
   (cond
     ((and (symbol? dest) (symbol? src))
@@ -208,6 +216,8 @@
     (('push reg) (encode-push reg))
     (('pop reg) (encode-pop reg))
     (('ret) (encode-ret))
+    (('test reg1 reg2) (encode-test reg1 reg2))
+    (('jz label) (encode-jz label))
     (_ (error "Unsupported instruction" inst))))
 
 (define (bytevector-append . bvs)
@@ -221,6 +231,11 @@
          (set! offset (+ offset len))))
      bvs)
     result))
+
+(define (encode-jz label)
+  ;; We'll use a short jump (2 bytes) for simplicity
+  ;; The actual offset will be filled in during linking
+  (u8-list->bytevector (list #x74 #x00)))
 
 (define label-positions (make-hash-table))
 
