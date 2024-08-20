@@ -29,24 +29,28 @@
     (result     . #x2040)  ; 8256 in decimal
     (multiplier . #x2060)))  ; 8288 in decimal
 
-;; Updated code using RIP-relative addressing
 (define example-code
   '((label main)
     (push rbp)
     (mov rbp rsp)
-    (lea rdi (rip buffer1))
-    (lea rsi (rip buffer2))
-    (lea rdx (rip result))
+    (lea rdi (rip buffer1@GOTPCREL))
+    (mov rdi (rdi))
+    (lea rsi (rip buffer2@GOTPCREL))
+    (mov rsi (rsi))
+    (lea rdx (rip result@GOTPCREL))
+    (mov rdx (rdx))
     (vmovaps ymm0 (rdi))
     (vmovaps ymm1 (rsi))
-    (vaddps ymm2 ymm0 ymm1)
-    (lea r8 (rip multiplier))
+    (vaddps ymm2 ymm1 ymm1)
+    (lea r8 (rip multiplier@GOTPCREL))
+    (mov r8 (r8))
     (vmovaps ymm3 (r8))
-    (vfmadd132ps ymm2 ymm2 ymm3)
+    (vfmadd132ps ymm2 ymm3 ymm0)
     (vmovaps (rdx) ymm2)
-    (vxorps ymm2 ymm2 ymm2)
+    (vxorps ymm2 ymm1 ymm2)
     (vmovaps (rdx) ymm2)
-    (mov.imm32 eax 0)
+    (mov.imm32 rax 0)
+    (pop rbp)
     (ret)))
 
 (define assembled-code (assemble example-code))
