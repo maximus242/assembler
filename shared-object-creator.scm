@@ -78,6 +78,17 @@
   (custom-assert (<= data-segment-start rela-offset data-segment-end) ".rela.dyn not in LOAD segment")
   (custom-assert (<= (+ rela-offset relocation-table-size) data-segment-end) ".rela.dyn exceeds LOAD segment"))
 
+(define (create-gnu-version-r-section)
+  (make-bytevector 0))  ; Empty section
+
+(define (create-gnu-version-section dynsym-count)
+  (let ((version-section (make-bytevector (* 2 dynsym-count) 0)))
+    (do ((i 0 (+ i 1)))
+      ((= i dynsym-count) version-section)
+      (bytevector-u16-set! version-section (* i 2) 
+                           (if (= i 0) 0 1)  ; 0 for local, 1 for global
+                           (endianness little)))))
+
 (define (create-shared-object code data-sections output-file symbol-addresses label-positions)
   (let* ((layout (calculate-elf-layout code data-sections symbol-addresses label-positions))
          (program-headers-offset (assoc-ref layout 'program-headers-offset))
@@ -115,7 +126,10 @@
          (hash-offset (align-to (+ rela-offset relocation-table-size) word-size))
          (hash-table (create-hash-section symtab-bv))
          (hash-size (bytevector-length hash-table))
-         (got-offset (align-to (+ hash-offset hash-size) word-size))
+         (gnu-version-offset (align-to (+ hash-offset hash-size) word-size))
+         (gnu-version-r-offset (align-to (+ gnu-version-offset (* 2 (/ dynsym-size 24))) word-size))
+         (gnu-version-r-size 0)  ; Since we're creating an empty .gnu.version_r section
+         (got-offset (align-to (+ gnu-version-r-offset gnu-version-r-size) word-size))
          (plt-offset (align-to (+ got-offset got-size) word-size))
          (total-dynamic-size (- plt-offset dynamic-offset))
          (data-segment-size (+ data-size total-dynamic-size))
@@ -128,7 +142,10 @@
                             rela-offset
                             relocation-table-size
                             got-offset
-                            hash-offset))
+                            hash-offset
+                            gnu-version-offset
+                            gnu-version-r-offset
+                            gnu-version-r-size))
          (section-headers (create-section-headers
                             text-addr
                             code-size
@@ -136,8 +153,8 @@
                             symtab-size
                             strtab-size
                             shstrtab-size
-                            dynamic-symbol-table-size
-                            strtab-size
+                            dynsym-size
+                            dynstr-size
                             relocation-table-size
                             total-dynamic-size
                             dynamic-size
@@ -244,6 +261,14 @@
       (bytevector-copy! dynamic-section 0 elf-file dynamic-offset dynamic-size)
       (bytevector-copy! symtab-bv 0 elf-file dynsym-offset dynsym-size)
       (bytevector-copy! strtab 0 elf-file dynstr-offset dynstr-size)
+      ;; Create .gnu.version section
+      (let* ((dynsym-count (/ (bytevector-length symtab-bv) 24))  ; Assuming 24 bytes per symbol
+             (gnu-version (create-gnu-version-section dynsym-count)))
+        (bytevector-copy! gnu-version 0 elf-file gnu-version-offset (bytevector-length gnu-version)))
+
+      ;; Create .gnu.version_r section (empty in this case)
+      (let ((gnu-version-r (create-gnu-version-r-section)))
+        (bytevector-copy! gnu-version-r 0 elf-file gnu-version-r-offset (bytevector-length gnu-version-r)))
       (bytevector-copy! relocation-table 0 elf-file rela-offset relocation-table-size)
       (bytevector-copy! hash-table 0 elf-file hash-offset hash-size)
 

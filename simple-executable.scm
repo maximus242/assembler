@@ -40,16 +40,6 @@
     (lea rdx (rip result@GOTPCREL))
     (lea r8 (rip multiplier@GOTPCREL))
     
-    ; Check for null pointers
-    (test rdi rdi)
-    (jz error)
-    (test rsi rsi)
-    (jz error)
-    (test rdx rdx)
-    (jz error)
-    (test r8 r8)
-    (jz error)
-    
     ; Dereference GOT entries
     (mov rdi (rdi))
     (mov rsi (rsi))
@@ -72,11 +62,7 @@
     (xor eax eax)
     (pop rbp)
     (ret)
-    
-    (label error)
-    (mov.imm32 rax -1)  ; Return -1 to indicate error
-    (pop rbp)
-    (ret)))
+    ))
 
 (define assembled-code (assemble example-code))
 (define label-positions (get-label-positions))
