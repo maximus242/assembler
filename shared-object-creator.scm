@@ -19,6 +19,9 @@
                           check-section-overlaps
                           verify-segment-contents))
 
+(define (create-got-section got-size)
+  (make-bytevector got-size 0))
+
 (define (custom-assert condition message)
   (unless condition
     (error message)))
@@ -277,6 +280,12 @@
 
       ;; Add .strtab section
       (bytevector-copy! strtab 0 elf-file strtab-offset dynstr-size)
+
+      (format #t "GOT size: ~a bytes~%" got-size)
+      (format #t "GOT offset: 0x~x~%" got-offset)
+      (let ((got-section (create-got-section got-size)))
+        (format #t "GOT content: ~a~%" got-section)
+        (bytevector-copy! got-section 0 elf-file got-offset got-size))
 
       (bytevector-copy! shstrtab 0 elf-file (- section-headers-offset shstrtab-size) shstrtab-size)
       (bytevector-copy! section-headers 0 elf-file section-headers-offset section-headers-size)
