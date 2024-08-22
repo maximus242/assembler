@@ -45,8 +45,10 @@
 (define (calculate-relro-size data-segment-start dynamic-addr)
   (- dynamic-addr data-segment-start))
 
-(define (calculate-first-load-size text-size phdr-size alignment)
-  (align-up (+ text-size phdr-size) alignment))
+(define (calculate-first-load-size text-addr text-size phdr-offset phdr-size alignment)
+  (let ((first-load-size (max (+ text-addr text-size)
+                              (+ phdr-offset phdr-size))))
+    (align-up first-load-size alignment)))
 
 (define (create-program-headers 
           elf-header-size 
@@ -98,7 +100,7 @@
          ;; Place .bss at the end after all other sections, ensuring alignment
          (bss-addr (align-up total-size alignment))
          (phdr-offset (align-up elf-header-size alignment))
-         (first-load-size (calculate-first-load-size text-segment-size phdr-size alignment)))
+         (first-load-size (calculate-first-load-size text-addr text-segment-size phdr-offset phdr-size alignment)))
 
     (format #t "\n--- Calculated Values ---\n")
     (format #t "text-segment-size: 0x~x\n" text-segment-size)
@@ -141,7 +143,7 @@
               (make-program-header 
                 pt-load                  ; Type: Loadable segment
                 (logior pf-r pf-x)       ; Flags: Read and execute permissions
-                0                        ; Offset: Start of file
+                #x0                      ; Offset: Start of file
                 text-addr                ; Virtual address: Address of text segment
                 text-addr                ; Physical address: Same as virtual address
                 first-load-size          ; File size: Size of first loadable segment
