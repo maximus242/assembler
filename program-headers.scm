@@ -45,8 +45,8 @@
 (define (calculate-relro-size data-segment-start dynamic-addr)
   (- dynamic-addr data-segment-start))
 
-(define (calculate-first-load-size text-addr code-size rodata-size)
-  (+ code-size rodata-size))
+(define (calculate-first-load-size text-size phdr-size alignment)
+  (align-up (+ text-size phdr-size) alignment))
 
 (define (create-program-headers 
           elf-header-size 
@@ -98,8 +98,7 @@
          ;; Place .bss at the end after all other sections, ensuring alignment
          (bss-addr (align-up total-size alignment))
          (phdr-offset (align-up elf-header-size alignment))
-         (first-load-size (max (+ text-addr text-segment-size)
-                               (+ phdr-offset phdr-size))))
+         (first-load-size (calculate-first-load-size text-segment-size phdr-size alignment)))
 
     (format #t "\n--- Calculated Values ---\n")
     (format #t "text-segment-size: 0x~x\n" text-segment-size)
@@ -109,6 +108,7 @@
     (format #t "data-segment-mem-size: 0x~x\n" data-segment-mem-size)
     (format #t "relro-size: 0x~x\n" relro-size)
     (format #t "phdr-size: 0x~x\n" phdr-size)
+    (format #t "phdr-offset: 0x~x\n" phdr-offset)
     (format #t "bss-addr: 0x~x\n" bss-addr)
     (format #t "PROGRAM HEADER dynamic-size: 0x~x\n" dynamic-size)
 
