@@ -23,13 +23,16 @@
 (define (create-elf-header entry-point program-headers-offset program-headers-size 
                            section-headers-offset num-program-headers num-sections
                            total-size shstrtab-index hash-offset hash-size)
+
+  (format #t "Creating ELF header with ~a sections.\n" num-sections)
+
   (let ((header (make-elf-header 
                   (max entry-point #x1000)
                   program-headers-offset
                   program-headers-size
                   section-headers-offset
-                  (max num-program-headers 3)
-                  (max num-sections 6)  ; Increased to account for .hash section
+                  num-program-headers
+                  num-sections
                   total-size
                   shstrtab-index
                   hash-offset

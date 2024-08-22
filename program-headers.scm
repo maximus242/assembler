@@ -129,17 +129,19 @@
 
     (let ((headers
             (list
+              ; First LOAD segment (R)
               (make-program-header 
-                pt-phdr                  ; Type: Program header table entry
-                pf-r                     ; Flags: Read permission
-                elf-header-size          ; Offset: Size of ELF header
-                (+ text-addr elf-header-size) ; Virtual address: Text address + ELF header size
-                (+ text-addr elf-header-size) ; Physical address: Same as virtual address
-                phdr-size                ; File size: Size of program header
-                phdr-size                ; Memory size: Same as file size
+                pt-load                  ; Type: Loadable segment
+                (logior pf-r)       ; Flags: Read and execute permissions
+                #x0                      ; Offset: Start of file
+                #x0 ; Virtual address: Address of text segment
+                #x0 ; Physical address: Same as virtual address
+                #x1000 ; File size: Size of first loadable segment
+                #x1000 ; Memory size: Same as file size
                 alignment)               ; Alignment: Required alignment
 
-              ; First LOAD segment (RX) - includes .text and .rodata
+
+              ; Second LOAD segment (RX) - includes .text and .rodata
               (make-program-header 
                 pt-load                  ; Type: Loadable segment
                 (logior pf-r pf-x)       ; Flags: Read and execute permissions
@@ -150,7 +152,7 @@
                 first-load-size          ; Memory size: Same as file size
                 alignment)               ; Alignment: Required alignment
 
-              ; Second LOAD segment (RW) - for .data
+              ; Third LOAD segment (RW) - for .data
               (make-program-header 
                 pt-load                  ; Type: Loadable segment
                 (logior pf-r pf-w)       ; Flags: Read and write permissions
@@ -161,7 +163,7 @@
                 (+ (- dynamic-offset data-segment-start) bss-size) ; Memory size: File size + BSS size
                 alignment)               ; Alignment: Required alignment
 
-              ; Third LOAD segment (RWX) - starting from .dynamic, includes .plt and ends with .bss
+              ; Fourth LOAD segment (RWX) - starting from .dynamic, includes .plt and ends with .bss
               (make-program-header 
                 pt-load                  ; Type: Loadable segment
                 (logior pf-r pf-w)  ; Flags: Read, write, and execute permissions
@@ -181,7 +183,7 @@
                 dynamic-addr             ; Physical address: Same as virtual address
                 dynamic-size             ; File size: Size of dynamic section
                 dynamic-size             ; Memory size: Same as file size
-                alignment)               ; Alignment: Required alignment
+                #x08)               ; Alignment: Required alignment
 
               ; GNU_RELRO
               (make-program-header 

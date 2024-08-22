@@ -56,6 +56,15 @@
                            dynsym-size dynstr-size rela-size total-dynamic-size 
                            dynamic-size rela-offset)
 
+  ;; Define new variables for the .plt.got and .got.plt sections
+  (define plt-size 32)  ; Example size for .plt section (adjust as needed)
+  (define plt-got-size 32)  ; Example size for .plt.got (32 bytes)
+  (define got-plt-size 32)  ; Example size for .got.plt (32 bytes)
+  (define plt-got-addr (+ plt-addr plt-size))   ; .plt.got follows .plt section
+  (define got-plt-addr (+ got-addr got-size))   ; .got.plt follows .got section
+  (define plt-got-offset (+ plt-addr plt-size))   ; .plt.got offset follows .plt section
+  (define got-plt-offset (+ got-addr got-size))   ; .got.plt offset follows .got section
+
   ;; Create a list of all section headers
   (let ((headers
           (list
@@ -194,8 +203,8 @@
               103                                ; name: Index of ".plt" in string table
               sht-progbits                       ; type: Program bits
               shf-execinstr                      ; flags: Executable instruction only (removed shf-alloc)
-              plt-addr                           ; addr: Virtual address of .plt section
-              plt-addr                           ; offset: File offset of .plt section
+              #x10A0                           ; addr: Virtual address of .plt section
+              #x10A0                           ; offset: File offset of .plt section
               #x20                               ; size: Size of .plt section (hardcoded to 32 bytes)
               0                                  ; link: No link
               0                                  ; info: No additional info
@@ -240,6 +249,32 @@
               0                                  ; info: No additional info
               1                                  ; align: Align to 1 byte (no alignment)
               0)                                 ; entsize: No fixed entry size for string tables
+
+            ;; .plt.got section (GOT entry used by the PLT)
+            (make-section-header
+              103                                ; name: Index of ".plt.got" in string table
+              sht-progbits                        ; type: Program bits
+              (logior shf-write shf-alloc shf-execinstr) ; flags: Writable, Allocatable, Executable
+              plt-got-addr                        ; addr: Virtual address of .plt.got section
+              plt-got-addr                        ; offset: File offset of .plt.got section
+              plt-got-size                        ; size: Size of .plt.got section
+              0                                   ; link: No link
+              0                                   ; info: No additional info
+              8                                   ; align: Align to 8 bytes
+              8)                                  ; entsize: Size of each .plt.got entry
+
+            ;; .got.plt section (GOT entries for the PLT)
+            (make-section-header
+              108                                ; name: Index of ".got.plt" in string table
+              sht-progbits                       ; type: Program bits
+              (logior shf-write shf-alloc)       ; flags: Writable and allocate memory
+              got-plt-addr                       ; addr: Virtual address of .got.plt section
+              got-plt-addr                       ; offset: File offset of .got.plt section
+              got-plt-size                       ; size: Size of .got.plt section
+              0                                  ; link: No link
+              0                                  ; info: No additional info
+              8                                  ; align: Align to 8 bytes
+              8)                                 ; entsize: Size of each .got.plt entry
             )))
 
     ;; Log the final section headers for debugging
