@@ -12,7 +12,8 @@
         (r-addend-offset (or (assoc-ref options 'r-addend-offset) 16))
         (reloc-type (or (assoc-ref options 'r-x86-64-glob-dat) 6))
         (symbol-index-start (or (assoc-ref options 'symbol-index-start) 1))
-        (got-base (or (assoc-ref options 'got-base) #x31d0))) ; Default GOT base
+        ;; Update the GOT base with the new offset from the .got section
+        (got-base (or (assoc-ref options 'got-base) #x3270))) ; Updated GOT base
 
     (let* ((non-function-symbols 
             (if (hash-table? symbol-addresses)

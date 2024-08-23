@@ -46,8 +46,7 @@
   (- dynamic-addr data-segment-start))
 
 (define (calculate-first-load-size text-addr text-size phdr-offset phdr-size alignment)
-  (let ((first-load-size (max (+ text-addr text-size)
-                              (+ phdr-offset phdr-size))))
+  (let ((first-load-size (max (+ text-size phdr-size))))
     (align-up first-load-size alignment)))
 
 (define (create-program-headers 

@@ -222,7 +222,7 @@
                             plt-size
                             (+ dynamic-addr (- plt-got-offset dynamic-offset))
                             plt-got-size
-                            (+ dynamic-addr (- rela-plt-offset dynamic-offset))
+                            rela-plt-offset
                             rela-plt-size
                             (+ dynamic-addr (- got-plt-offset dynamic-offset))
                             got-plt-size
