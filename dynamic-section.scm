@@ -50,9 +50,12 @@
     (set-dynamic-entry! section 6 DT_RELASZ rela-size)
     (set-dynamic-entry! section 7 DT_RELAENT RELAENT_SIZE)
     (set-dynamic-entry! section 8 DT_PLTGOT got-offset)
-    (set-dynamic-entry! section 9 DT_PLTRELSZ jmprel-size)
-    (set-dynamic-entry! section 10 DT_PLTREL 7)  ; 7 is DT_RELA
-    (set-dynamic-entry! section 11 DT_JMPREL jmprel-offset)
+    ;; Ensure both DT_JMPREL and DT_PLTRELSZ are set if jmprel-offset and jmprel-size are provided
+    (when (> jmprel-size 0)
+      (set-dynamic-entry! section 9 DT_PLTRELSZ jmprel-size)
+      (set-dynamic-entry! section 10 DT_PLTREL DT_RELA)
+      (set-dynamic-entry! section 11 DT_JMPREL jmprel-offset))
+    ;; Handle optional init, fini, and GNU version entries
     (set-dynamic-entry! section 12 DT_INIT 0)  ; Set to 0 if not used
     (set-dynamic-entry! section 13 DT_FINI 0)  ; Set to 0 if not used
     (set-dynamic-entry! section 14 DT_VERSYM gnu-version-offset)
