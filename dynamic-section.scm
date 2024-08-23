@@ -13,6 +13,11 @@
 (define DT_RELAENT 9)
 (define DT_STRSZ   10)
 (define DT_SYMENT  11)
+(define DT_INIT    12)
+(define DT_FINI    13)
+(define DT_JMPREL  23)
+(define DT_PLTRELSZ 2)
+(define DT_PLTREL  20)
 (define DT_VERSYM  #x6ffffff0)
 (define DT_VERNEED #x6ffffffe)
 (define DT_VERNEEDNUM #x6fffffff)
@@ -29,11 +34,12 @@
     (bytevector-u64-set! section offset tag (endianness little))
     (bytevector-u64-set! section (+ offset VALUE_OFFSET) value (endianness little))))
 
-(define (create-dynamic-section dynstr-offset dynsym-offset strtab-size dynsym-size 
-                                rela-offset rela-size got-offset hash-offset
-                                gnu-version-offset gnu-version-r-offset
-                                gnu-version-r-size)
-  (let* ((num-entries (if (> gnu-version-r-size 0) 13 11))
+(define (create-dynamic-section
+          dynstr-offset dynsym-offset strtab-size dynsym-size 
+          rela-offset rela-size got-offset hash-offset
+          gnu-version-offset gnu-version-r-offset gnu-version-r-size
+          plt-offset plt-size jmprel-offset jmprel-size)
+  (let* ((num-entries (if (> gnu-version-r-size 0) 18 16))
          (section (make-bytevector (* num-entries ENTRY_SIZE) 0)))
     (set-dynamic-entry! section 0 DT_HASH hash-offset)
     (set-dynamic-entry! section 1 DT_STRTAB dynstr-offset)
@@ -44,11 +50,16 @@
     (set-dynamic-entry! section 6 DT_RELASZ rela-size)
     (set-dynamic-entry! section 7 DT_RELAENT RELAENT_SIZE)
     (set-dynamic-entry! section 8 DT_PLTGOT got-offset)
-    (set-dynamic-entry! section 9 DT_VERSYM gnu-version-offset)
+    (set-dynamic-entry! section 9 DT_PLTRELSZ jmprel-size)
+    (set-dynamic-entry! section 10 DT_PLTREL 7)  ; 7 is DT_RELA
+    (set-dynamic-entry! section 11 DT_JMPREL jmprel-offset)
+    (set-dynamic-entry! section 12 DT_INIT 0)  ; Set to 0 if not used
+    (set-dynamic-entry! section 13 DT_FINI 0)  ; Set to 0 if not used
+    (set-dynamic-entry! section 14 DT_VERSYM gnu-version-offset)
     (if (> gnu-version-r-size 0)
         (begin
-          (set-dynamic-entry! section 10 DT_VERNEED gnu-version-r-offset)
-          (set-dynamic-entry! section 11 DT_VERNEEDNUM 1)
-          (set-dynamic-entry! section 12 DT_NULL 0))
-        (set-dynamic-entry! section 10 DT_NULL 0))
+          (set-dynamic-entry! section 15 DT_VERNEED gnu-version-r-offset)
+          (set-dynamic-entry! section 16 DT_VERNEEDNUM 1)
+          (set-dynamic-entry! section 17 DT_NULL 0))
+        (set-dynamic-entry! section 15 DT_NULL 0))
     section))
