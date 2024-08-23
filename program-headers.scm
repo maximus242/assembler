@@ -145,7 +145,7 @@
               (make-program-header 
                 pt-load                  ; Type: Loadable segment
                 (logior pf-r pf-x)       ; Flags: Read and execute permissions
-                #x0                      ; Offset: Start of file
+                #x1000                      ; Offset: Start of file
                 text-addr                ; Virtual address: Address of text segment
                 text-addr                ; Physical address: Same as virtual address
                 first-load-size          ; File size: Size of first loadable segment
