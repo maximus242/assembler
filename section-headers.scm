@@ -273,7 +273,7 @@
             (make-section-header
               108                                ; name: Index of ".plt.got" in string table
               sht-progbits                        ; type: Program bits
-              (logior shf-write shf-alloc shf-execinstr) ; flags: Writable, Allocatable, Executable
+              (logior shf-write shf-alloc) ; flags: Writable, Allocatable, Executable
               plt-got-addr                        ; addr: Virtual address of .plt.got section
               plt-got-addr                        ; offset: File offset of .plt.got section
               plt-got-size                        ; size: Size of .plt.got section
