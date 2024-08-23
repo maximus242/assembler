@@ -48,10 +48,10 @@
           strtab-offset 
           shstrtab-addr)
 
-;; Calculate the .plt section position
+  ;; Calculate the .plt section position
   (define rodata-offset (+ text-addr code-size))
   (define rodata-size 0)
-  (define plt-offset (+ rodata-offset rodata-size)) ; Place .plt after .rodata
+  (define plt-offset (align-to (+ rodata-offset rodata-size) 16)) ; Place .plt after .rodata
   (define plt-size   #x40)                          ; Increased size for .plt (64 bytes)
   (define plt-addr   plt-offset)                    ; Use the same value for address and offset
 
@@ -66,9 +66,9 @@
   (define plt-got-offset plt-got-addr)              ; Use the same value for address and offset
 
   ;; Calculate the .got.plt section position
-  (define got-plt-addr (+ plt-got-addr plt-got-size)) ; Place .got.plt after .plt.got
-  (define got-plt-offset got-plt-addr)              ; Use the same value for address and offset
-  (define got-plt-size #x18)                        ; Size for .got.plt (24 bytes, 3 entries)
+  (define got-plt-addr (+ got-addr got-size))
+  (define got-plt-offset got-plt-addr)
+  (define got-plt-size #x18)
 
   ;; Create a list of all section headers
   (let ((headers
@@ -208,7 +208,7 @@
             (make-section-header
               103                                ; name: Index of ".plt" in string table
               sht-progbits                       ; type: Program bits
-              shf-execinstr                      ; flags: Executable instruction only (removed shf-alloc)
+              (logior shf-alloc shf-execinstr)   ; flags: Executable instruction only (removed shf-alloc)
               plt-addr ; addr: Virtual address of .plt section
               plt-offset ; offset: File offset of .plt section
               plt-size ; size: Size of .plt section (hardcoded to 32 bytes)
