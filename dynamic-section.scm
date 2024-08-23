@@ -22,6 +22,7 @@
 (define DT_VERSYM  #x6ffffff0)
 (define DT_VERNEED #x6ffffffe)
 (define DT_VERNEEDNUM #x6fffffff)
+(define DT_TEXTREL 22)  ;; Add the DT_TEXTREL constant
 
 ;; Constants for sizes and offsets
 (define ENTRY_SIZE 16)
@@ -41,7 +42,7 @@
           rela-offset rela-size got-offset hash-offset
           gnu-version-offset gnu-version-r-offset gnu-version-r-size
           plt-offset plt-size jmprel-offset jmprel-size)
-  (let* ((num-entries (if (> gnu-version-r-size 0) 18 16))
+  (let* ((num-entries (if (> gnu-version-r-size 0) 19 17))  ;; Adjust the number of entries to include DT_TEXTREL
          (section (make-bytevector (* num-entries ENTRY_SIZE) 0)))
     (format #t "Creating dynamic section with num-entries=~a~%" num-entries)
     
@@ -65,16 +66,19 @@
       (set-dynamic-entry! section 10 DT_PLTREL DT_RELA)
       (set-dynamic-entry! section 11 DT_JMPREL jmprel-offset))
     
+    ;; Add the DT_TEXTREL entry to allow text relocations
+    (set-dynamic-entry! section 12 DT_TEXTREL 0)
+    
     ;; Handle optional init, fini, and GNU version entries
-    (set-dynamic-entry! section 12 DT_INIT 0)  ; Set to 0 if not used
-    (set-dynamic-entry! section 13 DT_FINI 0)  ; Set to 0 if not used
-    (set-dynamic-entry! section 14 DT_VERSYM gnu-version-offset)
+    (set-dynamic-entry! section 13 DT_INIT 0)  ;; Set to 0 if not used
+    (set-dynamic-entry! section 14 DT_FINI 0)  ;; Set to 0 if not used
+    (set-dynamic-entry! section 15 DT_VERSYM gnu-version-offset)
     (if (> gnu-version-r-size 0)
         (begin
-          (set-dynamic-entry! section 15 DT_VERNEED gnu-version-r-offset)
-          (set-dynamic-entry! section 16 DT_VERNEEDNUM 1)
-          (set-dynamic-entry! section 17 DT_NULL 0))
-        (set-dynamic-entry! section 15 DT_NULL 0))
+          (set-dynamic-entry! section 16 DT_VERNEED gnu-version-r-offset)
+          (set-dynamic-entry! section 17 DT_VERNEEDNUM 1)
+          (set-dynamic-entry! section 18 DT_NULL 0))
+        (set-dynamic-entry! section 16 DT_NULL 0))
     
     ;; Final logging
     (format #t "Dynamic section creation complete.~%")
