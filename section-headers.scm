@@ -65,7 +65,7 @@
 
             ;; .rela.dyn section
             (make-section-header 88 sht-rela shf-alloc
-                                 rela-addr rela-addr rela-size 6 0 8 24)
+                                 rela-addr rela-addr rela-size 6 2 8 24)
 
             ;; .got section
             (make-section-header 98 sht-progbits (logior shf-write shf-alloc)
@@ -86,7 +86,7 @@
 
             ;; .rela.plt section
             (make-section-header 126 sht-rela shf-alloc
-                                 rela-plt-addr rela-plt-addr rela-plt-size 6 24 8 24)
+                                 rela-plt-addr rela-plt-addr rela-plt-size 6 10 8 24)
 
             ;; .plt.got section
             (make-section-header 108 sht-progbits (logior shf-alloc shf-execinstr)
