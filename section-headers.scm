@@ -28,7 +28,7 @@
           rela-offset got-size data-addr dynamic-addr dynsym-addr dynstr-addr
           rela-addr got-addr plt-addr symtab-offset strtab-offset shstrtab-addr
           plt-size plt-got-addr plt-got-size rela-plt-addr rela-plt-size
-          got-plt-addr got-plt-size)
+          got-plt-addr got-plt-size rodata-offset)
 
   (let ((headers
           (list
@@ -49,7 +49,7 @@
 
             ;; .rodata section
             (make-section-header 18 sht-progbits shf-alloc
-                                 (+ text-addr code-size) (+ text-addr code-size) 0 0 0 8 0)
+                                 rodata-offset rodata-offset 0 0 0 8 0)
 
             ;; .dynamic section
             (make-section-header 63 sht-dynamic (logior shf-write shf-alloc)

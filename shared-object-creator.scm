@@ -137,6 +137,7 @@
          (strtab (cdr symtab-and-strtab))
          (dynsym-size (bytevector-length symtab-bv))
          (dynstr-size (bytevector-length strtab))
+         (rodata-offset (+ text-addr code-size))
          (dynamic-offset (align-to dynamic-addr word-size))
          (dynamic-size (assoc-ref layout 'dynamic-size))
          (dynsym-offset (align-to (+ dynamic-offset dynamic-size) word-size))
@@ -152,7 +153,7 @@
          (gnu-version-r-size 0)  ; Since we're creating an empty .gnu.version_r section
          (got-offset (align-to (+ gnu-version-r-offset gnu-version-r-size) word-size))
          (got-size (assoc-ref layout 'got-size))
-         (plt-offset (align-to (+ got-offset got-size) word-size))
+         (plt-offset (align-to (+ rodata-offset rodata-size) word-size))
          (plt-section (create-plt-section label-positions got-offset))
          (plt-size (bytevector-length plt-section))
          (plt-got-offset (align-to (+ plt-offset plt-size) word-size))
@@ -224,7 +225,8 @@
                             (+ dynamic-addr (- rela-plt-offset dynamic-offset))
                             rela-plt-size
                             (+ dynamic-addr (- got-plt-offset dynamic-offset))
-                            got-plt-size))
+                            got-plt-size
+                            rodata-offset))
          (program-headers (create-program-headers 
                             elf-header-size
                             program-header-size
