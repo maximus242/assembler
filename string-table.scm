@@ -42,9 +42,9 @@
 (define* (create-section-header-string-table #:optional (options '()))
   (let ((null-terminator-size (or (assoc-ref options 'null-terminator-size) 1))
         (section-names (or (assoc-ref options 'section-names) 
-                           '("" ".text" ".data" ".bss" ".rodata" ".symtab" ".strtab" 
-                             ".shstrtab" ".rela.text" ".dynamic" ".dynstr" ".dynsym" 
-                             ".rela.dyn" ".got" ".plt" ".plt.got" ".got.plt"))))
+                           '("" ".text" ".data" ".bss" ".rodata" ".symtab" ".strtab"
+                             ".shstrtab" ".rela.text" ".dynamic" ".dynstr" ".dynsym"
+                             ".rela.dyn" ".got" ".plt" ".plt.got" ".got.plt" ".rela.plt"))))
     (let* ((total-length (apply + (map (lambda (s) (+ (string-length s) null-terminator-size)) section-names)))
            (table (make-bytevector total-length 0))
            (offset 0))

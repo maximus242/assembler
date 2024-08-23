@@ -47,23 +47,28 @@
           symtab-offset 
           strtab-offset 
           shstrtab-addr)
-  (format #t "SECION HEADER DATA SIZE ~a" data-size)
-  ;; Log all input parameters for debugging
-  (log-addresses-and-sizes text-addr data-addr dynamic-addr dynsym-addr 
-                           dynstr-addr rela-addr got-addr plt-addr 
-                           shstrtab-addr shstrtab-size got-size
-                           code-size data-size symtab-size strtab-size
-                           dynsym-size dynstr-size rela-size total-dynamic-size 
-                           dynamic-size rela-offset)
 
-  ;; Define new variables for the .plt.got and .got.plt sections
-  (define plt-size 32)  ; Example size for .plt section (adjust as needed)
-  (define plt-got-size 32)  ; Example size for .plt.got (32 bytes)
-  (define got-plt-size 32)  ; Example size for .got.plt (32 bytes)
-  (define plt-got-addr (+ plt-addr plt-size))   ; .plt.got follows .plt section
-  (define got-plt-addr (+ got-addr got-size))   ; .got.plt follows .got section
-  (define plt-got-offset (+ plt-addr plt-size))   ; .plt.got offset follows .plt section
-  (define got-plt-offset (+ got-addr got-size))   ; .got.plt offset follows .got section
+;; Calculate the .plt section position
+  (define rodata-offset (+ text-addr code-size))
+  (define rodata-size 0)
+  (define plt-offset (+ rodata-offset rodata-size)) ; Place .plt after .rodata
+  (define plt-size   #x40)                          ; Increased size for .plt (64 bytes)
+  (define plt-addr   plt-offset)                    ; Use the same value for address and offset
+
+  ;; Define the variables for .rela.plt section
+  (define rela-plt-addr (+ plt-addr plt-size))      ; Place .rela.plt after .plt
+  (define rela-plt-offset rela-plt-addr)            ; Use the same value for address and offset
+  (define rela-plt-size (* 3 24))                   ; Assume 3 entries, each 24 bytes
+
+  ;; Define variables for the .plt.got section
+  (define plt-got-size #x20)                        ; Size for .plt.got (32 bytes)
+  (define plt-got-addr (+ rela-plt-addr rela-plt-size)) ; Place .plt.got after .rela.plt
+  (define plt-got-offset plt-got-addr)              ; Use the same value for address and offset
+
+  ;; Calculate the .got.plt section position
+  (define got-plt-addr (+ plt-got-addr plt-got-size)) ; Place .got.plt after .plt.got
+  (define got-plt-offset got-plt-addr)              ; Use the same value for address and offset
+  (define got-plt-size #x18)                        ; Size for .got.plt (24 bytes, 3 entries)
 
   ;; Create a list of all section headers
   (let ((headers
@@ -125,9 +130,9 @@
               18                                 ; name: Index of ".rodata" in string table
               sht-progbits                       ; type: Program bits (read-only data)
               shf-alloc                          ; flags: Allocate memory (read-only)
-              (+ text-addr code-size)            ; addr: Virtual address after .text section
-              (+ text-addr code-size)            ; offset: File offset after .text section
-              0                                  ; size: Size of read-only data (0 in this case)
+              rodata-offset            ; addr: Virtual address after .text section
+              rodata-offset            ; offset: File offset after .text section
+              rodata-size                                  ; size: Size of read-only data (0 in this case)
               0                                  ; link: No link
               0                                  ; info: No additional info
               8                                  ; align: Align to 8 bytes
@@ -185,6 +190,7 @@
               8                                  ; align: Align to 8 bytes
               24)                                ; entsize: Size of each relocation entry (usually 24 bytes)
 
+
             ;; .got section (global offset table)
             (make-section-header
               98                                 ; name: Index of ".got" in string table
@@ -203,9 +209,9 @@
               103                                ; name: Index of ".plt" in string table
               sht-progbits                       ; type: Program bits
               shf-execinstr                      ; flags: Executable instruction only (removed shf-alloc)
-              #x10A0                           ; addr: Virtual address of .plt section
-              #x10A0                           ; offset: File offset of .plt section
-              #x20                               ; size: Size of .plt section (hardcoded to 32 bytes)
+              plt-addr ; addr: Virtual address of .plt section
+              plt-offset ; offset: File offset of .plt section
+              plt-size ; size: Size of .plt section (hardcoded to 32 bytes)
               0                                  ; link: No link
               0                                  ; info: No additional info
               16                                 ; align: Align to 16 bytes
@@ -250,9 +256,22 @@
               1                                  ; align: Align to 1 byte (no alignment)
               0)                                 ; entsize: No fixed entry size for string tables
 
+            ;; .rela.plt section
+            (make-section-header
+              #x7e                                ; name: Index of ".rela.plt" in string table
+              sht-rela                            ; type: Relocation entries with addends
+              shf-alloc                           ; flags: Allocate memory
+              rela-plt-addr                       ; addr: Virtual address of .rela.plt section
+              rela-plt-offset                     ; offset: File offset of .rela.plt section
+              rela-plt-size                       ; size: Size of .rela.plt section
+              6                                   ; link: Index of .dynsym section
+              0                                   ; info: No additional info
+              8                                   ; align: Align to 8 bytes
+              24)                                 ; entsize: Size of each relocation entry (usually 24 bytes)
+
             ;; .plt.got section (GOT entry used by the PLT)
             (make-section-header
-              103                                ; name: Index of ".plt.got" in string table
+              108                                ; name: Index of ".plt.got" in string table
               sht-progbits                        ; type: Program bits
               (logior shf-write shf-alloc shf-execinstr) ; flags: Writable, Allocatable, Executable
               plt-got-addr                        ; addr: Virtual address of .plt.got section
@@ -265,7 +284,7 @@
 
             ;; .got.plt section (GOT entries for the PLT)
             (make-section-header
-              108                                ; name: Index of ".got.plt" in string table
+              117                                ; name: Index of ".got.plt" in string table
               sht-progbits                       ; type: Program bits
               (logior shf-write shf-alloc)       ; flags: Writable and allocate memory
               got-plt-addr                       ; addr: Virtual address of .got.plt section
