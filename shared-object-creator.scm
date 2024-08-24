@@ -99,7 +99,14 @@
   (custom-assert (<= (+ rela-offset relocation-table-size) data-segment-end) ".rela.dyn exceeds LOAD segment"))
 
 (define (create-gnu-version-r-section)
-  (make-bytevector 0))  ; Empty section
+  (let ((bv (make-bytevector 16 0)))  ; Minimal size for one entry
+    (bytevector-u16-set! bv 0 1 (endianness little))  ; version
+    (bytevector-u16-set! bv 2 1 (endianness little))  ; cnt
+    (bytevector-u32-set! bv 4 0 (endianness little))  ; file offset
+    (bytevector-u32-set! bv 8 0 (endianness little))  ; hash
+    (bytevector-u16-set! bv 12 0 (endianness little))  ; flags
+    (bytevector-u16-set! bv 14 0 (endianness little))  ; other
+    bv))
 
 (define (create-gnu-version-section dynsym-count)
   (let ((version-section (make-bytevector (* 2 dynsym-count) 0)))
@@ -150,7 +157,7 @@
          (hash-size (bytevector-length hash-table))
          (gnu-version-offset (align-to (+ hash-offset hash-size) word-size))
          (gnu-version-r-offset (align-to (+ gnu-version-offset (* 2 (/ dynsym-size 24))) word-size))
-         (gnu-version-r-size 0)  ; Since we're creating an empty .gnu.version_r section
+         (gnu-version-r-size 16)  ; Since we're creating an empty .gnu.version_r section
          (got-offset (align-to (+ gnu-version-r-offset gnu-version-r-size) word-size))
          (got-size (assoc-ref layout 'got-size))
          (plt-offset (align-to (+ rodata-offset rodata-size) word-size))
