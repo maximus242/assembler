@@ -157,7 +157,7 @@
          (hash-size (bytevector-length hash-table))
          (gnu-version-offset (align-to (+ hash-offset hash-size) word-size))
          (gnu-version-r-offset (align-to (+ gnu-version-offset (* 2 (/ dynsym-size 24))) word-size))
-         (gnu-version-r-size 16)  ; Since we're creating an empty .gnu.version_r section
+         (gnu-version-r-size 0)  ; Since we're creating an empty .gnu.version_r section
          (got-offset (align-to (+ gnu-version-r-offset gnu-version-r-size) word-size))
          (got-size (assoc-ref layout 'got-size))
          (plt-offset (align-to (+ rodata-offset rodata-size) word-size))
@@ -290,8 +290,8 @@
         (bytevector-copy! gnu-version 0 elf-file gnu-version-offset (bytevector-length gnu-version)))
 
       ;; Create .gnu.version_r section (empty in this case)
-      (let ((gnu-version-r (create-gnu-version-r-section)))
-        (bytevector-copy! gnu-version-r 0 elf-file gnu-version-r-offset (bytevector-length gnu-version-r)))
+      ;;(let ((gnu-version-r (create-gnu-version-r-section)))
+      ;;  (bytevector-copy! gnu-version-r 0 elf-file gnu-version-r-offset (bytevector-length gnu-version-r)))
 
       (bytevector-copy! relocation-table 0 elf-file rela-offset relocation-table-size)
       (bytevector-copy! hash-table 0 elf-file hash-offset hash-size)
