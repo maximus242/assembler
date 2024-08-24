@@ -42,13 +42,13 @@
     (let loop ((index 0)
                (entries (hash-map->list cons symtab-hash)))
       (if (null? entries)
-          indices
-          (let* ((entry (car entries))
-                 (name (car entry))
-                 (value (cdr entry)))
-            (hash-set! indices name index)
-            (format #t "Symbol: ~a, Index: ~a~%" name index)
-            (loop (+ index 1) (cdr entries)))))))
+        indices
+        (let* ((entry (car entries))
+               (name (car entry))
+               (value (cdr entry)))
+          (hash-set! indices name index)
+          (format #t "Symbol: ~a, Index: ~a~%" name index)
+          (loop (+ index 1) (cdr entries)))))))
 
 (define (get-tag-name tag)
   (case tag
@@ -161,7 +161,7 @@
          (rela-plt-offset (align-to #x200 word-size))
          ;; Create .rela.plt section
 
-         (got-plt-offset (align-to (+ plt-got-offset plt-got-size) word-size))
+         (got-plt-offset (align-to #x3290 word-size))
          (got-plt-size (* (+ (length (hash-map->list cons label-positions)) 3) 8))  ; 3 reserved entries + function entries
 
          (rela-plt-section (create-rela-plt-section 
@@ -224,9 +224,13 @@
                             plt-got-size
                             rela-plt-offset
                             rela-plt-size
-                            (+ got-offset got-size)
+                            (+ dynamic-addr (- got-plt-offset dynamic-offset))
                             got-plt-size
-                            rodata-offset))
+                            rodata-offset
+                            (+ dynamic-addr (- gnu-version-offset dynamic-offset))
+                            (+ dynamic-addr (- gnu-version-r-offset dynamic-offset))
+                            (* 2 (/ dynsym-size 24))  ; gnu-version-size
+                            gnu-version-r-size))
          (program-headers (create-program-headers 
                             elf-header-size
                             program-header-size

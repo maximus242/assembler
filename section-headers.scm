@@ -28,7 +28,8 @@
           rela-offset got-size data-addr dynamic-addr dynsym-addr dynstr-addr
           rela-addr got-addr plt-addr symtab-offset strtab-offset shstrtab-addr
           plt-size plt-got-addr plt-got-size rela-plt-addr rela-plt-size
-          got-plt-addr got-plt-size rodata-offset)
+          got-plt-addr got-plt-size rodata-offset gnu-version-addr gnu-version-r-addr
+          gnu-version-size gnu-version-r-size)
 
   (let ((headers
           (list
@@ -95,6 +96,14 @@
             ;; .got.plt section
             (make-section-header 117 sht-progbits (logior shf-write shf-alloc)
                                  got-plt-addr got-plt-addr got-plt-size 0 0 8 8)
+
+            ;; .gnu.version section
+            (make-section-header 136 #x6fffffff shf-alloc
+                                 gnu-version-addr gnu-version-addr gnu-version-size 6 0 2 2)
+
+            ;; .gnu.version_r section
+            (make-section-header 149 #x6ffffffe shf-alloc
+                                 gnu-version-r-addr gnu-version-r-addr gnu-version-r-size 7 1 4 0)
           )))
 
     ;; Log the final section headers for debugging
