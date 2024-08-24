@@ -224,7 +224,7 @@
                             plt-got-size
                             rela-plt-offset
                             rela-plt-size
-                            (+ dynamic-addr (- got-plt-offset dynamic-offset))
+                            (+ got-offset got-size)
                             got-plt-size
                             rodata-offset))
          (program-headers (create-program-headers 
