@@ -191,8 +191,8 @@
                 dynamic-offset           ; Offset: Start of data segment
                 dynamic-addr             ; Virtual address: Start of data segment
                 dynamic-addr             ; Physical address: Same as virtual address
-                dynamic-size             ; File size: Size of read-only after relocation section
-                dynamic-size             ; Memory size: Same as file size
+                (+ dynamic-size got-size); File size: Size of read-only after relocation section
+                (+ dynamic-size got-size); Memory size: Same as file size
                 1)                       ; Alignment: 1 byte alignment
 
               ; BSS
