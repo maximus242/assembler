@@ -285,9 +285,9 @@
       (bytevector-copy! strtab 0 elf-file dynstr-offset dynstr-size)
 
       ;; Create .gnu.version section
-      (let* ((dynsym-count (/ (bytevector-length symtab-bv) 24))  ; Assuming 24 bytes per symbol
-             (gnu-version (create-gnu-version-section dynsym-count)))
-        (bytevector-copy! gnu-version 0 elf-file gnu-version-offset (bytevector-length gnu-version)))
+      ;; (let* ((dynsym-count (/ (bytevector-length symtab-bv) 24))  ; Assuming 24 bytes per symbol
+      ;;       (gnu-version (create-gnu-version-section dynsym-count)))
+      ;;  (bytevector-copy! gnu-version 0 elf-file gnu-version-offset (bytevector-length gnu-version)))
 
       ;; Create .gnu.version_r section (empty in this case)
       ;;(let ((gnu-version-r (create-gnu-version-r-section)))
