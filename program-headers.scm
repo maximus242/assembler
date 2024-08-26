@@ -154,7 +154,7 @@
               ; Third LOAD segment (RW) - for .data
               (make-program-header 
                 pt-load                  ; Type: Loadable segment
-                (logior pf-r pf-w)       ; Flags: Read and write permissions
+                (logior pf-r)       ; Flags: Read and write permissions
                 data-segment-start       ; Offset: Start of data segment in file
                 data-segment-start       ; Virtual address: Start of data segment in memory
                 data-segment-start       ; Physical address: Same as virtual address
