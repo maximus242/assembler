@@ -164,7 +164,7 @@
          (plt-section (create-plt-section label-positions got-offset))
          (plt-size (bytevector-length plt-section))
          (plt-got-offset (align-to (+ plt-offset plt-size) word-size))
-         (plt-got-size #x20)  ; Adjust this size as needed
+         (plt-got-size #x0)  ; Adjust this size as needed
          (rela-plt-offset (align-to #x200 word-size))
          ;; Create .rela.plt section
 
