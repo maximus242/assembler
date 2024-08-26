@@ -147,9 +147,7 @@
          (rodata-offset (+ text-addr code-size))
          (dynamic-offset (align-to dynamic-addr word-size))
          (dynamic-size (assoc-ref layout 'dynamic-size))
-         (dynsym-offset (align-to (+ dynamic-offset dynamic-size) word-size))
-         (dynstr-offset (align-to (+ dynsym-offset dynsym-size) word-size))
-         (rela-offset (align-to (+ dynstr-offset dynstr-size) word-size))
+         (rela-offset (align-to #x200 word-size))
          (relocation-table (create-relocation-table symtab-hash))
          (relocation-table-size (bytevector-length relocation-table))
          (hash-offset (align-to (+ rela-offset relocation-table-size) word-size))
@@ -158,18 +156,21 @@
          (gnu-version-offset (align-to (+ hash-offset hash-size) word-size))
          (gnu-version-r-offset (align-to (+ gnu-version-offset (* 2 (/ dynsym-size 24))) word-size))
          (gnu-version-r-size 0)  ; Since we're creating an empty .gnu.version_r section
-         (got-offset (align-to (+ gnu-version-r-offset gnu-version-r-size) word-size))
+         (got-offset (align-to (+ dynamic-offset dynamic-size) word-size))
+         (got-plt-offset (align-to (+ got-offset got-size) word-size))
+         (got-plt-size (* (+ (length (hash-map->list cons label-positions)) 3) 8))  ; 3 reserved entries + function entries
+         (dynsym-offset (align-to (+ got-plt-offset got-plt-size) word-size))
+         (dynstr-offset (align-to (+ dynsym-offset dynsym-size) word-size))
          (got-size (assoc-ref layout 'got-size))
          (plt-offset (align-to (+ rodata-offset rodata-size) word-size))
          (plt-section (create-plt-section label-positions got-offset))
          (plt-size (bytevector-length plt-section))
          (plt-got-offset (align-to (+ plt-offset plt-size) word-size))
          (plt-got-size #x0)  ; Adjust this size as needed
-         (rela-plt-offset (align-to #x200 word-size))
+         (rela-plt-offset (align-to (+ rela-offset relocation-table-size) word-size))
+         (rela-addr (+ dynamic-addr (- rela-offset dynamic-offset)))
          ;; Create .rela.plt section
 
-         (got-plt-offset (align-to #x3290 word-size))
-         (got-plt-size (* (+ (length (hash-map->list cons label-positions)) 3) 8))  ; 3 reserved entries + function entries
 
          (rela-plt-section (create-rela-plt-section 
                              (hash-map->list cons label-positions)
@@ -220,7 +221,7 @@
                             dynamic-addr
                             (+ dynamic-addr (- dynsym-offset dynamic-offset))
                             (+ dynamic-addr (- dynstr-offset dynamic-offset))
-                            (+ dynamic-addr (- rela-offset dynamic-offset))
+                            rela-addr
                             (+ dynamic-addr (- got-offset dynamic-offset))
                             (+ dynamic-addr (- plt-offset dynamic-offset))
                             symtab-offset
