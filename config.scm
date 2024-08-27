@@ -24,6 +24,7 @@
     sht-dynamic
     sht-nobits
     sht-dynsym
+    sht-hash
     shf-write
     shf-alloc
     shf-execinstr
@@ -68,13 +69,14 @@
 
 ;; Section Header Constants
 (define section-header-size 64)
-(define num-sections 17)
+(define num-sections 18)
 (define shstrtab-index 13)
 (define sht-null 0)
 (define sht-progbits 1)
 (define sht-symtab 2)
 (define sht-strtab 3)
 (define sht-rela 4)
+(define sht-hash 5)
 (define sht-dynamic 6)
 (define sht-nobits 8)
 (define sht-dynsym 11)

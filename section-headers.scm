@@ -29,7 +29,7 @@
           rela-addr got-addr plt-addr symtab-offset strtab-offset shstrtab-addr
           plt-size plt-got-addr plt-got-size rela-plt-addr rela-plt-size
           got-plt-addr got-plt-size rodata-offset gnu-version-addr gnu-version-r-addr
-          gnu-version-size gnu-version-r-size)
+          gnu-version-size gnu-version-r-size hash-offset hash-size)
 
   (let ((headers
           (list
@@ -96,6 +96,10 @@
             ;; .got.plt section
             (make-section-header 117 sht-progbits (logior shf-write shf-alloc)
                                  got-plt-addr got-plt-addr got-plt-size 0 0 8 8)
+
+            ;; .hash section
+            (make-section-header 164 sht-hash shf-alloc
+                                 hash-offset hash-offset hash-size 6 0 8 4)
 
             ;; .gnu.version section
             ;;(make-section-header 136 #x6fffffff shf-alloc

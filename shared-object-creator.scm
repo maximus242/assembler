@@ -225,7 +225,9 @@
                             (+ dynamic-addr (- gnu-version-offset dynamic-offset))
                             (+ dynamic-addr (- gnu-version-r-offset dynamic-offset))
                             (* 2 (/ dynsym-size 24))  ; gnu-version-size
-                            gnu-version-r-size))
+                            gnu-version-r-size
+                            hash-offset
+                            hash-size))
          (program-headers (create-program-headers 
                             elf-header-size
                             program-header-size
