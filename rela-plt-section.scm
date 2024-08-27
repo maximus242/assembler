@@ -30,7 +30,7 @@
                  (function-name (car function-pair))
                  (raw-sym-index (hash-ref dynsym-indices function-name))
                  (sym-index (if raw-sym-index (+ raw-sym-index 1) #f))
-                 (got-plt-entry-offset (+ got-plt-offset (* (+ i 3) 8)))  ; +3 because first 3 GOT entries are reserved
+                 (got-plt-entry-offset (+ got-plt-offset (* i 8)))  ; Removed +3 offset
                  (entry (create-rela-entry 
                          got-plt-entry-offset
                          (or sym-index 0)  ; Use 0 if sym-index is #f
