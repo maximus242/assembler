@@ -196,6 +196,19 @@
 (define (calculate-strtab-offset symtab-offset symtab-size)
   (+ symtab-offset symtab-size))
 
+(define (get-dynsym-indices symtab-hash)
+  (let ((indices (make-hash-table)))
+    (let loop ((index 0)
+               (entries (hash-map->list cons symtab-hash)))
+      (if (null? entries)
+        indices
+        (let* ((entry (car entries))
+               (name (car entry))
+               (value (cdr entry)))
+          (hash-set! indices name index)
+          (format #t "Symbol: ~a, Index: ~a~%" name index)
+          (loop (+ index 1) (cdr entries)))))))
+
 (define (calculate-elf-layout code data-sections symbol-addresses label-positions)
   (let* ((program-headers-offset (calculate-program-headers-offset))
          (code-size (calculate-code-size code))
@@ -217,6 +230,13 @@
          (rela-offset (calculate-rela-offset dynstr-offset strtab-size))
          (got-offset (calculate-got-offset rela-offset relocation-table-size))
          (plt-offset (calculate-plt-offset got-offset got-size))
+         (symtab-hash (create-symbol-table symbol-addresses label-positions))
+         (dynsym-indices (get-dynsym-indices symtab-hash))
+         (symtab-and-strtab (create-dynamic-symbol-table symtab-hash))
+         (symtab-bv (car symtab-and-strtab))
+         (strtab (cdr symtab-and-strtab))
+         (dynsym-size (bytevector-length symtab-bv))
+         (dynstr-size (bytevector-length strtab))
          (total-dynamic-size 
            (calculate-total-dynamic-size 
              dynamic-offset 
@@ -255,6 +275,13 @@
       (cons 'relocation-table-size relocation-table-size)
       (cons 'got-size got-size)
       (cons 'plt-size plt-size)
+      (cons 'symtab-hash symtab-hash)
+      (cons 'dynsym-indices dynsym-indices)
+      (cons 'symtab-and-strtab symtab-and-strtab)
+      (cons 'symtab-bv symtab-bv)
+      (cons 'strtab strtab)
+      (cons 'dynsym-size dynsym-size)
+      (cons 'dynstr-size dynstr-size)
       (cons 'data-offset data-offset)
       (cons 'dynamic-offset dynamic-offset)
       (cons 'dynamic-size dynamic-size)
