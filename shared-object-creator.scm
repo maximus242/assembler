@@ -17,6 +17,7 @@
                #:use-module (rela-plt-section)
                #:use-module (got-plt-section)
                #:use-module (plt-got-section)
+               #:use-module (validate-relocations)
                #:export (create-shared-object
                           custom-assert
                           verify-dynamic-section
@@ -266,6 +267,9 @@
                        hash-size)))
 
     (let ((elf-file (make-bytevector total-size 0)))
+
+      (unless (validate-relocations relocation-table got-offset got-size data-addr (+ data-addr data-size))
+        (error "Relocation validation failed"))
       (bytevector-copy! elf-header 0 elf-file 0 (bytevector-length elf-header))
       (bytevector-copy! program-headers 0 elf-file program-headers-offset program-headers-size)
       (bytevector-copy! code 0 elf-file code-offset code-size)
