@@ -46,7 +46,7 @@
 
             ;; .bss section
             (make-section-header 13 sht-nobits (logior shf-write shf-alloc)
-                                 #x5000 #x5000 0 0 0 8 0)
+                                 (+ data-addr data-size) (+ data-addr data-size) 0 0 0 8 0)
 
             ;; .rodata section
             (make-section-header 18 sht-progbits shf-alloc
