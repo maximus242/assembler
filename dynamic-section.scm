@@ -68,13 +68,12 @@
     ;; Handle optional init, fini, and GNU version entries
     (set-dynamic-entry! section 12 DT_INIT 0)  ;; Set to 0 if not used
     (set-dynamic-entry! section 13 DT_FINI 0)  ;; Set to 0 if not used
-    (set-dynamic-entry! section 14 DT_VERSYM gnu-version-offset)
     (if (> gnu-version-r-size 0)
         (begin
-          (set-dynamic-entry! section 15 DT_VERNEED gnu-version-r-offset)
-          (set-dynamic-entry! section 16 DT_VERNEEDNUM 1)
-          (set-dynamic-entry! section 17 DT_NULL 0))
-        (set-dynamic-entry! section 15 DT_NULL 0))
+          (set-dynamic-entry! section 14 DT_VERNEED gnu-version-r-offset)
+          (set-dynamic-entry! section 15 DT_VERNEEDNUM 1)
+          (set-dynamic-entry! section 16 DT_NULL 0))
+        (set-dynamic-entry! section 14 DT_NULL 0))
     
     ;; Final logging
     (format #t "Dynamic section creation complete.~%")
