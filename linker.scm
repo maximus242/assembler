@@ -54,10 +54,8 @@
 
     (if symbol-address
 
-      (let* ((got-entry-offset (- symbol-address got-offset))
-             (relative-address (- (+ got-entry-offset got-offset) next-instruction-address)) ;; Updated calculation
+      (let* ((relative-address (- symbol-address next-instruction-address 3))
              (displacement (bitwise-and relative-address #xffffffff)))
-        (log-message "  GOT entry offset: 0x~x" got-entry-offset)
         (log-message "  Calculated relative address: 0x~x" relative-address)
         (log-message "  Calculated displacement: 0x~x" displacement)
         (if (and (>= code-offset 0) (< (+ code-offset 7) (bytevector-length code)))
