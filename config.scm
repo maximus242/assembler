@@ -69,7 +69,7 @@
 
 ;; Section Header Constants
 (define section-header-size 64)
-(define num-sections 19)
+(define num-sections 20)
 (define shstrtab-index 13)
 (define sht-null 0)
 (define sht-progbits 1)
