@@ -30,7 +30,7 @@
           table)))
 
   (let* ((symbols (extract-symbols relocation-table))
-         (base-address #x3100)
+         (base-address #x0)
          (address-step 8))
     (map (lambda (symbol index)
            (cons symbol (+ base-address (* index address-step))))
