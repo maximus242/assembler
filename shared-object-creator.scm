@@ -105,13 +105,23 @@
   (custom-assert (<= (+ rela-offset relocation-table-size) data-segment-end) ".rela.dyn exceeds LOAD segment"))
 
 (define (create-gnu-version-r-section)
-  (let ((bv (make-bytevector 16 0)))  ; Minimal size for one entry
-    (bytevector-u16-set! bv 0 1 (endianness little))  ; version
-    (bytevector-u16-set! bv 2 1 (endianness little))  ; cnt
-    (bytevector-u32-set! bv 4 0 (endianness little))  ; file offset
-    (bytevector-u32-set! bv 8 0 (endianness little))  ; hash
-    (bytevector-u16-set! bv 12 0 (endianness little))  ; flags
-    (bytevector-u16-set! bv 14 0 (endianness little))  ; other
+  (let ((bv (make-bytevector 32 0)))  ; Adjusted size for full entry, including auxiliary data
+    ;; Entry Header
+    (bytevector-u16-set! bv 0 1 (endianness little))  ; Version (16-bit)
+    (bytevector-u16-set! bv 2 1 (endianness little))  ; Count (16-bit)
+    (bytevector-u32-set! bv 4 #x00000498 (endianness little))  ; File offset (32-bit)
+    (bytevector-u32-set! bv 8 #x00000000 (endianness little))  ; Hash (32-bit)
+    (bytevector-u32-set! bv 12 #x00000498 (endianness little)) ; Auxiliary offset (32-bit)
+    (bytevector-u32-set! bv 16 #x00000000 (endianness little)) ; Next offset (32-bit)
+
+    ;; Auxiliary Data (following entry header)
+    (bytevector-u32-set! bv 20 #x00000498 (endianness little)) ; Offset to the name string in .dynstr (32-bit)
+    (bytevector-u16-set! bv 24 2 (endianness little))          ; Version (16-bit)
+    (bytevector-u16-set! bv 26 0 (endianness little))          ; Flags (16-bit)
+    
+    ;; The rest of the auxiliary data would typically include other information, 
+    ;; such as dependencies on other versions if any (but is omitted here for simplicity).
+    
     bv))
 
 (define (create-gnu-version-section dynsym-count)
@@ -180,7 +190,7 @@
          (hash-table (create-hash-section symtab-bv))
          (hash-size (bytevector-length hash-table))
          (gnu-version-offset (align-to (+ hash-offset hash-size) 4))
-         (gnu-version-r-size 0)  ; Since we're creating an empty .gnu.version_r section
+         (gnu-version-r-size 32)  ; Since we're creating an empty .gnu.version_r section
          (gnu-version-size (* 2 num-dynamic-entries))
          (gnu-version-r-offset (align-to (+ gnu-version-offset gnu-version-size) word-size))
 
@@ -333,17 +343,18 @@
       ;; Add .strtab section
       (bytevector-copy! strtab 0 elf-file strtab-offset dynstr-size)
 
-      (let* ((dynsym-count (/ (bytevector-length symtab-bv) 24))  ; Assuming 24 bytes per symbol
-             (gnu-version-output (create-gnu-version-section dynsym-count))
-             (gnu-version-size (* 2 dynsym-count)))  ; 2 bytes per entry
-        (when (or (< gnu-version-offset 0)
-                  (> (+ gnu-version-offset gnu-version-size) (bytevector-length elf-file)))
-          (error "gnu-version section would be outside the ELF file bounds"))
-        (bytevector-copy! gnu-version-output 0 elf-file gnu-version-offset gnu-version-size))
-
-      ;; Create .gnu.version_r section (empty in this case)
-      (let ((gnu-version-r (create-gnu-version-r-section)))
-        (bytevector-copy! gnu-version-r 0 elf-file gnu-version-r-offset (bytevector-length gnu-version-r)))
+;;      ;; Add .gnu.version section
+;;      (let* ((dynsym-count (/ (bytevector-length symtab-bv) 24))  ; Assuming 24 bytes per symbol
+;;             (gnu-version-output (create-gnu-version-section dynsym-count))
+;;             (gnu-version-size (* 2 dynsym-count)))  ; 2 bytes per entry
+;;        (when (or (< gnu-version-offset 0)
+;;                  (> (+ gnu-version-offset gnu-version-size) (bytevector-length elf-file)))
+;;          (error "gnu-version section would be outside the ELF file bounds"))
+;;        (bytevector-copy! gnu-version-output 0 elf-file gnu-version-offset gnu-version-size))
+;;
+;;      ;; Create .gnu.version_r section (empty in this case)
+;;      (let ((gnu-version-r (create-gnu-version-r-section)))
+;;        (bytevector-copy! gnu-version-r 0 elf-file gnu-version-r-offset (bytevector-length gnu-version-r)))
 
       ;; Add .got section
       (let ((got-section (create-got-section got-size)))
