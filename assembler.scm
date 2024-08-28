@@ -2,7 +2,11 @@
   #:use-module (ice-9 match)
   #:use-module (ice-9 binary-ports)
   #:use-module (rnrs bytevectors)
-  #:export (assemble get-label-positions))
+  #:export (assemble get-label-positions get-relocation-table))
+
+(define label-positions (make-hash-table))
+(define relocation-table '())
+(define current-position #x1000)
 
 (define (register->code reg)
   (let ((reg-sym (cond
@@ -19,7 +23,7 @@
       ((rbp ebp) 5)
       ((rsi esi) 6)
       ((rdi edi) 7)
-      ((r8 r8d) 0)  ; Note: r8 is encoded as 0 when used with REX.R
+      ((r8 r8d) 0)
       ((r9 r9d) 1)
       ((r10 r10d) 2)
       ((r11 r11d) 3)
@@ -46,19 +50,21 @@
   (and (symbol? x)
        (memq x '(buffer1 buffer2 result multiplier))))
 
+(define (add-relocation type symbol)
+  (set! relocation-table 
+        (cons (list current-position type symbol) relocation-table)))
+
 (define (encode-push reg)
-  (u8-list->bytevector (list #x55)))  ; Always encode as push %rbp
+  (u8-list->bytevector (list #x55)))
 
 (define (encode-pop reg)
-  (u8-list->bytevector (list #x5D)))  ; Always encode as pop %rbp
+  (u8-list->bytevector (list #x5D)))
 
 (define (encode-test reg1 reg2)
   (let ((reg1-code (register->code reg1))
         (reg2-code (register->code reg2)))
     (u8-list->bytevector 
-     (list #x48  ; REX.W prefix for 64-bit operands
-           #x85  ; TEST opcode
-           (logior #xC0 (ash reg2-code 3) reg1-code)))))
+     (list #x48 #x85 (logior #xC0 (ash reg2-code 3) reg1-code)))))
 
 (define (encode-mov dest src)
   (cond
@@ -79,15 +85,19 @@
               (logior #x00 (ash (if (>= dest-code 8) (- dest-code 8) dest-code) 3) 
                       (if (>= (register->code src-reg) 8) (- (register->code src-reg) 8) (register->code src-reg)))))))
     ((and (eq? dest 'rbp) (eq? src 'rsp))
-     (u8-list->bytevector (list #x48 #x89 #xE5)))  ; Special case for mov %rsp, %rbp
+     (u8-list->bytevector (list #x48 #x89 #xE5)))
     (else (error "Unsupported mov instruction" dest src))))
 
 (define (encode-mov-imm32 reg imm)
   (let ((reg-code (register->code reg)))
-    (bytevector-append
-     (u8-list->bytevector (list #x48 #xC7 (logior #xC0 reg-code)))
-     (if (symbolic-reference? imm)
-         (make-bytevector 4 0)  ; Placeholder for symbolic reference
+    (if (symbolic-reference? imm)
+        (begin
+          (add-relocation 'absolute imm)
+          (bytevector-append
+           (u8-list->bytevector (list #x48 #xC7 (logior #xC0 reg-code)))
+           (make-bytevector 4 0)))
+        (bytevector-append
+         (u8-list->bytevector (list #x48 #xC7 (logior #xC0 reg-code)))
          (integer->bytevector imm 4)))))
 
 (define (encode-add dest src)
@@ -106,7 +116,6 @@
 (define (encode-vmovaps dest src)
   (cond
     ((and (list? dest) (= (length dest) 1))
-     ;; Memory destination
      (let ((dest-reg (car dest))
            (src-code (ymm-register->code src)))
        (u8-list->bytevector 
@@ -117,13 +126,14 @@
                           (- (register->code dest-reg) 8)
                           (register->code dest-reg)))))))
     ((and (list? src) (= (length src) 1))
-     ;; Memory source
      (let ((dest-code (ymm-register->code dest))
            (src-reg (car src)))
        (if (symbolic-reference? src-reg)
-           (bytevector-append
-            (u8-list->bytevector (list #xC5 #xFC #x28 #x05))
-            (make-bytevector 4 0))  ; Placeholder for symbolic reference
+           (begin
+             (add-relocation 'rip-relative src-reg)
+             (bytevector-append
+              (u8-list->bytevector (list #xC5 #xFC #x28 #x05))
+              (make-bytevector 4 0)))
            (u8-list->bytevector 
             (list #xC5 #xFC #x28 
                   (logior #x00 
@@ -132,7 +142,6 @@
                               (- (register->code src-reg) 8)
                               (register->code src-reg))))))))
     ((symbol? src)
-     ;; Register to register
      (let ((dest-code (ymm-register->code dest))
            (src-code (ymm-register->code src)))
        (u8-list->bytevector (list #xC5 #xFC #x28 (logior #xC0 (ash src-code 3) dest-code)))))
@@ -146,7 +155,7 @@
 
 (define (encode-vfmadd132ps dest src1 src2)
   (let ((dest-code (ymm-register->code dest))
-        (src1-code (ymm-register->code src1))  ; This is ymm3, encoded in VEX prefix
+        (src1-code (ymm-register->code src1))
         (src2-code (ymm-register->code src2)))
     (u8-list->bytevector (list #xC4 #xE2 #x65 #x98 (logior #xC0 (ash dest-code 3) src2-code)))))
 
@@ -156,19 +165,11 @@
         (src2-code (ymm-register->code src2)))
     (u8-list->bytevector (list #xC5 #xF4 #x57 (logior #xC0 (ash src2-code 3) dest-code)))))
 
-(define (encode-label name)
-  (cons name (make-bytevector 0)))
-
-(define (register->number reg)
-  (if (number? reg)
-      reg  ; If it's already a number, return it as is
-      (register->code reg)))
-
 (define (encode-mod-rm-sib mod-rm reg rm)
   (u8-list->bytevector 
    (list (logior (ash mod-rm 6) 
-                 (ash (register->number reg) 3) 
-                 (register->number rm)))))
+                 (ash (if (number? reg) reg (register->code reg)) 3) 
+                 (if (number? rm) rm (register->code rm))))))
 
 (define (encode-lea instruction)
   (match instruction
@@ -178,7 +179,8 @@
             (reg-code (if (>= (register->code dest) 8)
                           (- (register->code dest) 8)
                           (register->code dest)))
-            (displacement 0)) ; This will be filled in during linking
+            (displacement 0))
+       (add-relocation 'rip-relative label)
        (bytevector-append
         (u8-list->bytevector (list rex-prefix opcode))
         (encode-mod-rm-sib 0 reg-code 5)
@@ -189,7 +191,8 @@
             (reg-code (if (>= (register->code dest) 8)
                           (- (register->code dest) 8)
                           (register->code dest)))
-            (displacement 0)) ; This will be filled in during linking
+            (displacement 0))
+       (add-relocation 'got-pcrel label)
        (bytevector-append
         (u8-list->bytevector (list rex-prefix opcode))
         (encode-mod-rm-sib 0 reg-code 5)
@@ -199,10 +202,13 @@
 (define (encode-ret)
   (u8-list->bytevector (list #xC3)))
 
+(define (encode-jz label)
+  (add-relocation 'relative label)
+  (u8-list->bytevector (list #x74 #x00)))
+
 (define (encode-instruction inst)
-  (display (string-append "Processing instruction: " (object->string inst) "\n"))
-  (match inst
-    (('label name) '()) ; Labels don't generate any machine code
+  (let ((encoded (match inst
+    (('label name) '())
     (('mov dest src) (encode-mov dest src))
     (('mov.imm32 reg imm) (encode-mov-imm32 reg imm))
     (('add dest src) (encode-add dest src))
@@ -218,7 +224,10 @@
     (('ret) (encode-ret))
     (('test reg1 reg2) (encode-test reg1 reg2))
     (('jz label) (encode-jz label))
-    (_ (error "Unsupported instruction" inst))))
+    (_ (error "Unsupported instruction" inst)))))
+    (when (bytevector? encoded)
+      (set! current-position (+ current-position (bytevector-length encoded))))
+    encoded))
 
 (define (bytevector-append . bvs)
   (let* ((total-length (apply + (map bytevector-length bvs)))
@@ -232,35 +241,35 @@
      bvs)
     result))
 
-(define (encode-jz label)
-  ;; We'll use a short jump (2 bytes) for simplicity
-  ;; The actual offset will be filled in during linking
-  (u8-list->bytevector (list #x74 #x00)))
-
-(define label-positions (make-hash-table))
-
-(define (assemble instructions)
-  (hash-clear! label-positions)
-  (let* ((encoded-instructions '())
-         (current-position #x1000))
-    ;; First pass: collect label positions
-    (for-each
-     (lambda (inst)
-       (when (eq? (car inst) 'label)
-         (hash-set! label-positions (cadr inst) current-position))
-       (let ((encoded-inst (encode-instruction inst)))
-         (when (bytevector? encoded-inst)
-           (set! encoded-instructions (cons encoded-inst encoded-instructions))
-           (set! current-position (+ current-position (bytevector-length encoded-inst))))))
-     instructions)
-    ;; Second pass: resolve labels and concatenate bytevectors
-    (apply bytevector-append (reverse (filter bytevector? encoded-instructions)))))
-
-(define (get-label-positions)
-  label-positions)
-
 (define (integer->bytevector n size)
   (let ((bv (make-bytevector size 0)))
     (do ((i 0 (+ i 1)))
         ((= i size) bv)
       (bytevector-u8-set! bv i (logand (ash n (* -8 i)) #xFF)))))
+
+(define (assemble instructions)
+  (hash-clear! label-positions)
+  (set! relocation-table '())
+  (set! current-position #x1000)
+  
+  ;; First pass: collect label positions
+  (for-each
+   (lambda (inst)
+     (when (eq? (car inst) 'label)
+       (hash-set! label-positions (cadr inst) current-position))
+     (encode-instruction inst))
+   instructions)
+  
+  ;; Second pass: generate code with relocations
+  (set! current-position #x1000)
+  (let ((encoded-instructions 
+         (filter bytevector? (map encode-instruction instructions))))
+    (values
+     (apply bytevector-append encoded-instructions)
+     (reverse relocation-table))))
+
+(define (get-label-positions)
+  label-positions)
+
+(define (get-relocation-table)
+  relocation-table)

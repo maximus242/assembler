@@ -17,12 +17,30 @@
                #:use-module (rela-plt-section)
                #:use-module (got-plt-section)
                #:use-module (plt-got-section)
+               #:use-module (linker)
                #:use-module (validate-relocations)
                #:export (create-shared-object
                           custom-assert
                           verify-dynamic-section
                           check-section-overlaps
                           verify-segment-contents))
+
+(define (create-reg-to-symbol-map symbol-addresses)
+  (let ((map (make-hash-table)))
+    (let loop ((symbols (if (hash-table? symbol-addresses)
+                          (hash-map->list cons symbol-addresses)
+                          symbol-addresses))
+               (reg 0))
+      (if (or (null? symbols) (>= reg 16))
+        map
+        (let* ((symbol-pair (car symbols))
+               (symbol-key (car symbol-pair))
+               (symbol-value (cdr symbol-pair)))
+          (hash-set! map reg (cons (symbol->string symbol-key)
+                                   (if (pair? symbol-value)
+                                     (car symbol-value)
+                                     symbol-value)))
+          (loop (cdr symbols) (+ reg 1)))))))
 
 (define (create-got-section got-size)
   (make-bytevector got-size 0))
@@ -104,7 +122,7 @@
                            (if (= i 0) 0 1)  ; 0 for local, 1 for global
                            (endianness little)))))
 
-(define (create-shared-object code data-sections output-file symbol-addresses label-positions)
+(define (create-shared-object code data-sections output-file symbol-addresses label-positions assembled-relocation-table)
   (let* ((layout (calculate-elf-layout code data-sections symbol-addresses label-positions))
          (program-headers-offset (assoc-ref layout 'program-headers-offset))
          (code-size (assoc-ref layout 'code-size))
@@ -157,21 +175,15 @@
          (data-addr (align-to (+ got-plt-offset got-plt-size) word-size))
          (rela-plt-offset (align-to (+ rela-offset relocation-table-size) word-size))
          (rela-addr (+ dynamic-addr (- rela-offset dynamic-offset)))
-         ;; Create .rela.plt section
-
-
          (rela-plt-section (create-rela-plt-section 
                              (hash-map->list cons label-positions)
                              got-plt-offset
                              dynsym-indices))
          (rela-plt-size (bytevector-length rela-plt-section))
-
-         ;; Create .got.plt section
          (got-plt-section (create-got-plt-section 
                             (hash-map->list cons label-positions)
                             dynamic-addr
                             plt-offset))
-
          (total-dynamic-size (- (+ got-plt-offset got-plt-size) dynamic-offset))
          (data-segment-size (+ data-size total-dynamic-size))
          (shstrtab (create-section-header-string-table))
@@ -266,26 +278,47 @@
                        hash-offset
                        hash-size)))
 
-    (let ((elf-file (make-bytevector total-size 0)))
+    (format #t "Creating shared object...~%")
+    (format #t "Total size: ~a~%" total-size)
+    (format #t "Code size: ~a~%" code-size)
+    (format #t "Code offset: ~a~%" (assoc-ref layout 'code-offset))
 
+    (let ((elf-file (make-bytevector total-size 0)))
       (unless (validate-relocations relocation-table got-offset got-size data-addr (+ data-addr data-size))
         (error "Relocation validation failed"))
+
       (bytevector-copy! elf-header 0 elf-file 0 (bytevector-length elf-header))
       (bytevector-copy! program-headers 0 elf-file program-headers-offset program-headers-size)
-      (bytevector-copy! code 0 elf-file code-offset code-size)
+
+      ;; Resolve references in the code
+      (let* ((resolved-code (link-code code symtab-hash label-positions assembled-relocation-table))
+             (code-offset (assoc-ref layout 'code-offset)))
+
+        (format #t "Resolved code length: ~a~%" (bytevector-length resolved-code))
+        (format #t "ELF file length: ~a~%" (bytevector-length elf-file))
+        (format #t "Code offset: ~a~%" code-offset)
+
+        (if (not (number? code-offset))
+          (begin
+            (format #t "Error: code-offset is not a number: ~a~%" code-offset)
+            (error "Invalid code-offset"))
+          (format #t "code-offset is valid: ~a~%" code-offset))
+
+        (if (>= (+ code-offset (bytevector-length resolved-code)) (bytevector-length elf-file))
+          (begin
+            (format #t "Error: Resolved code doesn't fit in ELF file at specified offset~%")
+            (format #t "  code-offset: ~a~%" code-offset)
+            (format #t "  resolved-code length: ~a~%" (bytevector-length resolved-code))
+            (format #t "  elf-file length: ~a~%" (bytevector-length elf-file))
+            (format #t "  sum: ~a~%" (+ code-offset (bytevector-length resolved-code)))
+            (error "Resolved code doesn't fit in ELF file"))
+          (begin
+            (bytevector-copy! resolved-code 0 elf-file code-offset (bytevector-length resolved-code))
+            (format #t "Resolved code copied to ELF file~%"))))
 
       (bytevector-copy! dynamic-section 0 elf-file dynamic-offset dynamic-size)
       (bytevector-copy! symtab-bv 0 elf-file dynsym-offset dynsym-size)
       (bytevector-copy! strtab 0 elf-file dynstr-offset dynstr-size)
-
-      ;; Create .gnu.version section
-      ;; (let* ((dynsym-count (/ (bytevector-length symtab-bv) 24))  ; Assuming 24 bytes per symbol
-      ;;       (gnu-version (create-gnu-version-section dynsym-count)))
-      ;;  (bytevector-copy! gnu-version 0 elf-file gnu-version-offset (bytevector-length gnu-version)))
-
-      ;; Create .gnu.version_r section (empty in this case)
-      ;;(let ((gnu-version-r (create-gnu-version-r-section)))
-      ;;  (bytevector-copy! gnu-version-r 0 elf-file gnu-version-r-offset (bytevector-length gnu-version-r)))
 
       (bytevector-copy! relocation-table 0 elf-file rela-offset relocation-table-size)
       (bytevector-copy! hash-table 0 elf-file hash-offset hash-size)
@@ -316,4 +349,5 @@
                              (lambda (port)
                                (put-bytevector port elf-file)))
 
+      (format #t "Shared object created: ~a~%" output-file)
       total-size)))

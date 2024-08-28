@@ -26,6 +26,11 @@
       address
       (+ address (- alignment remainder)))))
 
+(define (calculate-code-offset elf-header-size program-headers-offset)
+  (let ((offset (align-to (+ elf-header-size program-headers-offset) alignment)))
+    (format #t "Calculated code offset: ~a~%" offset)
+    offset))
+
 (define (calculate-phdr-size num-program-headers program-header-size)
   (* num-program-headers program-header-size))
 
@@ -260,11 +265,13 @@
          (plt-addr (calculate-plt-addr dynamic-addr plt-offset dynamic-offset))
          (symtab-offset (calculate-symtab-offset section-offset code-size rodata-size data-size))
          (total-size (calculate-total-size section-headers-offset))
+         (code-offset (calculate-code-offset elf-header-size program-headers-offset))
          (strtab-offset (calculate-strtab-offset symtab-offset symtab-size)))
 
     (list
       (cons 'program-headers-offset program-headers-offset)
       (cons 'code-size code-size)
+      (cons 'code-offset code-offset)
       (cons 'rodata-size rodata-size)
       (cons 'bss-size bss-size)
       (cons 'data-size data-size)
