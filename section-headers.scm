@@ -102,8 +102,8 @@
                                  hash-offset hash-offset hash-size 6 0 8 4)
 
             ;; .gnu.version section
-            ;;(make-section-header 136 #x6fffffff shf-alloc
-            ;;                     gnu-version-addr gnu-version-addr gnu-version-size 6 0 2 2)
+            (make-section-header 136 #x6fffffff shf-alloc
+                                 gnu-version-addr gnu-version-addr gnu-version-size 6 0 2 2)
 
             ;; .gnu.version_r section
             ;;(make-section-header 149 #x6ffffffe shf-alloc

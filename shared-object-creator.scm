@@ -115,12 +115,23 @@
     bv))
 
 (define (create-gnu-version-section dynsym-count)
+  (format #t "Creating GNU version section with dynsym-count: ~a~%" dynsym-count)
   (let ((version-section (make-bytevector (* 2 dynsym-count) 0)))
     (do ((i 0 (+ i 1)))
-      ((= i dynsym-count) version-section)
-      (bytevector-u16-set! version-section (* i 2) 
-                           (if (= i 0) 0 1)  ; 0 for local, 1 for global
-                           (endianness little)))))
+      ((= i dynsym-count) 
+       (begin
+         (format #t "Final version-section content:~%")
+         (do ((j 0 (+ j 2)))
+           ((>= j (* 2 dynsym-count)))
+           (format #t "  Entry ~a: ~4,'0x~%" 
+                   (/ j 2) 
+                   (bytevector-u16-ref version-section j (endianness little))))
+         version-section))
+      (let ((value (if (= i 0) 0 1)))
+        (format #t "Setting entry ~a to value: ~a~%" i value)
+        (bytevector-u16-set! version-section (* i 2) 
+                             value
+                             (endianness little))))))
 
 (define (create-shared-object code data-sections output-file symbol-addresses label-positions assembled-relocation-table)
   (let* ((layout (calculate-elf-layout code data-sections symbol-addresses label-positions))
@@ -157,12 +168,6 @@
          (rela-offset (align-to (+ dynstr-offset dynstr-size) word-size))
          (relocation-table (create-relocation-table symtab-hash))
          (relocation-table-size (bytevector-length relocation-table))
-         (hash-offset (align-to (+ rela-offset relocation-table-size) word-size))
-         (hash-table (create-hash-section symtab-bv))
-         (hash-size (bytevector-length hash-table))
-         (gnu-version-offset (align-to (+ hash-offset hash-size) word-size))
-         (gnu-version-r-offset (align-to (+ gnu-version-offset (* 2 (/ dynsym-size 24))) word-size))
-         (gnu-version-r-size 0)  ; Since we're creating an empty .gnu.version_r section
          (got-offset (align-to (+ dynamic-offset dynamic-size) word-size))
          (got-plt-offset (align-to (+ got-offset got-size) word-size))
          (got-plt-size (* (+ (length (hash-map->list cons label-positions)) 3) 8))  ; 3 reserved entries + function entries
@@ -175,11 +180,21 @@
          (data-addr (align-to (+ got-plt-offset got-plt-size) word-size))
          (rela-plt-offset (align-to (+ rela-offset relocation-table-size) word-size))
          (rela-addr (+ dynamic-addr (- rela-offset dynamic-offset)))
+
          (rela-plt-section (create-rela-plt-section 
                              (hash-map->list cons label-positions)
                              got-plt-offset
                              dynsym-indices))
          (rela-plt-size (bytevector-length rela-plt-section))
+
+         (hash-offset (align-to (+ rela-plt-offset rela-plt-size) word-size))
+         (hash-table (create-hash-section symtab-bv))
+         (hash-size (bytevector-length hash-table))
+         (gnu-version-offset (align-to (+ hash-offset hash-size) 4))
+         (gnu-version-r-offset (align-to (+ gnu-version-offset (* 2 (/ dynsym-size 24))) word-size))
+         (gnu-version-r-size 0)  ; Since we're creating an empty .gnu.version_r section
+         (gnu-version-size (* 2 num-dynamic-entries))
+
          (got-plt-section (create-got-plt-section 
                             (hash-map->list cons label-positions)
                             dynamic-addr
@@ -328,6 +343,63 @@
 
       ;; Add .strtab section
       (bytevector-copy! strtab 0 elf-file strtab-offset dynstr-size)
+
+      (let* ((dynsym-count (/ (bytevector-length symtab-bv) 24))  ; Assuming 24 bytes per symbol
+             (gnu-version-output (create-gnu-version-section dynsym-count))
+             (gnu-version-size (* 2 dynsym-count)))  ; 2 bytes per entry
+        (format #t "About to write .gnu.version section to ELF file~%")
+        (format #t "dynsym-count: ~a~%" dynsym-count)
+        (format #t "gnu-version-offset: ~a (0x~x)~%" gnu-version-offset gnu-version-offset)
+        (format #t "gnu-version-size: ~a~%" gnu-version-size)
+
+        ; Check if the offset and size are within the elf-file bounds
+        (when (or (< gnu-version-offset 0)
+                  (> (+ gnu-version-offset gnu-version-size) (bytevector-length elf-file)))
+          (error "gnu-version section would be outside the ELF file bounds"))
+
+        ; Log the content of gnu-version-output before copying
+        (format #t "Content of gnu-version-output before copying:~%")
+        (do ((i 0 (+ i 2)))
+          ((>= i gnu-version-size))
+          (format #t "  Entry ~a: ~4,'0x~%" 
+                  (/ i 2) 
+                  (bytevector-u16-ref gnu-version-output i (endianness little))))
+
+        (bytevector-copy! gnu-version-output 0 elf-file gnu-version-offset gnu-version-size)
+        (format #t ".gnu.version section written to ELF file~%")
+
+        ; Log the content after copying to elf-file
+        (format #t "Content of .gnu.version section in ELF file after copying:~%")
+        (do ((i 0 (+ i 2)))
+          ((>= i gnu-version-size))
+          (format #t "  Entry ~a: ~4,'0x~%" 
+                  (/ i 2) 
+                  (bytevector-u16-ref elf-file (+ gnu-version-offset i) (endianness little))))
+
+        ; Log the section header information
+        (let* ((gnu-version-section-index 18)  ; Adjust this if necessary
+               (section-header-size 64)  ; Size of each section header in bytes
+               (section-header-offset (* gnu-version-section-index section-header-size)))
+          (format #t ".gnu.version section header:~%")
+          (format #t "  Offset: ~a (0x~x)~%" 
+                  (bytevector-u64-ref section-headers (+ section-header-offset 24) (endianness little))
+                  (bytevector-u64-ref section-headers (+ section-header-offset 24) (endianness little)))
+          (format #t "  Size: ~a~%" 
+                  (bytevector-u64-ref section-headers (+ section-header-offset 32) (endianness little)))
+          (format #t "  Link: ~a~%" 
+                  (bytevector-u32-ref section-headers (+ section-header-offset 48) (endianness little))))
+
+        ; Final check of surrounding data
+        (format #t "Data around .gnu.version section:~%")
+        (do ((i (- gnu-version-offset 8) (+ i 2)))
+          ((>= i (+ gnu-version-offset gnu-version-size 8)))
+          (format #t "  Offset ~a (0x~x): ~4,'0x~%" 
+                  i i
+                  (bytevector-u16-ref elf-file i (endianness little)))))
+
+      ;; Create .gnu.version_r section (empty in this case)
+      ;;(let ((gnu-version-r (create-gnu-version-r-section)))
+      ;;  (bytevector-copy! gnu-version-r 0 elf-file gnu-version-r-offset (bytevector-length gnu-version-r)))
 
       ;; Add .got section
       (let ((got-section (create-got-section got-size)))
