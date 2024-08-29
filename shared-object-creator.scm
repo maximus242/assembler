@@ -334,7 +334,7 @@
       (bytevector-copy! program-headers 0 elf-file program-headers-offset program-headers-size)
 
       ;; Resolve references in the code
-      (let* ((resolved-code (link-code code symtab-hash label-positions assembled-relocation-table))
+      (let* ((resolved-code (link-code code symtab-hash label-positions assembled-relocation-table data-addr))
              (code-offset (assoc-ref layout 'code-offset)))
 
         (format #t "Resolved code length: ~a~%" (bytevector-length resolved-code))

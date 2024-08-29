@@ -172,7 +172,7 @@
     (log-message "~a" (bytevector->hex-string resolved-code 0 (min 100 (bytevector-length resolved-code))))
     resolved-code))
 
-(define (link-code code symbol-addresses label-positions relocation-table)
+(define (link-code code symbol-addresses label-positions relocation-table data-addr)
   (log-message "Relocation Table LINKER: ~a" relocation-table)
   (log-message "link-code: Inputs:")
   (log-message "code:")
@@ -196,4 +196,4 @@
   (let ((symbol-table (if (hash-table? symbol-addresses)
                           symbol-addresses
                           (alist->hash-table symbol-addresses))))
-    (resolve-references code symbol-table label-positions relocation-table #x1000 #x3180 got-relocation-table)))
+    (resolve-references code symbol-table label-positions relocation-table #x1000 data-addr got-relocation-table)))

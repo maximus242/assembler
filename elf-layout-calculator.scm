@@ -101,7 +101,7 @@
   (bytevector-length (create-relocation-table symbol-addresses)))
 
 (define (calculate-got-size symbol-addresses)
-  (* (length symbol-addresses) got-entry-size 2))
+  (* (length symbol-addresses) got-entry-size 4))
 
 (define (calculate-plt-size symbol-addresses)
   (* (length symbol-addresses) plt-entry-size))
