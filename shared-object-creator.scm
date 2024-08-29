@@ -124,6 +124,17 @@
     
     bv))
 
+
+(define (create-gnu-version-d-section)
+  (let ((bv (make-bytevector 20 0)))  ; Size enough for one version definition
+    (bytevector-u16-set! bv 0 1 (endianness little))  ; Version (16-bit)
+    (bytevector-u16-set! bv 2 1 (endianness little))  ; Count (16-bit)
+    (bytevector-u32-set! bv 4 0 (endianness little))  ; Offset to next (0 means no next)
+    (bytevector-u32-set! bv 8 0 (endianness little))  ; Flags (16-bit)
+    (bytevector-u32-set! bv 12 #x00000400 (endianness little))  ; Offset to version name "Base" in .dynstr
+    (bytevector-u32-set! bv 16 0 (endianness little))  ; Hash (32-bit, typically 0)
+    bv))
+
 (define (create-gnu-version-section dynsym-count)
   (let ((version-section (make-bytevector (* 2 dynsym-count) 0)))
     (do ((i 0 (+ i 1)))
@@ -154,7 +165,6 @@
          (strtab-offset (assoc-ref layout 'strtab-offset))
          (symtab-hash (assoc-ref layout 'symtab-hash))
          (dynsym-indices (assoc-ref layout 'dynsym-indices))
-         (symtab-and-strtab (assoc-ref layout 'symtab-and-strtab))
          (symtab-bv (assoc-ref layout 'symtab-bv))
          (strtab (assoc-ref layout 'strtab))
          (dynsym-size (assoc-ref layout 'dynsym-size))
@@ -193,6 +203,10 @@
          (gnu-version-r-size 32)  ; Since we're creating an empty .gnu.version_r section
          (gnu-version-size (* 2 num-dynamic-entries))
          (gnu-version-r-offset (align-to (+ gnu-version-offset gnu-version-size) word-size))
+         (gnu-version-d-size 32)
+         (gnu-version-size (* 2 num-dynamic-entries))
+         (gnu-version-d-offset (align-to (+ gnu-version-offset gnu-version-size) word-size))
+
 
          (got-plt-section (create-got-plt-section 
                             (hash-map->list cons label-positions)
@@ -253,6 +267,8 @@
                             (+ dynamic-addr (- gnu-version-r-offset dynamic-offset))
                             (* 2 (/ dynsym-size 24))  ; gnu-version-size
                             gnu-version-r-size
+                            gnu-version-d-size
+                            gnu-version-d-offset
                             hash-offset
                             hash-size))
          (program-headers (create-program-headers 
@@ -343,15 +359,19 @@
       ;; Add .strtab section
       (bytevector-copy! strtab 0 elf-file strtab-offset dynstr-size)
 
-;;      ;; Add .gnu.version section
-;;      (let* ((dynsym-count (/ (bytevector-length symtab-bv) 24))  ; Assuming 24 bytes per symbol
-;;             (gnu-version-output (create-gnu-version-section dynsym-count))
-;;             (gnu-version-size (* 2 dynsym-count)))  ; 2 bytes per entry
-;;        (when (or (< gnu-version-offset 0)
-;;                  (> (+ gnu-version-offset gnu-version-size) (bytevector-length elf-file)))
-;;          (error "gnu-version section would be outside the ELF file bounds"))
-;;        (bytevector-copy! gnu-version-output 0 elf-file gnu-version-offset gnu-version-size))
-;;
+      ;; Add .gnu.version section
+      (let* ((dynsym-count (/ (bytevector-length symtab-bv) 24))  ; Assuming 24 bytes per symbol
+             (gnu-version-output (create-gnu-version-section dynsym-count))
+             (gnu-version-size (* 2 dynsym-count)))  ; 2 bytes per entry
+        (when (or (< gnu-version-offset 0)
+                  (> (+ gnu-version-offset gnu-version-size) (bytevector-length elf-file)))
+          (error "gnu-version section would be outside the ELF file bounds"))
+        (bytevector-copy! gnu-version-output 0 elf-file gnu-version-offset gnu-version-size))
+
+        ;; Create .gnu.version_d section
+        (let ((gnu-version-d (create-gnu-version-d-section)))
+          (bytevector-copy! gnu-version-d 0 elf-file gnu-version-d-offset (bytevector-length gnu-version-d)))
+;
 ;;      ;; Create .gnu.version_r section (empty in this case)
 ;;      (let ((gnu-version-r (create-gnu-version-r-section)))
 ;;        (bytevector-copy! gnu-version-r 0 elf-file gnu-version-r-offset (bytevector-length gnu-version-r)))

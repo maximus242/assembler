@@ -29,7 +29,8 @@
           rela-addr got-addr plt-addr symtab-offset strtab-offset shstrtab-addr
           plt-size plt-got-addr plt-got-size rela-plt-addr rela-plt-size
           got-plt-addr got-plt-size rodata-offset gnu-version-addr gnu-version-r-addr
-          gnu-version-size gnu-version-r-size hash-offset hash-size)
+          gnu-version-size gnu-version-r-size gnu-version-d-offset gnu-version-d-size 
+          hash-offset hash-size)
 
   (let ((headers
           (list
@@ -102,12 +103,16 @@
                                  hash-offset hash-offset hash-size 6 0 8 4)
 
             ;; .gnu.version section
-            ;; (make-section-header 136 #x6fffffff shf-alloc
-            ;;                     gnu-version-addr gnu-version-addr gnu-version-size 6 0 2 2)
+            (make-section-header 136 #x6fffffff shf-alloc
+                                 gnu-version-addr gnu-version-addr gnu-version-size 6 0 2 2)
 
             ;; .gnu.version_r section
             ;;(make-section-header 149 #x6ffffffe shf-alloc
             ;;                     gnu-version-r-addr gnu-version-r-addr gnu-version-r-size 7 1 4 0)
+            ;; .gnu.version_d section
+            (make-section-header 170 #x6ffffffe shf-alloc
+                                 gnu-version-d-offset gnu-version-d-offset gnu-version-r-size 7 1 4 0)
+
           )))
 
     ;; Log the final section headers for debugging

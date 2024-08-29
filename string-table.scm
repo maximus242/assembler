@@ -45,7 +45,7 @@
                            '("" ".text" ".data" ".bss" ".rodata" ".symtab" ".strtab"
                              ".shstrtab" ".rela.text" ".dynamic" ".dynstr" ".dynsym"
                              ".rela.dyn" ".got" ".plt" ".plt.got" ".got.plt" ".rela.plt"
-                             ".gnu.version" ".gnu.version_r" ".hash"))))
+                             ".gnu.version" ".gnu.version_r" ".hash" ".gnu.version_d"))))
     (let* ((total-length (apply + (map (lambda (s) (+ (string-length s) null-terminator-size)) section-names)))
            (table (make-bytevector total-length 0))
            (offset 0))
