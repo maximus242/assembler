@@ -169,8 +169,8 @@
                 dynamic-offset           ; Offset: Start of dynamic section
                 dynamic-addr             ; Virtual address: Address of dynamic section
                 dynamic-addr             ; Physical address: Same as virtual address
-                #x1000 ; File size: Total size of dynamic section
-                #x1000 ; Memory size: Same as file size
+                #x1E0 ; File size: Total size of dynamic section
+                #x1E0 ; Memory size: Same as file size
                 alignment)               ; Alignment: Required alignment
 
               ; PT_DYNAMIC
