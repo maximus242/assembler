@@ -235,7 +235,8 @@
                             plt-offset
                             plt-size
                             rela-plt-offset
-                            rela-plt-size))
+                            rela-plt-size
+                            got-plt-offset))
          (section-headers (create-section-headers
                             text-addr
                             code-size

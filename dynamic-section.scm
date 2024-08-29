@@ -40,7 +40,7 @@
           dynstr-offset dynsym-offset strtab-size dynsym-size 
           rela-offset rela-size got-offset hash-offset
           gnu-version-offset gnu-version-d-offset gnu-version-d-size
-          plt-offset plt-size jmprel-offset jmprel-size)
+          plt-offset plt-size jmprel-offset jmprel-size got-plt-offset)
   (let* ((num-entries 19)  ;; Adjusted for all possible entries
          (section (make-bytevector (* num-entries ENTRY_SIZE) 0)))
     (format #t "Creating dynamic section with num-entries=~a~%" num-entries)
@@ -56,7 +56,7 @@
     (set-dynamic-entry! section 5 DT_RELA rela-offset)
     (set-dynamic-entry! section 6 DT_RELASZ rela-size)
     (set-dynamic-entry! section 7 DT_RELAENT RELAENT_SIZE)
-    (set-dynamic-entry! section 8 DT_PLTGOT got-offset)
+    (set-dynamic-entry! section 8 DT_PLTGOT got-plt-offset)
     
     ;; Set DT_JMPREL and DT_PLTRELSZ
     (set-dynamic-entry! section 9 DT_PLTRELSZ jmprel-size)
