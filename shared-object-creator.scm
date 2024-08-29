@@ -190,7 +190,7 @@
          (plt-section (create-plt-section label-positions got-offset))
          (plt-size (bytevector-length plt-section))
          (plt-got-offset (align-to (+ plt-offset plt-size) word-size))
-         (plt-got-size #x0)  ; Adjust this size as needed
+         (plt-got-size (* (length (hash-map->list cons label-positions)) 8))
          (data-addr (align-to (+ got-plt-offset got-plt-size) word-size))
          (rela-plt-offset (align-to (+ rela-offset relocation-table-size) word-size))
          (rela-addr (+ dynamic-addr (- rela-offset dynamic-offset)))
@@ -217,6 +217,11 @@
                             (hash-map->list cons label-positions)
                             dynamic-addr
                             plt-offset))
+
+         (plt-got-section (create-plt-got-section 
+                            (hash-map->list cons label-positions)
+                            got-plt-offset))
+
          (total-dynamic-size (- (+ got-plt-offset got-plt-size) dynamic-offset))
          (data-segment-size (+ data-size total-dynamic-size))
          (shstrtab (create-section-header-string-table))
@@ -388,6 +393,9 @@
 
       ;; Add .plt section
       (bytevector-copy! plt-section 0 elf-file plt-offset plt-size)
+
+      ;; Add .plt.got section
+      (bytevector-copy! plt-got-section 0 elf-file plt-got-offset plt-got-size)
 
       ;; Add .rela.plt section
       (bytevector-copy! rela-plt-section 0 elf-file rela-plt-offset rela-plt-size)
