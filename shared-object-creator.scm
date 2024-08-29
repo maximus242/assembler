@@ -118,10 +118,10 @@
     (bytevector-u32-set! bv 20 #x00000498 (endianness little)) ; Offset to the name string in .dynstr (32-bit)
     (bytevector-u16-set! bv 24 2 (endianness little))          ; Version (16-bit)
     (bytevector-u16-set! bv 26 0 (endianness little))          ; Flags (16-bit)
-    
+
     ;; The rest of the auxiliary data would typically include other information, 
     ;; such as dependencies on other versions if any (but is omitted here for simplicity).
-    
+
     bv))
 
 (define (create-gnu-version-d-section)
@@ -130,10 +130,10 @@
     (bytevector-u16-set! bv 2 1 (endianness little))  ; Flags (1 for BASE)
     (bytevector-u16-set! bv 4 1 (endianness little))  ; Version index (1)
     (bytevector-u16-set! bv 6 1 (endianness little))  ; Cnt (1)
-    (bytevector-u32-set! bv 8 0 (endianness little))  ; Hash (can be 0)
+    (bytevector-u32-set! bv 8 #xb027790a (endianness big))  ; Hash
     (bytevector-u32-set! bv 12 20 (endianness little))  ; Offset to verdaux
     (bytevector-u32-set! bv 16 0 (endianness little))  ; Offset to next (0)
-    
+
     ; Verdaux entry
     (bytevector-u32-set! bv 20 1 (endianness little))  ; Name offset in .dynstr
     (bytevector-u32-set! bv 24 0 (endianness little))  ; Offset to next aux (0)
@@ -373,13 +373,13 @@
           (error "gnu-version section would be outside the ELF file bounds"))
         (bytevector-copy! gnu-version-output 0 elf-file gnu-version-offset gnu-version-size))
 
-        ;; Create .gnu.version_d section
-        (let ((gnu-version-d (create-gnu-version-d-section)))
-          (bytevector-copy! gnu-version-d 0 elf-file gnu-version-d-offset (bytevector-length gnu-version-d)))
-;
-;;      ;; Create .gnu.version_r section (empty in this case)
-;;      (let ((gnu-version-r (create-gnu-version-r-section)))
-;;        (bytevector-copy! gnu-version-r 0 elf-file gnu-version-r-offset (bytevector-length gnu-version-r)))
+      ;; Create .gnu.version_d section
+      (let ((gnu-version-d (create-gnu-version-d-section)))
+        (bytevector-copy! gnu-version-d 0 elf-file gnu-version-d-offset (bytevector-length gnu-version-d)))
+      ;
+      ;;      ;; Create .gnu.version_r section (empty in this case)
+      ;;      (let ((gnu-version-r (create-gnu-version-r-section)))
+      ;;        (bytevector-copy! gnu-version-r 0 elf-file gnu-version-r-offset (bytevector-length gnu-version-r)))
 
       ;; Add .got section
       (let ((got-section (create-got-section got-size)))
