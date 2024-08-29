@@ -18,7 +18,11 @@
             symbol-entry-name
             symbol-entry-address
             symbol-entry-shndx
-            convert-old-format-to-new))
+            convert-old-format-to-new
+            create-version-section))
+
+;; Add a version string
+(define *version-string* "VERS_1.0")
 
 (define-record-type <symbol-entry>
   (make-symbol-entry name address info other shndx size)
@@ -91,12 +95,14 @@
          (symbol-count (+ (hash-count (const #t) symbol-table) 1))
          (table-size (* symbol-count symbol-entry-size))
          (table (make-bytevector table-size 0))
-         (string-table-size (+ 1 (hash-fold (lambda (key value acc) 
-                                              (+ acc (string-length (symbol->string key)) 1))
-                                            0 
-                                            symbol-table)))
+         (string-table-size (+ 1 (string-length *version-string*) 1
+                               (hash-fold (lambda (key value acc) 
+                                            (+ acc (string-length (symbol->string key)) 1))
+                                          0 
+                                          symbol-table)))
          (string-table (make-bytevector string-table-size 0))
          (string-table-offset initial-string-offset))
+
     ;; Initialize the first symbol entry (null symbol)
     (bytevector-u32-set! table st-name-offset 0 (endianness little))
     (bytevector-u8-set! table st-info-offset 0)
@@ -104,10 +110,16 @@
     (bytevector-u16-set! table st-shndx-offset 0 (endianness little))
     (bytevector-u64-set! table st-value-offset 0 (endianness little))
     (bytevector-u64-set! table st-size-offset 0 (endianness little))
+
+    ;; Add version string to string table
+    (bytevector-copy! (string->utf8 *version-string*) 0 string-table string-table-offset (string-length *version-string*))
+    (bytevector-u8-set! string-table (+ string-table-offset (string-length *version-string*)) 0)
+    (set! string-table-offset (+ string-table-offset (string-length *version-string*) 1))
+
     ;; Process the symbols
     (let loop ((symbols (hash-map->list cons symbol-table))
                (index 1)
-               (str-offset initial-string-offset))
+               (str-offset string-table-offset))
       (if (null? symbols)
           (cons table string-table)
           (let* ((symbol (car symbols))
@@ -154,3 +166,10 @@
           (bytevector-u32-set! hash-section (+ hash-header-size (* hash-entry-size i)) i (endianness little))
           (loop (+ i 1))))
       hash-section)))
+
+(define (create-version-section)
+  (let* ((version-bytes (string->utf8 *version-string*))
+         (version-section-size (+ (bytevector-length version-bytes) 1))
+         (version-section (make-bytevector version-section-size 0)))
+    (bytevector-copy! version-bytes 0 version-section 0 (bytevector-length version-bytes))
+    version-section))

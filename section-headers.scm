@@ -110,8 +110,8 @@
             ;;(make-section-header 149 #x6ffffffe shf-alloc
             ;;                     gnu-version-r-addr gnu-version-r-addr gnu-version-r-size 7 1 4 0)
             ;; .gnu.version_d section
-            (make-section-header 170 #x6ffffffe shf-alloc
-                                 gnu-version-d-offset gnu-version-d-offset gnu-version-r-size 7 1 4 0)
+            (make-section-header 170 #x6ffffffd shf-alloc
+                                 gnu-version-d-offset gnu-version-d-offset gnu-version-d-size 7 1 4 0)
 
           )))
 

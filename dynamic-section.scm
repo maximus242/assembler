@@ -20,8 +20,8 @@
 (define DT_PLTRELSZ 2)
 (define DT_PLTREL  20)
 (define DT_VERSYM  #x6ffffff0)
-(define DT_VERNEED #x6ffffffe)
-(define DT_VERNEEDNUM #x6fffffff)
+(define DT_VERDEF  #x6ffffffc)
+(define DT_VERDEFNUM #x6ffffffd)
 
 ;; Constants for sizes and offsets
 (define ENTRY_SIZE 16)
@@ -39,9 +39,9 @@
 (define (create-dynamic-section
           dynstr-offset dynsym-offset strtab-size dynsym-size 
           rela-offset rela-size got-offset hash-offset
-          gnu-version-offset gnu-version-r-offset gnu-version-r-size
+          gnu-version-offset gnu-version-d-offset gnu-version-d-size
           plt-offset plt-size jmprel-offset jmprel-size)
-  (let* ((num-entries (if (> gnu-version-r-size 0) 18 16))  ;; Adjusted number of entries
+  (let* ((num-entries 19)  ;; Adjusted for all possible entries
          (section (make-bytevector (* num-entries ENTRY_SIZE) 0)))
     (format #t "Creating dynamic section with num-entries=~a~%" num-entries)
     
@@ -58,22 +58,22 @@
     (set-dynamic-entry! section 7 DT_RELAENT RELAENT_SIZE)
     (set-dynamic-entry! section 8 DT_PLTGOT got-offset)
     
-    ;; Ensure both DT_JMPREL and DT_PLTRELSZ are set if jmprel-offset and jmprel-size are provided
-    (when (> jmprel-size 0)
-      (format #t "Setting DT_PLTRELSZ and DT_JMPREL entries~%")
-      (set-dynamic-entry! section 9 DT_PLTRELSZ jmprel-size)
-      (set-dynamic-entry! section 10 DT_PLTREL DT_RELA)
-      (set-dynamic-entry! section 11 DT_JMPREL jmprel-offset))
+    ;; Set DT_JMPREL and DT_PLTRELSZ
+    (set-dynamic-entry! section 9 DT_PLTRELSZ jmprel-size)
+    (set-dynamic-entry! section 10 DT_PLTREL DT_RELA)
+    (set-dynamic-entry! section 11 DT_JMPREL jmprel-offset)
     
-    ;; Handle optional init, fini, and GNU version entries
-    (set-dynamic-entry! section 12 DT_INIT 0)  ;; Set to 0 if not used
-    (set-dynamic-entry! section 13 DT_FINI 0)  ;; Set to 0 if not used
-    (if (> gnu-version-r-size 0)
-        (begin
-          (set-dynamic-entry! section 14 DT_VERNEED gnu-version-r-offset)
-          (set-dynamic-entry! section 15 DT_VERNEEDNUM 1)
-          (set-dynamic-entry! section 16 DT_NULL 0))
-        (set-dynamic-entry! section 14 DT_NULL 0))
+    ;; Set DT_INIT and DT_FINI to 0 if not used
+    (set-dynamic-entry! section 12 DT_INIT 0)
+    (set-dynamic-entry! section 13 DT_FINI 0)
+    
+    ;; Set GNU version entries
+    (set-dynamic-entry! section 14 DT_VERSYM gnu-version-offset)
+    (set-dynamic-entry! section 15 DT_VERDEF gnu-version-d-offset)
+    (set-dynamic-entry! section 16 DT_VERDEFNUM 1)
+    
+    ;; Set DT_NULL to mark the end of the dynamic section
+    (set-dynamic-entry! section 17 DT_NULL 0)
     
     ;; Final logging
     (format #t "Dynamic section creation complete.~%")
