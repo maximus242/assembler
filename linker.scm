@@ -68,18 +68,15 @@
   (log-message "  Code start offset: 0x~x" code-start-offset)
   (log-message "  GOT offset: 0x~x" got-offset)
   (log-message "  Code length: ~a" (bytevector-length code))
-
   (let* ((code-offset (- offset code-start-offset))
          (instruction-end offset)
          (next-instruction-address (+ offset 4)))
-
     (log-message "  Absolute offset: 0x~x" offset)
     (log-message "  Calculated code offset: 0x~x" code-offset)
     (log-message "  Instruction end: 0x~x" instruction-end)
     (log-message "  Next instruction address: 0x~x" next-instruction-address)
-
     (if (number? symbol-address)
-        (let* ((relative-address (- symbol-address next-instruction-address 3))
+        (let* ((relative-address (- (- symbol-address #xa3) next-instruction-address))
                (displacement (bitwise-and relative-address #xffffffff)))
           (log-message "  Calculated relative address: 0x~x" relative-address)
           (log-message "  Calculated displacement: 0x~x" displacement)
