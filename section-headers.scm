@@ -67,7 +67,7 @@
 
             ;; .rela.dyn section
             (make-section-header 88 sht-rela shf-alloc
-                                 rela-addr rela-addr rela-size 6 2 8 24)
+                                 rela-addr rela-addr rela-size 6 0 14 24)
 
             ;; .got section
             (make-section-header 98 sht-progbits (logior shf-write shf-alloc)
