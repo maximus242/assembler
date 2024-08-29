@@ -26,10 +26,10 @@
 
 ;; Define symbol addresses (these will be relative to the start of .data section)
 (define symbol-addresses
-  '((buffer1    . #x3160)
-    (buffer2    . #x3180)
-    (result     . #x31A0)
-    (multiplier . #x31C0)))
+  '((buffer1    . #x3180)
+    (buffer2    . #x31a0)
+    (result     . #x31a0)
+    (multiplier . #x31e0)))
 
 (define example-code
   '((label perform_operations)

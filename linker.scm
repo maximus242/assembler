@@ -31,7 +31,7 @@
 
   (let* ((symbols (extract-symbols relocation-table))
          (base-address #x0)
-         (address-step 8))
+         (address-step 32))
     (map (lambda (symbol index)
            (cons symbol (+ base-address (* index address-step))))
          symbols
@@ -196,4 +196,4 @@
   (let ((symbol-table (if (hash-table? symbol-addresses)
                           symbol-addresses
                           (alist->hash-table symbol-addresses))))
-    (resolve-references code symbol-table label-positions relocation-table #x1000 #x3120 got-relocation-table)))
+    (resolve-references code symbol-table label-positions relocation-table #x1000 #x3180 got-relocation-table)))

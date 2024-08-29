@@ -13,7 +13,7 @@
         (reloc-type (or (assoc-ref options 'r-x86-64-glob-dat) 6))
         (symbol-index-start (or (assoc-ref options 'symbol-index-start) 1))
         ;; Update the GOT base with the new offset from the .got section
-        (got-base (or (assoc-ref options 'got-base) #x3120))) ; Updated GOT base
+        (got-base (or (assoc-ref options 'got-base) #x3180))) ; Updated GOT base
 
     (let* ((non-function-symbols 
             (if (hash-table? symbol-addresses)
