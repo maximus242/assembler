@@ -19,6 +19,7 @@
                #:use-module (plt-got-section)
                #:use-module (linker)
                #:use-module (validate-relocations)
+               #:use-module (data-section)
                #:export (create-shared-object
                           custom-assert
                           verify-dynamic-section
@@ -212,6 +213,7 @@
          (gnu-version-size (* 2 num-dynamic-entries))
          (gnu-version-d-offset (align-to (+ gnu-version-offset gnu-version-size) word-size))
 
+         (data-section (create-data-section data-sections))
 
          (got-plt-section (create-got-plt-section 
                             (hash-map->list cons label-positions)
@@ -363,6 +365,8 @@
 
       (bytevector-copy! relocation-table 0 elf-file rela-offset relocation-table-size)
       (bytevector-copy! hash-table 0 elf-file hash-offset hash-size)
+
+      (bytevector-copy! data-section 0 elf-file data-addr (bytevector-length data-section))
 
       ;; Add .symtab section
       (bytevector-copy! symtab-bv 0 elf-file symtab-offset dynsym-size)

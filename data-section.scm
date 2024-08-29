@@ -1,0 +1,20 @@
+(define-module (data-section)
+               #:use-module (rnrs bytevectors)
+               #:use-module (ice-9 format)
+               #:export (create-data-section))
+
+(define (create-data-section data-sections)
+  (let* ((total-size (apply + (map (lambda (section) (bytevector-length (cdr section))) data-sections)))
+         (data-section (make-bytevector total-size 0))
+         (current-offset 0))
+    (for-each
+      (lambda (section)
+        (let* ((name (car section))
+               (data (cdr section))
+               (size (bytevector-length data)))
+          (bytevector-copy! data 0 data-section current-offset size)
+          (format #t "Added data section '~a' at offset ~a with size ~a bytes~%" 
+                  name current-offset size)
+          (set! current-offset (+ current-offset size))))
+      data-sections)
+    data-section))
