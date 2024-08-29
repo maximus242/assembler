@@ -1,10 +1,10 @@
 (define-module (section-headers)
-  #:use-module (rnrs bytevectors)
-  #:use-module (utils)
-  #:use-module (string-table)
-  #:use-module (srfi srfi-9)
-  #:use-module (config)
-  #:export (create-section-headers))
+               #:use-module (rnrs bytevectors)
+               #:use-module (utils)
+               #:use-module (string-table)
+               #:use-module (srfi srfi-9)
+               #:use-module (config)
+               #:export (create-section-headers))
 
 ;; Define a record type for section headers
 (define-record-type <section-header>
@@ -30,7 +30,7 @@
           plt-size plt-got-addr plt-got-size rela-plt-addr rela-plt-size
           got-plt-addr got-plt-size rodata-offset gnu-version-addr gnu-version-r-addr
           gnu-version-size gnu-version-r-size gnu-version-d-offset gnu-version-d-size 
-          hash-offset hash-size)
+          hash-offset hash-size code-offset init-offset init-size)
 
   (let ((headers
           (list
@@ -113,7 +113,10 @@
             (make-section-header 170 #x6ffffffd shf-alloc
                                  gnu-version-d-offset gnu-version-d-offset gnu-version-d-size 7 1 4 0)
 
-          )))
+            (make-section-header 185 1 (logior shf-alloc shf-execinstr)
+                                 init-offset init-offset init-size 0 0 4 0)
+
+            )))
 
     ;; Log the final section headers for debugging
     (log-section-headers headers)

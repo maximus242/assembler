@@ -266,10 +266,16 @@
          (symtab-offset (calculate-symtab-offset section-offset code-size rodata-size data-size))
          (total-size (calculate-total-size section-headers-offset))
          (code-offset (calculate-code-offset elf-header-size program-headers-offset))
+         (init-offset (align-to text-addr 16))
+         (init-size 16)
+         (fini-size 16)
+         (fini-offset (align-to (+ init-offset init-size) 16))
          (strtab-offset (calculate-strtab-offset symtab-offset symtab-size)))
 
     (list
       (cons 'program-headers-offset program-headers-offset)
+      (cons 'init-offset init-offset)
+      (cons 'init-size init-size)
       (cons 'code-size code-size)
       (cons 'code-offset code-offset)
       (cons 'rodata-size rodata-size)

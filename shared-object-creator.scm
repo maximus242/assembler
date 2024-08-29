@@ -50,6 +50,17 @@
   (unless condition
     (error message)))
 
+(define (create-init-section)
+  (let ((init-section (make-bytevector 16 0)))
+    ;; Simple .init section (x86_64 assembly)
+    (bytevector-u8-set! init-section 0 #x55)  ; push rbp
+    (bytevector-u8-set! init-section 1 #x48)
+    (bytevector-u8-set! init-section 2 #x89)
+    (bytevector-u8-set! init-section 3 #xe5)  ; mov rbp, rsp
+    (bytevector-u8-set! init-section 4 #x5d)  ; pop rbp
+    (bytevector-u8-set! init-section 5 #xc3)  ; ret
+    init-section))
+
 (define (print-relocation-table table)
   (let ((size (bytevector-length table)))
     (do ((i 0 (+ i 8)))
@@ -162,6 +173,8 @@
          (data-offset (assoc-ref layout 'data-offset))
          (rodata-size (assoc-ref layout 'rodata-size))
          (plt-size (assoc-ref layout 'plt-size))
+         (init-offset (assoc-ref layout 'init-offset))
+         (init-size (assoc-ref layout 'init-size))
          (section-headers-offset (assoc-ref layout 'section-headers-offset))
          (shstrtab-addr (assoc-ref layout 'shstrtab-addr))
          (dynamic-addr #x3000)
@@ -174,6 +187,7 @@
          (strtab (assoc-ref layout 'strtab))
          (dynsym-size (assoc-ref layout 'dynsym-size))
          (dynstr-size (assoc-ref layout 'dynstr-size))
+         (init-section (create-init-section))
          (rodata-offset #x2000)
          (dynamic-offset (align-to dynamic-addr word-size))
          (dynamic-size (assoc-ref layout 'dynamic-size))
@@ -183,11 +197,16 @@
          (rela-offset (align-to (+ dynstr-offset dynstr-size) word-size))
          (relocation-table (create-relocation-table symtab-hash))
          (relocation-table-size (bytevector-length relocation-table))
+         (code-offset (assoc-ref layout 'code-offset))
          (got-offset (align-to (+ dynamic-offset dynamic-size) word-size))
          (got-plt-offset (align-to (+ got-offset got-size) word-size))
          (got-plt-size (* (+ (length (hash-map->list cons label-positions)) 3) 8))  ; 3 reserved entries + function entries
          (got-size (assoc-ref layout 'got-size))
-         (plt-offset (+ text-addr code-size))
+         (init-offset (+ text-addr code-size))
+         (init-size 16)
+         (fini-size 16)
+         (fini-offset (align-to (+ init-offset init-size) 16))
+         (plt-offset (align-to (+ fini-offset fini-size) 16))
          (plt-section (create-plt-section label-positions got-offset))
          (plt-size (bytevector-length plt-section))
          (plt-got-offset (align-to (+ plt-offset plt-size) word-size))
@@ -283,7 +302,11 @@
                             gnu-version-d-offset
                             gnu-version-d-size
                             hash-offset
-                            hash-size))
+                            hash-size
+                            code-offset
+                            init-offset
+                            init-size
+                            ))
          (program-headers (create-program-headers 
                             elf-header-size
                             program-header-size
@@ -362,6 +385,8 @@
       (bytevector-copy! dynamic-section 0 elf-file dynamic-offset dynamic-size)
       (bytevector-copy! symtab-bv 0 elf-file dynsym-offset dynsym-size)
       (bytevector-copy! strtab 0 elf-file dynstr-offset dynstr-size)
+
+      (bytevector-copy! init-section 0 elf-file init-offset init-size)
 
       (bytevector-copy! relocation-table 0 elf-file rela-offset relocation-table-size)
       (bytevector-copy! hash-table 0 elf-file hash-offset hash-size)
