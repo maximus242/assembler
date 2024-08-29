@@ -43,11 +43,11 @@
 
             ;; .data section
             (make-section-header 7 sht-progbits (logior shf-write shf-alloc)
-                                 data-addr data-addr data-size 0 0 8 0)
+                                 data-addr data-addr data-size 0 0 32 0)
 
             ;; .bss section
             (make-section-header 13 sht-nobits (logior shf-write shf-alloc)
-                                 (+ data-addr data-size) (+ data-addr data-size) 0 0 0 8 0)
+                                 (+ data-addr data-size) (+ data-addr data-size) 0 0 0 32 0)
 
             ;; .rodata section
             (make-section-header 18 sht-progbits shf-alloc
@@ -67,7 +67,7 @@
 
             ;; .rela.dyn section
             (make-section-header 88 sht-rela shf-alloc
-                                 rela-addr rela-addr rela-size 6 0 14 24)
+                                 rela-addr rela-addr rela-size 6 0 8 24)
 
             ;; .got section
             (make-section-header 98 sht-progbits (logior shf-write shf-alloc)
@@ -88,7 +88,7 @@
 
             ;; .rela.plt section
             (make-section-header 126 sht-rela shf-alloc
-                                 rela-plt-addr rela-plt-addr rela-plt-size 6 16 14 24)
+                                 rela-plt-addr rela-plt-addr rela-plt-size 6 16 8 24)
 
             ;; .plt.got section
             (make-section-header 108 sht-progbits (logior shf-alloc shf-execinstr)
