@@ -196,4 +196,4 @@
   (let ((symbol-table (if (hash-table? symbol-addresses)
                           symbol-addresses
                           (alist->hash-table symbol-addresses))))
-    (resolve-references code symbol-table label-positions relocation-table #x1000 #x3100 got-relocation-table)))
+    (resolve-references code symbol-table label-positions relocation-table #x1000 #x3120 got-relocation-table)))

@@ -125,19 +125,18 @@
     bv))
 
 (define (create-gnu-version-d-section)
-  (let ((bv (make-bytevector 28 0)))  ; Size for one version definition + one verneed
-    ;; Version definition entry
-    (bytevector-u16-set! bv 0 1 (endianness little))  ; Version (16-bit)
-    (bytevector-u16-set! bv 2 1 (endianness little))  ; Flags (16-bit) - FLG_BASE
-    (bytevector-u16-set! bv 4 1 (endianness little))  ; Version index (16-bit)
-    (bytevector-u16-set! bv 6 1 (endianness little))  ; Count of associated verneed entries
-    (bytevector-u32-set! bv 8 #x0980a2a9 (endianness little))  ; Hash of "VERS_1.0"
-    (bytevector-u32-set! bv 12 20 (endianness little))  ; Offset to verneed entry
-    (bytevector-u32-set! bv 16 0 (endianness little))  ; Offset to next verdef (0 means no next)
-
-    ;; Verneed entry
-    (bytevector-u32-set! bv 20 1 (endianness little))  ; Offset to version name in .dynstr (1 for "VERS_1.0")
-    (bytevector-u32-set! bv 24 0 (endianness little))  ; Offset to next vernaux (0 means no next)
+  (let ((bv (make-bytevector 28 0)))
+    (bytevector-u16-set! bv 0 1 (endianness little))  ; Version (1)
+    (bytevector-u16-set! bv 2 1 (endianness little))  ; Flags (1 for BASE)
+    (bytevector-u16-set! bv 4 1 (endianness little))  ; Version index (1)
+    (bytevector-u16-set! bv 6 1 (endianness little))  ; Cnt (1)
+    (bytevector-u32-set! bv 8 0 (endianness little))  ; Hash (can be 0)
+    (bytevector-u32-set! bv 12 20 (endianness little))  ; Offset to verdaux
+    (bytevector-u32-set! bv 16 0 (endianness little))  ; Offset to next (0)
+    
+    ; Verdaux entry
+    (bytevector-u32-set! bv 20 1 (endianness little))  ; Name offset in .dynstr
+    (bytevector-u32-set! bv 24 0 (endianness little))  ; Offset to next aux (0)
     bv))
 
 (define (create-gnu-version-section dynsym-count)
@@ -273,8 +272,8 @@
                             (+ dynamic-addr (- gnu-version-r-offset dynamic-offset))
                             (* 2 (/ dynsym-size 24))  ; gnu-version-size
                             gnu-version-r-size
-                            gnu-version-d-size
                             gnu-version-d-offset
+                            gnu-version-d-size
                             hash-offset
                             hash-size))
          (program-headers (create-program-headers 
