@@ -3,60 +3,91 @@
   #:use-module (ice-9 format)
   #:use-module (srfi srfi-1)
   #:use-module (ice-9 hash-table)
-  #:export (create-plt-section))
+  #:use-module ((utils) #:select (align-to))
+  #:export (create-plt-section print-plt-section))
 
-(define (create-plt-entry function-name got-plt-offset)
-  (let ((entry (make-bytevector 16 0)))  ; Each PLT entry is typically 16 bytes
-    (bytevector-u8-set! entry 0 #xff)   ; pushq
-    (bytevector-u8-set! entry 1 #x35)   ; *32(%rip)
-    (bytevector-u32-set! entry 2 got-plt-offset (endianness little))
-    (bytevector-u8-set! entry 6 #xff)   ; jmpq
-    (bytevector-u8-set! entry 7 #x25)   ; *32(%rip)
-    (bytevector-u32-set! entry 8 (- got-plt-offset 4) (endianness little))
+(define plt-entry-size 16)
+(define plt-base-address #x1080)
+(define got-plt-base-address #x31a0)
+
+(define (log-debug message . args)
+  (apply format (current-error-port) (string-append "DEBUG: " message "\n") args))
+
+(define (create-plt-main-entry)
+  (log-debug "Creating main PLT entry")
+  (let ((entry (make-bytevector plt-entry-size 0)))
+    (bytevector-u8-set! entry 0 #xff)
+    (bytevector-u8-set! entry 1 #x35)
+    (bytevector-u32-set! entry 2 8 (endianness little))
+    (bytevector-u8-set! entry 6 #xff)
+    (bytevector-u8-set! entry 7 #x25)
+    (bytevector-u32-set! entry 8 12 (endianness little))
+    (bytevector-u32-set! entry 12 #x00401f0f (endianness little))
+    (log-debug "Main PLT entry created: ~a" (bytevector->hex-string entry))
     entry))
 
-(define (create-plt-section label-positions got-plt-offset)
-  (let* ((function-labels (hash-fold 
-                            (lambda (key value result)
-                              (if (and (symbol? key) (not (eq? key 'start)))
-                                  (cons (cons key value) result)
-                                  result))
-                            '()
-                            label-positions))
-         (num-entries (length function-labels))
-         (plt-size (* (1+ num-entries) 16))  ; +1 for PLT0 entry
-         (plt (make-bytevector plt-size 0)))
-    
-    ; Create PLT0 entry
-    (bytevector-u8-set! plt 0 #xff)    ; pushq
-    (bytevector-u8-set! plt 1 #x35)    ; *32(%rip)
-    (bytevector-u32-set! plt 2 8 (endianness little))
-    (bytevector-u8-set! plt 6 #xff)    ; jmpq
-    (bytevector-u8-set! plt 7 #x25)    ; *32(%rip)
-    (bytevector-u32-set! plt 8 12 (endianness little))
-    
-    ; Create other PLT entries
-    (let loop ((entries function-labels) (index 1))
-      (if (null? entries)
-          plt
-          (let* ((function-name (caar entries))
-                 (entry (create-plt-entry function-name (+ got-plt-offset (* index 8))))
-                 (offset (* index 16)))
-            (bytevector-copy! entry 0 plt offset 16)
-            (loop (cdr entries) (1+ index)))))
-    
-    (values plt function-labels)))
+(define (create-plt-function-entry index)
+  (log-debug "Creating function PLT entry for index: ~d" index)
+  (let* ((entry (make-bytevector plt-entry-size 0))
+         (got-plt-offset (- got-plt-base-address (+ plt-base-address plt-entry-size 6))))
+    (log-debug "Calculated got-plt-offset: ~x" got-plt-offset)
+    (bytevector-u8-set! entry 0 #xff)
+    (bytevector-u8-set! entry 1 #x25)
+    (bytevector-u32-set! entry 2 got-plt-offset (endianness little))
+    (bytevector-u8-set! entry 6 #x68)
+    (bytevector-u32-set! entry 7 index (endianness little))
+    (bytevector-u8-set! entry 11 #xe9)
+    (bytevector-u32-set! entry 12 #xffffffe0 (endianness little))
+    (log-debug "Function PLT entry created: ~a" (bytevector->hex-string entry))
+    entry))
 
-(define (print-plt-section plt function-labels)
-  (let ((size (bytevector-length plt)))
-    (format #t "PLT Section (size: ~a bytes):~%" size)
-    (format #t "  PLT0: ~a~%" (bytevector->hex-string (bytevector-slice plt 0 16)))
-    (do ((i 16 (+ i 16))
-         (labels function-labels (cdr labels)))
-        ((or (>= i size) (null? labels)))
-      (format #t "  ~a: ~a~%" 
-              (caar labels)
-              (bytevector->hex-string (bytevector-slice plt i (min (+ i 16) size)))))))
+(define (create-plt-section label-positions)
+  (log-debug "Creating PLT section")
+  (let* ((num-entries (+ 1 (hash-count (const #t) label-positions)))
+         (plt-size (* num-entries plt-entry-size))
+         (plt (make-bytevector plt-size 0)))
+    (log-debug "Number of entries: ~d, PLT size: ~d bytes" num-entries plt-size)
+    
+    ;; Create main PLT entry
+    (let ((main-entry (create-plt-main-entry)))
+      (bytevector-copy! main-entry 0 plt 0 plt-entry-size))
+    
+    ;; Create function PLT entries
+    (let ((index 0))
+      (hash-for-each
+       (lambda (label offset)
+         (set! index (+ index 1))
+         (log-debug "Creating PLT entry for label: ~a, offset: ~x, index: ~d" label offset index)
+         (let ((entry (create-plt-function-entry index)))
+           (bytevector-copy! entry 0 plt (* index plt-entry-size) plt-entry-size)))
+       label-positions))
+    
+    (log-debug "PLT section created: ~a" (bytevector->hex-string plt))
+    plt))
+
+(define (print-plt-entry plt index label-positions)
+  (log-debug "Printing PLT entry ~d" index)
+  (let* ((offset (+ plt-base-address (* index plt-entry-size)))
+         (entry-bytes (bytevector-slice plt (* index plt-entry-size) (* (+ index 1) plt-entry-size))))
+    (format #t "    ~4x:\t~a~%" offset (bytevector->hex-string entry-bytes))
+    (cond
+     ((= index 0)
+      (format #t "         \tpush   0x8(%rip)        # ~x <perform_operations+0x8e>~%" (+ offset 14))
+      (format #t "         \tjmp    *0xc(%rip)        # ~x <perform_operations+0x98>~%" (+ offset 24))
+      (format #t "         \tnopl   0x0(%rax)~%"))
+     (else
+      (let* ((got-plt-offset (- got-plt-base-address (+ offset 6))))
+        (format #t "         \tjmp    *0x~x(%rip)        # ~x <perform_operations+0x~x>~%"
+                got-plt-offset got-plt-base-address (- got-plt-base-address #x1000))
+        (format #t "         \tpush   $0x~x~%" (- index 1))
+        (format #t "         \tjmp    ~4x <perform_operations+0x80>~%" plt-base-address))))))
+
+(define (print-plt-section plt label-positions)
+  (log-debug "Printing PLT section")
+  (format #t "~8x <.plt>:~%" plt-base-address)
+  (do ((i 0 (+ i 1)))
+      ((>= i (/ (bytevector-length plt) plt-entry-size)))
+    (print-plt-entry plt i label-positions)))
 
 (define (bytevector->hex-string bv)
   (string-join (map (lambda (byte) (format #f "~2,'0x" byte))
