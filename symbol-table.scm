@@ -1,24 +1,24 @@
 (define-module (symbol-table)
-  #:use-module (ice-9 hash-table)
-  #:use-module (rnrs bytevectors)
-  #:use-module (rnrs io ports)
-  #:use-module (srfi srfi-1)
-  #:use-module (srfi srfi-9)
-  #:use-module (string-table)
-  #:export (make-symbol-table
-            add-symbol!
-            add-label-symbol!
-            get-symbol
-            symbol-in-table?
-            symbol-is-function?
-            create-symbol-table
-            create-dynamic-symbol-table
-            create-hash-section
-            make-symbol-entry
-            symbol-entry-name
-            symbol-entry-address
-            symbol-entry-shndx
-            create-version-section))
+               #:use-module (ice-9 hash-table)
+               #:use-module (rnrs bytevectors)
+               #:use-module (rnrs io ports)
+               #:use-module (srfi srfi-1)
+               #:use-module (srfi srfi-9)
+               #:use-module (string-table)
+               #:export (make-symbol-table
+                          add-symbol!
+                          add-label-symbol!
+                          get-symbol
+                          symbol-in-table?
+                          symbol-is-function?
+                          create-symbol-table
+                          create-dynamic-symbol-table
+                          create-hash-section
+                          make-symbol-entry
+                          symbol-entry-name
+                          symbol-entry-address
+                          symbol-entry-shndx
+                          create-version-section))
 
 (define *version-string* "VERS_1.0")
 
@@ -54,18 +54,18 @@
 
 (define (add-symbols-to-table! table symbols add-func)
   (if (hash-table? symbols)
-      (hash-for-each (lambda (name address)
-                       (add-func table name address))
-                     symbols)
-      (for-each (lambda (sym)
-                  (add-func table (car sym) (cdr sym)))
-                symbols)))
+    (hash-for-each (lambda (name address)
+                     (add-func table name address))
+                   symbols)
+    (for-each (lambda (sym)
+                (add-func table (car sym) (cdr sym)))
+              symbols)))
 
 (define* (create-symbol-table symbol-addresses label-positions #:optional (options '()))
-  (let ((table (make-symbol-table)))
-    (add-symbols-to-table! table symbol-addresses add-symbol!)
-    (add-symbols-to-table! table (or label-positions '()) add-label-symbol!)
-    table))
+         (let ((table (make-symbol-table)))
+           (add-symbols-to-table! table symbol-addresses add-symbol!)
+           (add-symbols-to-table! table (or label-positions '()) add-label-symbol!)
+           table))
 
 (define (create-symbol-entry name-offset address is-function options)
   (let ((st-info (logior (ash (assoc-ref options 'stb-global) 4) 
@@ -87,7 +87,10 @@
     (write-field (assoc-ref options 'st-value-offset) 8 (symbol-entry-address entry))
     (write-field (assoc-ref options 'st-size-offset) 8 (symbol-entry-size entry))))
 
-(define* (create-dynamic-symbol-table symbol-table #:optional (options '()))
+(define* (create-dynamic-symbol-table symbol-addresses label-positions #:optional (options '()))
+  (define symbol-table (make-symbol-table))
+  (add-symbols-to-table! symbol-table symbol-addresses add-symbol!)
+  (add-symbols-to-table! symbol-table (or label-positions '()) add-label-symbol!)
   (let* ((default-options '((symbol-entry-size . 24)
                             (st-name-offset . 0)
                             (st-info-offset . 4)
@@ -114,13 +117,10 @@
                                           symbol-table)))
          (string-table (make-bytevector string-table-size 0))
          (string-table-offset (assoc-ref opts 'initial-string-offset)))
-
     (write-symbol-entry! table 0 opts (create-symbol-entry 0 0 #f opts))
-    
     (bytevector-copy! (string->utf8 *version-string*) 0 string-table string-table-offset (string-length *version-string*))
     (bytevector-u8-set! string-table (+ string-table-offset (string-length *version-string*)) 0)
     (set! string-table-offset (+ string-table-offset (string-length *version-string*) 1))
-
     (let loop ((symbols (hash-map->list cons symbol-table))
                (index 1)
                (str-offset string-table-offset))
@@ -142,26 +142,26 @@
                   (+ str-offset (bytevector-length name-bytes) (assoc-ref opts 'null-terminator-size))))))))
 
 (define* (create-hash-section dynsym-table #:optional (options '()))
-  (let* ((opts (append options '((hash-header-size . 8)
-                                 (hash-entry-size . 4)
-                                 (symbol-entry-size . 24))))
-         (nbucket 1)
-         (nchain (/ (bytevector-length dynsym-table) (assoc-ref opts 'symbol-entry-size)))
-         (hash-size (+ (assoc-ref opts 'hash-header-size)
-                       (* (assoc-ref opts 'hash-entry-size) (+ nbucket nchain))))
-         (hash-section (make-bytevector hash-size 0)))
-    (bytevector-u32-set! hash-section 0 nbucket (endianness little))
-    (bytevector-u32-set! hash-section 4 nchain (endianness little))
-    (bytevector-u32-set! hash-section 8 0 (endianness little))
-    (let loop ((i 0))
-      (when (< i nchain)
-        (bytevector-u32-set! hash-section 
-                             (+ (assoc-ref opts 'hash-header-size) 
-                                (* (assoc-ref opts 'hash-entry-size) i))
-                             i 
-                             (endianness little))
-        (loop (+ i 1))))
-    hash-section))
+         (let* ((opts (append options '((hash-header-size . 8)
+                                        (hash-entry-size . 4)
+                                        (symbol-entry-size . 24))))
+                (nbucket 1)
+                (nchain (/ (bytevector-length dynsym-table) (assoc-ref opts 'symbol-entry-size)))
+                (hash-size (+ (assoc-ref opts 'hash-header-size)
+                              (* (assoc-ref opts 'hash-entry-size) (+ nbucket nchain))))
+                (hash-section (make-bytevector hash-size 0)))
+           (bytevector-u32-set! hash-section 0 nbucket (endianness little))
+           (bytevector-u32-set! hash-section 4 nchain (endianness little))
+           (bytevector-u32-set! hash-section 8 0 (endianness little))
+           (let loop ((i 0))
+             (when (< i nchain)
+               (bytevector-u32-set! hash-section 
+                                    (+ (assoc-ref opts 'hash-header-size) 
+                                       (* (assoc-ref opts 'hash-entry-size) i))
+                                    i 
+                                    (endianness little))
+               (loop (+ i 1))))
+           hash-section))
 
 (define (create-version-section)
   (let* ((version-bytes (string->utf8 *version-string*))

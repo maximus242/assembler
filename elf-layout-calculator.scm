@@ -78,13 +78,13 @@
 
 (define (calculate-symtab-size symbol-addresses label-positions)
   (let* ((symbol-table (create-symbol-table symbol-addresses label-positions))
-         (dynsym-and-strtab (create-dynamic-symbol-table symbol-table))
+         (dynsym-and-strtab (create-dynamic-symbol-table symbol-addresses label-positions))
          (size (bytevector-length (car dynsym-and-strtab))))
     size))
 
 (define (calculate-strtab-size symbol-addresses label-positions)
   (let* ((symbol-table (create-symbol-table symbol-addresses label-positions))
-         (dynsym-and-strtab (create-dynamic-symbol-table symbol-table))
+         (dynsym-and-strtab (create-dynamic-symbol-table symbol-addresses label-positions))
          (size (bytevector-length (cdr dynsym-and-strtab))))
     size))
 
@@ -93,7 +93,7 @@
 
 (define (calculate-dynamic-symbol-table-size symbol-addresses)
   (let* ((symbol-table (create-symbol-table symbol-addresses '()))
-         (dynsym-and-strtab (create-dynamic-symbol-table symbol-table))
+         (dynsym-and-strtab (create-dynamic-symbol-table symbol-addresses '()))
          (size (bytevector-length (car dynsym-and-strtab))))
     size))
 
@@ -237,7 +237,7 @@
          (plt-offset (calculate-plt-offset got-offset got-size))
          (symtab-hash (create-symbol-table symbol-addresses label-positions))
          (dynsym-indices (get-dynsym-indices symtab-hash))
-         (symtab-and-strtab (create-dynamic-symbol-table symtab-hash))
+         (symtab-and-strtab (create-dynamic-symbol-table symbol-addresses label-positions))
          (symtab-bv (car symtab-and-strtab))
          (strtab (cdr symtab-and-strtab))
          (dynsym-size (bytevector-length symtab-bv))
