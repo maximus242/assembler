@@ -18,7 +18,6 @@
             symbol-entry-name
             symbol-entry-address
             symbol-entry-shndx
-            convert-old-format-to-new
             create-version-section))
 
 (define *version-string* "VERS_1.0")
@@ -62,14 +61,11 @@
                   (add-func table (car sym) (cdr sym)))
                 symbols)))
 
-(define (convert-old-format-to-new symbol-addresses label-positions)
+(define* (create-symbol-table symbol-addresses label-positions #:optional (options '()))
   (let ((table (make-symbol-table)))
     (add-symbols-to-table! table symbol-addresses add-symbol!)
     (add-symbols-to-table! table (or label-positions '()) add-label-symbol!)
     table))
-
-(define* (create-symbol-table symbol-addresses label-positions #:optional (options '()))
-  (convert-old-format-to-new symbol-addresses label-positions))
 
 (define (create-symbol-entry name-offset address is-function options)
   (let ((st-info (logior (ash (assoc-ref options 'stb-global) 4) 

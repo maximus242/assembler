@@ -77,13 +77,13 @@
     total-size))
 
 (define (calculate-symtab-size symbol-addresses label-positions)
-  (let* ((symbol-table (convert-old-format-to-new symbol-addresses label-positions))
+  (let* ((symbol-table (create-symbol-table symbol-addresses label-positions))
          (dynsym-and-strtab (create-dynamic-symbol-table symbol-table))
          (size (bytevector-length (car dynsym-and-strtab))))
     size))
 
 (define (calculate-strtab-size symbol-addresses label-positions)
-  (let* ((symbol-table (convert-old-format-to-new symbol-addresses label-positions))
+  (let* ((symbol-table (create-symbol-table symbol-addresses label-positions))
          (dynsym-and-strtab (create-dynamic-symbol-table symbol-table))
          (size (bytevector-length (cdr dynsym-and-strtab))))
     size))
@@ -92,7 +92,7 @@
   (bytevector-length (create-section-header-string-table)))
 
 (define (calculate-dynamic-symbol-table-size symbol-addresses)
-  (let* ((symbol-table (convert-old-format-to-new symbol-addresses '()))
+  (let* ((symbol-table (create-symbol-table symbol-addresses '()))
          (dynsym-and-strtab (create-dynamic-symbol-table symbol-table))
          (size (bytevector-length (car dynsym-and-strtab))))
     size))
