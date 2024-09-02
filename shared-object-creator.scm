@@ -349,94 +349,79 @@
     (format #t "Code offset: ~a~%" (assoc-ref layout 'code-offset))
 
     (let ((elf-file (make-bytevector total-size 0)))
-      ;;(unless (validate-relocations relocation-table got-offset got-size data-addr (+ data-addr data-size))
-      ;;  (error "Relocation validation failed"))
-
+      ;; Copy ELF header
       (bytevector-copy! elf-header 0 elf-file 0 (bytevector-length elf-header))
+
+      ;; Copy program headers
       (bytevector-copy! program-headers 0 elf-file program-headers-offset program-headers-size)
 
-      ;; Resolve references in the code
+      ;; Resolve and copy code section
       (let* ((resolved-code (link-code code symtab-hash label-positions assembled-relocation-table data-addr))
              (code-offset (assoc-ref layout 'code-offset)))
+        (bytevector-copy! resolved-code 0 elf-file code-offset (bytevector-length resolved-code)))
 
-        (format #t "Resolved code length: ~a~%" (bytevector-length resolved-code))
-        (format #t "ELF file length: ~a~%" (bytevector-length elf-file))
-        (format #t "Code offset: ~a~%" code-offset)
-
-        (if (not (number? code-offset))
-          (begin
-            (format #t "Error: code-offset is not a number: ~a~%" code-offset)
-            (error "Invalid code-offset"))
-          (format #t "code-offset is valid: ~a~%" code-offset))
-
-        (if (>= (+ code-offset (bytevector-length resolved-code)) (bytevector-length elf-file))
-          (begin
-            (format #t "Error: Resolved code doesn't fit in ELF file at specified offset~%")
-            (format #t "  code-offset: ~a~%" code-offset)
-            (format #t "  resolved-code length: ~a~%" (bytevector-length resolved-code))
-            (format #t "  elf-file length: ~a~%" (bytevector-length elf-file))
-            (format #t "  sum: ~a~%" (+ code-offset (bytevector-length resolved-code)))
-            (error "Resolved code doesn't fit in ELF file"))
-          (begin
-            (bytevector-copy! resolved-code 0 elf-file code-offset (bytevector-length resolved-code))
-            (format #t "Resolved code copied to ELF file~%"))))
-
+      ;; Copy dynamic section
       (bytevector-copy! dynamic-section 0 elf-file dynamic-offset dynamic-size)
+
+      ;; Copy symbol table
       (bytevector-copy! symtab-bv 0 elf-file dynsym-offset dynsym-size)
+
+      ;; Copy string table
       (bytevector-copy! strtab 0 elf-file dynstr-offset dynstr-size)
 
+      ;; Copy initialization section
       (bytevector-copy! init-section 0 elf-file init-offset init-size)
 
+      ;; Copy relocation table
       (bytevector-copy! relocation-table 0 elf-file rela-offset relocation-table-size)
+
+      ;; Copy hash table
       (bytevector-copy! hash-table 0 elf-file hash-offset hash-size)
 
+      ;; Copy data section
       (bytevector-copy! data-section 0 elf-file data-addr (bytevector-length data-section))
 
-      ;; Add .symtab section
+      ;; Copy .symtab section
       (bytevector-copy! symtab-bv 0 elf-file symtab-offset dynsym-size)
 
-      ;; Add .strtab section
+      ;; Copy .strtab section
       (bytevector-copy! strtab 0 elf-file strtab-offset dynstr-size)
 
-      ;; Add .gnu.version section
-      (let* ((dynsym-count (/ (bytevector-length symtab-bv) 24))  ; Assuming 24 bytes per symbol
+      ;; Create and copy .gnu.version section
+      (let* ((dynsym-count (/ (bytevector-length symtab-bv) 24))
              (gnu-version-output (create-gnu-version-section dynsym-count))
-             (gnu-version-size (* 2 dynsym-count)))  ; 2 bytes per entry
-        (when (or (< gnu-version-offset 0)
-                  (> (+ gnu-version-offset gnu-version-size) (bytevector-length elf-file)))
-          (error "gnu-version section would be outside the ELF file bounds"))
+             (gnu-version-size (* 2 dynsym-count)))
         (bytevector-copy! gnu-version-output 0 elf-file gnu-version-offset gnu-version-size))
 
-      ;; Create .gnu.version_d section
+      ;; Create and copy .gnu.version_d section
       (let ((gnu-version-d (create-gnu-version-d-section)))
         (bytevector-copy! gnu-version-d 0 elf-file gnu-version-d-offset (bytevector-length gnu-version-d)))
-      ;
-      ;;      ;; Create .gnu.version_r section (empty in this case)
-      ;;      (let ((gnu-version-r (create-gnu-version-r-section)))
-      ;;        (bytevector-copy! gnu-version-r 0 elf-file gnu-version-r-offset (bytevector-length gnu-version-r)))
 
-      ;; Add .got section
+      ;; Copy .got section
       (let ((got-section (create-got-section got-size)))
         (bytevector-copy! got-section 0 elf-file got-offset got-size))
 
-      ;; Add .plt section
+      ;; Copy .plt section
       (bytevector-copy! plt-section 0 elf-file plt-offset plt-size)
 
-      ;; Add .plt.got section
+      ;; Copy .plt.got section
       (bytevector-copy! plt-got-section 0 elf-file plt-got-offset plt-got-size)
 
-      ;; Add .rela.plt section
+      ;; Copy .rela.plt section
       (bytevector-copy! rela-plt-section 0 elf-file rela-plt-offset rela-plt-size)
 
-      ;; Add .got.plt section
+      ;; Copy .got.plt section
       (bytevector-copy! got-plt-section 0 elf-file got-plt-offset got-plt-size)
 
+      ;; Copy section header string table
       (bytevector-copy! shstrtab 0 elf-file (- section-headers-offset shstrtab-size) shstrtab-size)
+
+      ;; Copy section headers
       (bytevector-copy! section-headers 0 elf-file section-headers-offset section-headers-size)
 
+      ;; Write the ELF file
       (call-with-output-file output-file
                              (lambda (port)
                                (put-bytevector port elf-file)))
 
-      (format #t "Shared object created: ~a~%" output-file)
       total-size)))
