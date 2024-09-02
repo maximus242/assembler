@@ -87,10 +87,11 @@
     (write-field (assoc-ref options 'st-value-offset) 8 (symbol-entry-address entry))
     (write-field (assoc-ref options 'st-size-offset) 8 (symbol-entry-size entry))))
 
-(define* (create-dynamic-symbol-table symbol-addresses label-positions #:optional (options '()))
+(define* (create-dynamic-symbol-table dynamic-symbol-addresses symbol-addresses label-positions #:optional (options '()))
   (define symbol-table (make-symbol-table))
   (add-symbols-to-table! symbol-table symbol-addresses add-symbol!)
   (add-symbols-to-table! symbol-table (or label-positions '()) add-label-symbol!)
+  (add-symbols-to-table! symbol-table dynamic-symbol-addresses add-symbol!)
   (let* ((default-options '((symbol-entry-size . 24)
                             (st-name-offset . 0)
                             (st-info-offset . 4)
@@ -110,6 +111,8 @@
          (symbol-count (+ (hash-count (const #t) symbol-table) 1))
          (table-size (* symbol-count symbol-entry-size))
          (table (make-bytevector table-size 0))
+
+         ;; String Table
          (string-table-size (+ 1 (string-length *version-string*) 1
                                (hash-fold (lambda (key value acc) 
                                             (+ acc (string-length (symbol->string key)) 1))

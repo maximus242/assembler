@@ -78,13 +78,13 @@
 
 (define (calculate-symtab-size symbol-addresses label-positions)
   (let* ((symbol-table (create-symbol-table symbol-addresses label-positions))
-         (dynsym-and-strtab (create-dynamic-symbol-table symbol-addresses label-positions))
+         (dynsym-and-strtab (create-dynamic-symbol-table '() symbol-addresses label-positions)) ;; TODO refactor
          (size (bytevector-length (car dynsym-and-strtab))))
     size))
 
 (define (calculate-strtab-size symbol-addresses label-positions)
   (let* ((symbol-table (create-symbol-table symbol-addresses label-positions))
-         (dynsym-and-strtab (create-dynamic-symbol-table symbol-addresses label-positions))
+         (dynsym-and-strtab (create-dynamic-symbol-table '()  symbol-addresses label-positions)) ;; TODO refactor
          (size (bytevector-length (cdr dynsym-and-strtab))))
     size))
 
@@ -93,7 +93,7 @@
 
 (define (calculate-dynamic-symbol-table-size symbol-addresses)
   (let* ((symbol-table (create-symbol-table symbol-addresses '()))
-         (dynsym-and-strtab (create-dynamic-symbol-table symbol-addresses '()))
+         (dynsym-and-strtab (create-dynamic-symbol-table '() symbol-addresses '())) ;; TODO refactor
          (size (bytevector-length (car dynsym-and-strtab))))
     size))
 
@@ -223,7 +223,8 @@
          (symtab-size (calculate-symtab-size symbol-addresses label-positions))
          (strtab-size (calculate-strtab-size symbol-addresses label-positions))
          (shstrtab-size (calculate-shstrtab-size))
-         (dynamic-symbol-table-size (calculate-dynamic-symbol-table-size symbol-addresses))
+         (dynamic-symbol-addresses (list (cons '_GLOBAL_OFFSET_TABLE_ #x3120)))
+         (dynamic-symbol-table-size (calculate-dynamic-symbol-table-size symbol-addresses)) ;; Update
          (relocation-table-size (calculate-relocation-table-size symbol-addresses))
          (got-size (calculate-got-size symbol-addresses))
          (plt-size (calculate-plt-size symbol-addresses))
@@ -237,7 +238,7 @@
          (plt-offset (calculate-plt-offset got-offset got-size))
          (symtab-hash (create-symbol-table symbol-addresses label-positions))
          (dynsym-indices (get-dynsym-indices symtab-hash))
-         (symtab-and-strtab (create-dynamic-symbol-table symbol-addresses label-positions))
+         (symtab-and-strtab (create-dynamic-symbol-table dynamic-symbol-addresses symbol-addresses label-positions))
          (symtab-bv (car symtab-and-strtab))
          (strtab (cdr symtab-and-strtab))
          (dynsym-size (bytevector-length symtab-bv))
