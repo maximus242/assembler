@@ -241,6 +241,8 @@
          (symtab-and-strtab (create-dynamic-symbol-table dynamic-symbol-addresses symbol-addresses label-positions))
          (symtab-bv (caar symtab-and-strtab))
          (strtab (cdar symtab-and-strtab))
+         (dynsymtab-bv (caar symtab-and-strtab))
+         (dynstrtab (cdar symtab-and-strtab))
          (dynsym-size (bytevector-length symtab-bv))
          (dynstr-size (bytevector-length strtab))
          (total-dynamic-size 
@@ -294,6 +296,8 @@
       (cons 'symtab-and-strtab symtab-and-strtab)
       (cons 'symtab-bv symtab-bv)
       (cons 'strtab strtab)
+      (cons 'dynsymtab-bv symtab-bv)
+      (cons 'dynstrtab strtab)
       (cons 'dynsym-size dynsym-size)
       (cons 'dynstr-size dynstr-size)
       (cons 'data-offset data-offset)

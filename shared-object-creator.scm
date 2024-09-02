@@ -184,6 +184,8 @@
          (dynsym-indices (assoc-ref layout 'dynsym-indices))
          (symtab-bv (assoc-ref layout 'symtab-bv))
          (strtab (assoc-ref layout 'strtab))
+         (dynsymtab-bv (assoc-ref layout 'dynsymtab-bv))
+         (dynstrtab (assoc-ref layout 'dynstrtab))
          (dynsym-size (assoc-ref layout 'dynsym-size))
          (dynstr-size (assoc-ref layout 'dynstr-size))
          (init-section (create-init-section))
@@ -349,7 +351,7 @@
     (format #t "Code offset: ~a~%" (assoc-ref layout 'code-offset))
 
     (let ((elf-file (make-bytevector total-size 0)))
-      ;; Copy ELF header
+      ;; Copy ELF header (assumed to start at the beginning of the file)
       (bytevector-copy! elf-header 0 elf-file 0 (bytevector-length elf-header))
 
       ;; Copy program headers
@@ -363,28 +365,28 @@
       ;; Copy dynamic section
       (bytevector-copy! dynamic-section 0 elf-file dynamic-offset dynamic-size)
 
-      ;; Copy symbol table
-      (bytevector-copy! symtab-bv 0 elf-file dynsym-offset dynsym-size)
+      ;; Copy dynamic symbol table (.dynsym)
+      (bytevector-copy! dynsymtab-bv 0 elf-file dynsym-offset dynsym-size)
 
-      ;; Copy string table
-      (bytevector-copy! strtab 0 elf-file dynstr-offset dynstr-size)
+      ;; Copy dynamic string table (.dynstr)
+      (bytevector-copy! dynstrtab 0 elf-file dynstr-offset dynstr-size)
 
-      ;; Copy initialization section
+      ;; Copy initialization section (.init)
       (bytevector-copy! init-section 0 elf-file init-offset init-size)
 
-      ;; Copy relocation table
+      ;; Copy relocation table (.rela.dyn)
       (bytevector-copy! relocation-table 0 elf-file rela-offset relocation-table-size)
 
-      ;; Copy hash table
+      ;; Copy hash table (.hash)
       (bytevector-copy! hash-table 0 elf-file hash-offset hash-size)
 
-      ;; Copy data section
+      ;; Copy data section (.data)
       (bytevector-copy! data-section 0 elf-file data-addr (bytevector-length data-section))
 
-      ;; Copy .symtab section
+      ;; Copy symbol table (.symtab)
       (bytevector-copy! symtab-bv 0 elf-file symtab-offset dynsym-size)
 
-      ;; Copy .strtab section
+      ;; Copy string table (.strtab)
       (bytevector-copy! strtab 0 elf-file strtab-offset dynstr-size)
 
       ;; Create and copy .gnu.version section
@@ -397,23 +399,23 @@
       (let ((gnu-version-d (create-gnu-version-d-section)))
         (bytevector-copy! gnu-version-d 0 elf-file gnu-version-d-offset (bytevector-length gnu-version-d)))
 
-      ;; Copy .got section
+      ;; Copy Global Offset Table (.got)
       (let ((got-section (create-got-section got-size)))
         (bytevector-copy! got-section 0 elf-file got-offset got-size))
 
-      ;; Copy .plt section
+      ;; Copy Procedure Linkage Table (.plt)
       (bytevector-copy! plt-section 0 elf-file plt-offset plt-size)
 
       ;; Copy .plt.got section
       (bytevector-copy! plt-got-section 0 elf-file plt-got-offset plt-got-size)
 
-      ;; Copy .rela.plt section
+      ;; Copy relocation entries for PLT (.rela.plt)
       (bytevector-copy! rela-plt-section 0 elf-file rela-plt-offset rela-plt-size)
 
-      ;; Copy .got.plt section
+      ;; Copy Global Offset Table for PLT (.got.plt)
       (bytevector-copy! got-plt-section 0 elf-file got-plt-offset got-plt-size)
 
-      ;; Copy section header string table
+      ;; Copy section header string table (.shstrtab)
       (bytevector-copy! shstrtab 0 elf-file (- section-headers-offset shstrtab-size) shstrtab-size)
 
       ;; Copy section headers
