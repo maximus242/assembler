@@ -45,7 +45,7 @@
     (bytevector-u8-set! bv 4 elf-class-64)
     (bytevector-u8-set! bv 5 elf-data-lsb)
     (bytevector-u8-set! bv 6 elf-version-current)
-    (bytevector-u8-set! bv 7 elf-osabi-linux)
+    (bytevector-u8-set! bv 7 0)  ; SYSV ABI
     (bytevector-u8-set! bv 8 0)  ; ABI version
     (bytevector-u16-set! bv 16 elf-type-shared (endianness little))
     (bytevector-u16-set! bv 18 elf-machine-x86-64 (endianness little))

@@ -90,7 +90,7 @@
     (buffer2 . ,buffer2)
     (result . ,result)
     (multiplier . ,multiplier))
-   "output.so"
+   "liboutput.so"
    symbol-addresses
    label-positions
    relocation-table)  ; Pass the relocation table to create-shared-object
