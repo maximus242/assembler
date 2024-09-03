@@ -78,7 +78,7 @@
                                  plt-addr plt-addr plt-size 0 0 16 16)
 
             ;; .symtab section
-            (make-section-header 26 sht-symtab 0 0 symtab-offset symtab-size 12 1 8 24)
+            (make-section-header 26 sht-symtab 0 0 symtab-offset symtab-size 12 23 8 24)
 
             ;; .strtab section
             (make-section-header 34 sht-strtab 0 0 strtab-offset strtab-size 0 0 1 0)

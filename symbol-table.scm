@@ -1,24 +1,24 @@
 (define-module (symbol-table)
-  #:use-module (ice-9 hash-table)
-  #:use-module (rnrs bytevectors)
-  #:use-module (rnrs io ports)
-  #:use-module (srfi srfi-1)
-  #:use-module (srfi srfi-9)
-  #:use-module (string-table)
-  #:export (make-symbol-table
-            add-symbol!
-            add-label-symbol!
-            get-symbol
-            symbol-in-table?
-            symbol-is-function?
-            create-symtab-and-strtab
-            create-dynsym-and-dynstr
-            create-hash-section
-            create-symbol-table
-            make-symbol-entry
-            symbol-entry-name
-            symbol-entry-address
-            create-version-section))
+               #:use-module (ice-9 hash-table)
+               #:use-module (rnrs bytevectors)
+               #:use-module (rnrs io ports)
+               #:use-module (srfi srfi-1)
+               #:use-module (srfi srfi-9)
+               #:use-module (string-table)
+               #:export (make-symbol-table
+                          add-symbol!
+                          add-label-symbol!
+                          get-symbol
+                          symbol-in-table?
+                          symbol-is-function?
+                          create-symtab-and-strtab
+                          create-dynsym-and-dynstr
+                          create-hash-section
+                          create-symbol-table
+                          make-symbol-entry
+                          symbol-entry-name
+                          symbol-entry-address
+                          create-version-section))
 
 (define *version-string* "VERS_1.0")
 
@@ -33,10 +33,15 @@
   (size symbol-entry-size))
 
 (define* (create-symbol-table symbol-addresses label-positions #:optional (options '()))
-  (let ((table (make-symbol-table)))
-    (add-symbols-to-table! table symbol-addresses add-symbol!)
-    (add-symbols-to-table! table (or label-positions '()) add-label-symbol!)
-    table))
+         (let ((table (make-symbol-table)))
+           (add-symbols-to-table! table symbol-addresses add-symbol!)
+           (add-symbols-to-table! table (or label-positions '()) add-label-symbol!)
+           table))
+
+(define (string-trim-suffix str suffix)
+  (if (string-suffix? suffix str)
+    (substring str 0 (- (string-length str) (string-length suffix)))
+    str))
 
 (define (make-symbol-table)
   (make-hash-table))
@@ -60,20 +65,20 @@
 
 (define (add-symbols-to-table! table symbols add-func)
   (if (hash-table? symbols)
-      (hash-for-each (lambda (name address)
-                       (add-func table name address))
-                     symbols)
-      (for-each (lambda (sym)
-                  (add-func table (car sym) (cdr sym)))
-                symbols)))
+    (hash-for-each (lambda (name address)
+                     (add-func table name address))
+                   symbols)
+    (for-each (lambda (sym)
+                (add-func table (car sym) (cdr sym)))
+              symbols)))
 
 (define (calculate-string-table-size symbol-table)
   (+ 1 (string-length *version-string*) 1
      (hash-fold 
-      (lambda (key value acc) 
-        (+ acc (string-length (symbol->string key)) 1))
-      0 
-      symbol-table)))
+       (lambda (key value acc) 
+         (+ acc (string-length (symbol->string key)) 1))
+       0 
+       symbol-table)))
 
 (define (write-initial-data string-table opts)
   (let ((initial-offset (assoc-ref opts 'initial-string-offset)))
@@ -107,34 +112,53 @@
           (make-bytevector string-table-size 0)))
 
   (define (process-table symbol-table table string-table opts initial-str-offset)
-    (let loop ((symbols (hash-map->list cons symbol-table))
-               (index 1)
-               (str-offset initial-str-offset))
-      (if (null? symbols)
-          (cons table string-table)
-          (let* ((symbol (car symbols))
-                 (name (symbol->string (car symbol)))
-                 (value (cdr symbol))
-                 (address (car value))
-                 (is-function (cdr value))
-                 (name-bytes (string->utf8 name))
-                 (entry (make-symbol-entry str-offset address 
-                                           (logior (ash (assoc-ref opts 'stb-global) 4)
-                                                   (if is-function 
-                                                       (assoc-ref opts 'stt-func) 
-                                                       (assoc-ref opts 'stt-object)))
-                                           0
-                                           (if is-function 
-                                               (assoc-ref opts 'shn-text) 
-                                               (assoc-ref opts 'shn-data))
-                                           (if is-function 0 32)))
-                 (entry-offset (* index (assoc-ref opts 'symbol-entry-size))))
-            (bytevector-copy! name-bytes 0 string-table str-offset (bytevector-length name-bytes))
-            (bytevector-u8-set! string-table (+ str-offset (bytevector-length name-bytes)) 0)
-            (write-symbol-entry! table entry-offset opts entry)
-            (loop (cdr symbols)
-                  (+ index 1)
-                  (+ str-offset (bytevector-length name-bytes) (assoc-ref opts 'null-terminator-size)))))))
+    (let* ((symbols (hash-map->list cons symbol-table))
+           (sorted-symbols (sort symbols (lambda (a b)
+                                           (let ((name-a (symbol->string (car a)))
+                                                 (name-b (symbol->string (car b))))
+                                             (and (string-contains name-a "@LOCAL")
+                                                  (not (string-contains name-b "@LOCAL"))))))))
+      (let loop ((symbols sorted-symbols)
+                 (index 1)
+                 (str-offset initial-str-offset))
+        (if (null? symbols)
+            (cons table string-table)
+            (let* ((symbol (car symbols))
+                   (name (symbol->string (car symbol)))
+                   (value (cdr symbol))
+                   (address (car value))
+                   (is-function (cdr value))
+                   (is-local (string-contains name "@LOCAL"))
+                   (clean-name (if is-local
+                                   (string-trim-suffix name "@LOCAL")
+                                   name))
+                   (name-bytes (string->utf8 clean-name))
+                   (stb-value (if is-local
+                                  (or (assoc-ref opts 'stb-local) 0)
+                                  (or (assoc-ref opts 'stb-global) 0)))
+                   (stt-func (or (assoc-ref opts 'stt-func) 0))
+                   (stt-object (or (assoc-ref opts 'stt-object) 0))
+                   (shn-text (or (assoc-ref opts 'shn-text) 0))
+                   (shn-data (or (assoc-ref opts 'shn-data) 0))
+                   (null-terminator-size (or (assoc-ref opts 'null-terminator-size) 1))
+                   (symbol-entry-size (or (assoc-ref opts 'symbol-entry-size) 16))
+                   (entry (make-symbol-entry str-offset address 
+                                             (logior (ash stb-value 4)
+                                                     (if is-function 
+                                                         stt-func 
+                                                         stt-object))
+                                             0
+                                             (if is-function 
+                                                 shn-text 
+                                                 shn-data)
+                                             (if is-function 0 32)))
+                   (entry-offset (* index symbol-entry-size)))
+              (bytevector-copy! name-bytes 0 string-table str-offset (bytevector-length name-bytes))
+              (bytevector-u8-set! string-table (+ str-offset (bytevector-length name-bytes)) 0)
+              (write-symbol-entry! table entry-offset opts entry)
+              (loop (cdr symbols)
+                    (+ index 1)
+                    (+ str-offset (bytevector-length name-bytes) null-terminator-size)))))))
 
   (let* ((default-options '((symbol-entry-size . 24)
                             (st-name-offset . 0)
@@ -157,88 +181,88 @@
          (symbol-table-bytevector (car symbol-tables))
          (symbol-string-table (cdr symbol-tables))
          (initial-str-offset (write-initial-data symbol-string-table opts)))
-    
+
     (write-symbol-entry! symbol-table-bytevector 0 opts (make-symbol-entry 0 0 0 0 0 0))
-    
+
     (process-table symbol-table symbol-table-bytevector symbol-string-table opts initial-str-offset)))
 
 (define* (create-dynsym-and-dynstr dynamic-symbol-addresses 
                                    #:optional (label-positions '()) (options '()))
-  (define (merge-options default-options custom-options)
-    (append custom-options default-options))
+         (define (merge-options default-options custom-options)
+           (append custom-options default-options))
 
-  (define (create-symbol-table addresses labels)
-    (let ((table (make-symbol-table)))
-      (add-symbols-to-table! table addresses add-symbol!)
-      (add-symbols-to-table! table (or labels '()) add-label-symbol!)
-      table))
+         (define (create-symbol-table addresses labels)
+           (let ((table (make-symbol-table)))
+             (add-symbols-to-table! table addresses add-symbol!)
+             (add-symbols-to-table! table (or labels '()) add-label-symbol!)
+             table))
 
-  (define (calculate-table-size symbol-table opts)
-    (let* ((symbol-entry-size (assoc-ref opts 'symbol-entry-size))
-           (symbol-count (+ (hash-count (const #t) symbol-table) 1))
-           (table-size (* symbol-count symbol-entry-size))
-           (string-table-size (calculate-string-table-size symbol-table)))
-      (cons table-size string-table-size)))
+         (define (calculate-table-size symbol-table opts)
+           (let* ((symbol-entry-size (assoc-ref opts 'symbol-entry-size))
+                  (symbol-count (+ (hash-count (const #t) symbol-table) 1))
+                  (table-size (* symbol-count symbol-entry-size))
+                  (string-table-size (calculate-string-table-size symbol-table)))
+             (cons table-size string-table-size)))
 
-  (define (initialize-table table-size string-table-size)
-    (cons (make-bytevector table-size 0)
-          (make-bytevector string-table-size 0)))
+         (define (initialize-table table-size string-table-size)
+           (cons (make-bytevector table-size 0)
+                 (make-bytevector string-table-size 0)))
 
-  (define (process-table symbol-table table string-table opts initial-str-offset)
-    (let loop ((symbols (hash-map->list cons symbol-table))
-               (index 1)
-               (str-offset initial-str-offset))
-      (if (null? symbols)
-          (cons table string-table)
-          (let* ((symbol (car symbols))
-                 (name (symbol->string (car symbol)))
-                 (value (cdr symbol))
-                 (address (car value))
-                 (is-function (cdr value))
-                 (name-bytes (string->utf8 name))
-                 (entry (make-symbol-entry str-offset address 
-                                           (logior (ash (assoc-ref opts 'stb-global) 4)
-                                                   (if is-function 
-                                                       (assoc-ref opts 'stt-func) 
-                                                       (assoc-ref opts 'stt-object)))
-                                           0
-                                           (if is-function 
-                                               (assoc-ref opts 'shn-text) 
-                                               (assoc-ref opts 'shn-data))
-                                           (if is-function 0 32)))
-                 (entry-offset (* index (assoc-ref opts 'symbol-entry-size))))
-            (bytevector-copy! name-bytes 0 string-table str-offset (bytevector-length name-bytes))
-            (bytevector-u8-set! string-table (+ str-offset (bytevector-length name-bytes)) 0)
-            (write-symbol-entry! table entry-offset opts entry)
-            (loop (cdr symbols)
-                  (+ index 1)
-                  (+ str-offset (bytevector-length name-bytes) (assoc-ref opts 'null-terminator-size)))))))
+         (define (process-table symbol-table table string-table opts initial-str-offset)
+           (let loop ((symbols (hash-map->list cons symbol-table))
+                      (index 1)
+                      (str-offset initial-str-offset))
+             (if (null? symbols)
+               (cons table string-table)
+               (let* ((symbol (car symbols))
+                      (name (symbol->string (car symbol)))
+                      (value (cdr symbol))
+                      (address (car value))
+                      (is-function (cdr value))
+                      (name-bytes (string->utf8 name))
+                      (entry (make-symbol-entry str-offset address 
+                                                (logior (ash (assoc-ref opts 'stb-global) 4)
+                                                        (if is-function 
+                                                          (assoc-ref opts 'stt-func) 
+                                                          (assoc-ref opts 'stt-object)))
+                                                0
+                                                (if is-function 
+                                                  (assoc-ref opts 'shn-text) 
+                                                  (assoc-ref opts 'shn-data))
+                                                (if is-function 0 32)))
+                      (entry-offset (* index (assoc-ref opts 'symbol-entry-size))))
+                 (bytevector-copy! name-bytes 0 string-table str-offset (bytevector-length name-bytes))
+                 (bytevector-u8-set! string-table (+ str-offset (bytevector-length name-bytes)) 0)
+                 (write-symbol-entry! table entry-offset opts entry)
+                 (loop (cdr symbols)
+                       (+ index 1)
+                       (+ str-offset (bytevector-length name-bytes) (assoc-ref opts 'null-terminator-size)))))))
 
-  (let* ((default-options '((symbol-entry-size . 24)
-                            (st-name-offset . 0)
-                            (st-info-offset . 4)
-                            (st-other-offset . 5)
-                            (st-shndx-offset . 6)
-                            (st-value-offset . 8)
-                            (st-size-offset . 16)
-                            (null-terminator-size . 1)
-                            (initial-string-offset . 1)
-                            (stt-object . 1)
-                            (stt-func . 2)
-                            (stb-global . 1)
-                            (shn-data . 2)
-                            (shn-text . 1)))
-         (opts (merge-options default-options options))
-         (dynamic-symbol-table (create-symbol-table dynamic-symbol-addresses label-positions))
-         (dynamic-sizes (calculate-table-size dynamic-symbol-table opts))
-         (dynamic-tables (initialize-table (car dynamic-sizes) (cdr dynamic-sizes)))
-         (dynamic-table-bytevector (car dynamic-tables))
-         (dynamic-string-table (cdr dynamic-tables))
-         (dynamic-initial-str-offset (write-initial-data dynamic-string-table opts)))
-    
-    (write-symbol-entry! dynamic-table-bytevector 0 opts (make-symbol-entry 0 0 0 0 0 0))
-    
-    (process-table dynamic-symbol-table dynamic-table-bytevector dynamic-string-table opts dynamic-initial-str-offset)))
+         (let* ((default-options '((symbol-entry-size . 24)
+                                   (st-name-offset . 0)
+                                   (st-info-offset . 4)
+                                   (st-other-offset . 5)
+                                   (st-shndx-offset . 6)
+                                   (st-value-offset . 8)
+                                   (st-size-offset . 16)
+                                   (null-terminator-size . 1)
+                                   (initial-string-offset . 1)
+                                   (stt-object . 1)
+                                   (stt-func . 2)
+                                   (stb-global . 1)
+                                   (shn-data . 2)
+                                   (shn-text . 1)))
+                (opts (merge-options default-options options))
+                (dynamic-symbol-table (create-symbol-table dynamic-symbol-addresses label-positions))
+                (dynamic-sizes (calculate-table-size dynamic-symbol-table opts))
+                (dynamic-tables (initialize-table (car dynamic-sizes) (cdr dynamic-sizes)))
+                (dynamic-table-bytevector (car dynamic-tables))
+                (dynamic-string-table (cdr dynamic-tables))
+                (dynamic-initial-str-offset (write-initial-data dynamic-string-table opts)))
+
+           (write-symbol-entry! dynamic-table-bytevector 0 opts (make-symbol-entry 0 0 0 0 0 0))
+
+           (process-table dynamic-symbol-table dynamic-table-bytevector dynamic-string-table opts dynamic-initial-str-offset)))
 
 (define (write-symbol-entry! table entry-offset opts entry)
   (define (write-field offset size value)
@@ -247,7 +271,7 @@
       ((2) (bytevector-u16-set! table (+ entry-offset offset) value (endianness little)))
       ((4) (bytevector-u32-set! table (+ entry-offset offset) value (endianness little)))
       ((8) (bytevector-u64-set! table (+ entry-offset offset) value (endianness little)))))
-  
+
   (write-field (assoc-ref opts 'st-name-offset) 4 (symbol-entry-name entry))
   (write-field (assoc-ref opts 'st-info-offset) 1 (symbol-entry-info entry))
   (write-field (assoc-ref opts 'st-other-offset) 1 (symbol-entry-other entry))
@@ -256,26 +280,26 @@
   (write-field (assoc-ref opts 'st-size-offset) 8 (symbol-entry-size entry)))
 
 (define* (create-hash-section dynsym-table #:optional (options '()))
-  (let* ((opts (append options '((hash-header-size . 8)
-                                 (hash-entry-size . 4)
-                                 (symbol-entry-size . 24))))
-         (nbucket 1)
-         (nchain (/ (bytevector-length dynsym-table) (assoc-ref opts 'symbol-entry-size)))
-         (hash-size (+ (assoc-ref opts 'hash-header-size)
-                       (* (assoc-ref opts 'hash-entry-size) (+ nbucket nchain))))
-         (hash-section (make-bytevector hash-size 0)))
-    (bytevector-u32-set! hash-section 0 nbucket (endianness little))
-    (bytevector-u32-set! hash-section 4 nchain (endianness little))
-    (bytevector-u32-set! hash-section 8 0 (endianness little))
-    (let loop ((i 0))
-      (when (< i nchain)
-        (bytevector-u32-set! hash-section 
-                             (+ (assoc-ref opts 'hash-header-size) 
-                                (* (assoc-ref opts 'hash-entry-size) i))
-                             i 
-                             (endianness little))
-        (loop (+ i 1))))
-    hash-section))
+         (let* ((opts (append options '((hash-header-size . 8)
+                                        (hash-entry-size . 4)
+                                        (symbol-entry-size . 24))))
+                (nbucket 1)
+                (nchain (/ (bytevector-length dynsym-table) (assoc-ref opts 'symbol-entry-size)))
+                (hash-size (+ (assoc-ref opts 'hash-header-size)
+                              (* (assoc-ref opts 'hash-entry-size) (+ nbucket nchain))))
+                (hash-section (make-bytevector hash-size 0)))
+           (bytevector-u32-set! hash-section 0 nbucket (endianness little))
+           (bytevector-u32-set! hash-section 4 nchain (endianness little))
+           (bytevector-u32-set! hash-section 8 0 (endianness little))
+           (let loop ((i 0))
+             (when (< i nchain)
+               (bytevector-u32-set! hash-section 
+                                    (+ (assoc-ref opts 'hash-header-size) 
+                                       (* (assoc-ref opts 'hash-entry-size) i))
+                                    i 
+                                    (endianness little))
+               (loop (+ i 1))))
+           hash-section))
 
 (define (create-version-section)
   (let* ((version-bytes (string->utf8 *version-string*))
