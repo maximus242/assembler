@@ -217,7 +217,7 @@
          (rodata-size (calculate-rodata-size))
          (bss-size (calculate-bss-size))
          (data-size (calculate-data-size data-sections))
-         (unique-symbol-addresses (list (cons '_GLOBAL_OFFSET_TABLE_ #x3120)))
+         (unique-symbol-addresses (list (cons '_GLOBAL_OFFSET_TABLE_ #x3120) (cons '_DYNAMIC #x3000)))
          (combined-symbol-addresses (append symbol-addresses unique-symbol-addresses))
          (symtab-size (calculate-symtab-size combined-symbol-addresses label-positions))
          (strtab-size (calculate-strtab-size combined-symbol-addresses label-positions))
