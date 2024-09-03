@@ -384,10 +384,10 @@
       (bytevector-copy! data-section 0 elf-file data-addr (bytevector-length data-section))
 
       ;; Copy symbol table (.symtab)
-      (bytevector-copy! symtab-bv 0 elf-file symtab-offset dynsym-size)
+      (bytevector-copy! symtab-bv 0 elf-file symtab-offset symtab-size)
 
       ;; Copy string table (.strtab)
-      (bytevector-copy! strtab 0 elf-file strtab-offset dynstr-size)
+      (bytevector-copy! strtab 0 elf-file strtab-offset strtab-size)
 
       ;; Create and copy .gnu.version section
       (let* ((dynsym-count (/ (bytevector-length symtab-bv) 24))

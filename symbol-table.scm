@@ -82,6 +82,10 @@
     (+ initial-offset (string-length *version-string*) 1)))
 
 (define* (create-symtab-and-strtab symbol-addresses label-positions #:optional (options '()))
+  (format #t "create-symtab-and-strtab called with:~%")
+  (format #t "  symbol-addresses: ~S~%" symbol-addresses)
+  (format #t "  label-positions: ~S~%" label-positions)
+  (format #t "  options: ~S~%" options)
   (define (merge-options default-options custom-options)
     (append custom-options default-options))
 
