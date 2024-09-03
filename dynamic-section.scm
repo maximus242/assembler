@@ -64,7 +64,7 @@
     (set-dynamic-entry! section 11 DT_JMPREL jmprel-offset)
     
     ;; Set DT_INIT and DT_FINI to 0 if not used
-    (set-dynamic-entry! section 12 DT_INIT 0)
+    (set-dynamic-entry! section 12 DT_INIT #x1052)
     (set-dynamic-entry! section 13 DT_FINI 0)
     
     ;; Set GNU version entries

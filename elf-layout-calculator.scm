@@ -17,8 +17,8 @@
 
 (define (align-to value alignment)
   (if (= (modulo value alignment) 0)
-      value
-      (+ value (- alignment (modulo value alignment)))))
+    value
+    (+ value (- alignment (modulo value alignment)))))
 
 (define (align-up address alignment)
   (let ((remainder (modulo address alignment)))
@@ -217,7 +217,30 @@
          (rodata-size (calculate-rodata-size))
          (bss-size (calculate-bss-size))
          (data-size (calculate-data-size data-sections))
-         (unique-symbol-addresses (list (cons '_GLOBAL_OFFSET_TABLE_ #x3120) (cons '_DYNAMIC #x3000)))
+         (unique-symbol-addresses
+           (list
+             (cons '.text #x1000)
+             (cons '.data #x31c0)
+             (cons '.bss #x3240)
+             (cons '.rodata #x2000)
+             (cons '.dynamic #x3000)
+             (cons '.dynsym #x01c8)
+             (cons '.dynstr #x0258)
+             (cons '.rela.dyn #x0298)
+             (cons '.got #x3120)
+             (cons '.plt #x1080)
+             (cons '.symtab #x20d2)
+             (cons '.strtab #x2192)
+             (cons '.shstrtab #x3f41)
+             (cons '.rela.plt #x02f8)
+             (cons '.plt.got #x10a0)
+             (cons '.got.plt #x31a0)
+             (cons '.hash #x0310)
+             (cons '.gnu.version #x033c)
+             (cons '.gnu.version_d #x0360)
+             (cons '.init #x1052)
+             (cons '_GLOBAL_OFFSET_TABLE_ #x3120) 
+             (cons '_DYNAMIC #x3000)))
          (combined-symbol-addresses (append symbol-addresses unique-symbol-addresses))
          (symtab-size (calculate-symtab-size combined-symbol-addresses label-positions))
          (strtab-size (calculate-strtab-size combined-symbol-addresses label-positions))
