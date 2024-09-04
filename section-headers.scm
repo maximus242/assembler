@@ -59,7 +59,7 @@
 
             ;; .dynsym section
             (make-section-header 80 sht-dynsym shf-alloc
-                                 dynsym-addr dynsym-addr dynsym-size 7 1 8 24)
+                                 dynsym-addr dynsym-addr dynsym-size 7 2 8 24)
 
             ;; .dynstr section
             (make-section-header 72 sht-strtab shf-alloc
