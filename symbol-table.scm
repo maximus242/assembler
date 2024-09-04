@@ -111,13 +111,28 @@
     (cons (make-bytevector table-size 0)
           (make-bytevector string-table-size 0)))
 
-  (define (process-table symbol-table table string-table opts initial-str-offset)
+  (define (process-table symbol-table table string-table opts initial-str-offset symbol-addresses)
     (let* ((symbols (hash-map->list cons symbol-table))
-           (sorted-symbols (sort symbols (lambda (a b)
-                                           (let ((name-a (symbol->string (car a)))
-                                                 (name-b (symbol->string (car b))))
-                                             (and (string-contains name-a "@LOCAL")
-                                                  (not (string-contains name-b "@LOCAL"))))))))
+           (sorted-symbols 
+            (sort symbols
+                  (lambda (a b)
+                    (let ((name-a (symbol->string (car a)))
+                          (name-b (symbol->string (car b)))
+                          (index-a (list-index (lambda (addr) (equal? (car addr) (car a))) symbol-addresses))
+                          (index-b (list-index (lambda (addr) (equal? (car addr) (car b))) symbol-addresses)))
+                      (cond
+                       ;; Both local or both global, sort by original order
+                       ((eq? (string-contains name-a "@LOCAL")
+                             (string-contains name-b "@LOCAL"))
+                        (cond
+                         ((and index-a index-b) (< index-a index-b))
+                         (index-a #t)
+                         (index-b #f)
+                         (else (string<? name-a name-b))))  ; fallback to alphabetical order
+                       ;; a is local, b is global
+                       ((string-contains name-a "@LOCAL") #t)
+                       ;; a is global, b is local
+                       (else #f)))))))
       (let loop ((symbols sorted-symbols)
                  (index 1)
                  (str-offset initial-str-offset))
@@ -184,7 +199,7 @@
 
     (write-symbol-entry! symbol-table-bytevector 0 opts (make-symbol-entry 0 0 0 0 0 0))
 
-    (process-table symbol-table symbol-table-bytevector symbol-string-table opts initial-str-offset)))
+    (process-table symbol-table symbol-table-bytevector symbol-string-table opts initial-str-offset symbol-addresses)))
 
 (define* (create-dynsym-and-dynstr dynamic-symbol-addresses 
                                    #:optional (label-positions '()) (options '()))
