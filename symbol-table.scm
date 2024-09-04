@@ -144,28 +144,34 @@
                    (address (car value))
                    (is-function (cdr value))
                    (is-local (string-contains name "@LOCAL"))
+                   (is-section (char=? (string-ref name 0) #\.))
+                   (is-dynamic (equal? name "_DYNAMIC@LOCAL"))
                    (clean-name (if is-local
                                    (string-trim-suffix name "@LOCAL")
                                    name))
                    (name-bytes (string->utf8 clean-name))
                    (stb-value (if is-local
-                                  (or (assoc-ref opts 'stb-local) 0)
-                                  (or (assoc-ref opts 'stb-global) 0)))
-                   (stt-func (or (assoc-ref opts 'stt-func) 0))
-                   (stt-object (or (assoc-ref opts 'stt-object) 0))
-                   (shn-text (or (assoc-ref opts 'shn-text) 0))
-                   (shn-data (or (assoc-ref opts 'shn-data) 0))
-                   (null-terminator-size (or (assoc-ref opts 'null-terminator-size) 1))
-                   (symbol-entry-size (or (assoc-ref opts 'symbol-entry-size) 16))
+                                  (assoc-ref opts 'stb-local)
+                                  (assoc-ref opts 'stb-global)))
+                   (stt-func (assoc-ref opts 'stt-func))
+                   (stt-object (assoc-ref opts 'stt-object))
+                   (stt-section (assoc-ref opts 'stt-section))
+                   (shn-text (assoc-ref opts 'shn-text))
+                   (shn-data (assoc-ref opts 'shn-data))
+                   (shn-dynamic (assoc-ref opts 'shn-dynamic))
+                   (null-terminator-size (assoc-ref opts 'null-terminator-size))
+                   (symbol-entry-size (assoc-ref opts 'symbol-entry-size))
                    (entry (make-symbol-entry str-offset address 
                                              (logior (ash stb-value 4)
-                                                     (if is-function 
-                                                         stt-func 
-                                                         stt-object))
+                                                     (cond
+                                                       (is-section stt-section)
+                                                       (is-function stt-func)
+                                                       (else stt-object)))
                                              0
-                                             (if is-function 
-                                                 shn-text 
-                                                 shn-data)
+                                             (cond
+                                               (is-dynamic shn-dynamic)
+                                               (is-function shn-text)
+                                               (else shn-data))
                                              (if is-function 0 32)))
                    (entry-offset (* index symbol-entry-size)))
               (bytevector-copy! name-bytes 0 string-table str-offset (bytevector-length name-bytes))
@@ -186,9 +192,12 @@
                             (initial-string-offset . 1)
                             (stt-object . 1)
                             (stt-func . 2)
+                            (stt-section . 3)
                             (stb-global . 1)
+                            (stb-local . 0)
                             (shn-data . 2)
-                            (shn-text . 1)))
+                            (shn-text . 1)
+                            (shn-dynamic . 5)))  ; Changed to 5 for .dynamic section
          (opts (merge-options default-options options))
          (symbol-table (create-symbol-table symbol-addresses label-positions))
          (symbol-sizes (calculate-table-size symbol-table opts))
