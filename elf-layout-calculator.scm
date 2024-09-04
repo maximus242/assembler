@@ -65,13 +65,13 @@
   0)  ; You may need to implement this based on your actual data
 
 (define (calculate-data-size data-sections)
-  (let ((total-size 0))
+  (let ((total-size 0)
+        (entry-size 32))  ;; Assuming each entry is 32 bytes
     (for-each (lambda (pair)
-                (let* ((name (car pair))
-                       (data (cdr pair))
-                       (size (bytevector-length data)))
-                  (format #t "Data section ~a size: ~a bytes~%" name size)
-                  (set! total-size (+ total-size size))))
+                (let ((name (car pair)))
+                  (set! total-size (+ total-size entry-size))
+                  (format #t "Data section ~a size: ~a bytes (aligned to ~a bytes)~%" 
+                          name entry-size entry-size)))
               data-sections)
     (format #t "Total calculated data size: ~a bytes~%" total-size)
     total-size))
