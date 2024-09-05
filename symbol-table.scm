@@ -160,6 +160,7 @@
                         (shn-text (assoc-ref opts 'shn-text))
                         (shn-data (assoc-ref opts 'shn-data))
                         (shn-dynamic (assoc-ref opts 'shn-dynamic))
+                        (stt-notype (assoc-ref opts 'stt-notype))
                         (shn-got-local 16) ; Use 16 for _GLOBAL_OFFSET_TABLE_@LOCAL
                         (null-terminator-size (assoc-ref opts 'null-terminator-size))
                         (symbol-entry-size (assoc-ref opts 'symbol-entry-size))
@@ -168,7 +169,7 @@
                                                           (cond
                                                             (is-section stt-section)
                                                             (is-function stt-func)
-                                                            (else stt-object)))
+                                                            (else stt-notype)))
                                                   0
                                                   (cond
                                                     (is-got-local shn-got-local) ; Use 16 for _GLOBAL_OFFSET_TABLE_@LOCAL
@@ -193,6 +194,7 @@
                                    (st-size-offset . 16)
                                    (null-terminator-size . 1)
                                    (initial-string-offset . 1)
+                                   (stt-notype . 0)
                                    (stt-object . 1)
                                    (stt-func . 2)
                                    (stt-section . 3)
@@ -279,7 +281,7 @@
                                                                4)
                                                           (if is-function 
                                                             (assoc-ref opts 'stt-func) 
-                                                            (assoc-ref opts 'stt-object)))
+                                                            (assoc-ref opts 'stt-notype)))
                                                   0
                                                   (if is-function 
                                                     (assoc-ref opts 'shn-text) 
@@ -302,6 +304,7 @@
                                    (st-size-offset . 16)
                                    (null-terminator-size . 1)
                                    (initial-string-offset . 1)
+                                   (stt-notype . 0)
                                    (stt-object . 1)
                                    (stt-func . 2)
                                    (stb-global . 1)
