@@ -239,7 +239,7 @@
              (cons '.gnu.version@LOCAL #x033c)
              (cons '.gnu.version_d@LOCAL #x0360)
              (cons '.init@LOCAL #x1052)
-             (cons '_GLOBAL_OFFSET_TABLE_@LOCAL #x3120) 
+             (cons '_GLOBAL_OFFSET_TABLE_@LOCAL #x31c0) 
              (cons '_DYNAMIC@LOCAL #x3000)))
          (combined-symbol-addresses (append symbol-addresses unique-symbol-addresses))
          (symtab-size (calculate-symtab-size combined-symbol-addresses label-positions))
