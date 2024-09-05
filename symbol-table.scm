@@ -176,7 +176,7 @@
                                                     (is-dynamic shn-dynamic)
                                                     (is-function shn-text)
                                                     (else shn-data))
-                                                  (if is-function 0 32)))
+                                                  (if is-function 0 0)))
                         (entry-offset (* index symbol-entry-size)))
                    (bytevector-copy! name-bytes 0 string-table str-offset (bytevector-length name-bytes))
                    (bytevector-u8-set! string-table (+ str-offset (bytevector-length name-bytes)) 0)
@@ -286,7 +286,7 @@
                                                   (if is-function 
                                                     (assoc-ref opts 'shn-text) 
                                                     (assoc-ref opts 'shn-data))
-                                                  (if is-function 0 32)))
+                                                  (if is-function 0 0)))
                         (entry-offset (* index (assoc-ref opts 'symbol-entry-size))))
                    (bytevector-copy! name-bytes 0 string-table str-offset (bytevector-length name-bytes))
                    (bytevector-u8-set! string-table (+ str-offset (bytevector-length name-bytes)) 0)
