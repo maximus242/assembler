@@ -361,27 +361,106 @@
   (write-field (assoc-ref opts 'st-value-offset) 8 (symbol-entry-address entry))
   (write-field (assoc-ref opts 'st-size-offset) 8 (symbol-entry-size entry)))
 
+(define (ash n k)
+  (if (>= k 0)
+      (* n (expt 2 k))  ; Left shift
+      (quotient n (expt 2 (- k)))))  ; Right shift
+
+(define (arithmetic-shift n k)
+  (if (>= k 0)
+      (ash n k)  ; Left shift
+      (let ((m (ash 1 (- k))))  ; Right shift
+        (if (>= n 0)
+            (quotient n m)
+            (- (quotient (+ n 1) m) 1)))))
+
+(define (bytevector-slice bv start end)
+  (let* ((length (- end start))
+         (result (make-bytevector length)))
+    (bytevector-copy! bv start result 0 length)
+    result))
+
 (define* (create-hash-section dynsym-table #:optional (options '()))
-         (let* ((opts (append options '((hash-header-size . 8)
-                                        (hash-entry-size . 4)
-                                        (symbol-entry-size . 24))))
-                (nbucket 1)
-                (nchain (/ (bytevector-length dynsym-table) (assoc-ref opts 'symbol-entry-size)))
-                (hash-size (+ (assoc-ref opts 'hash-header-size)
-                              (* (assoc-ref opts 'hash-entry-size) (+ nbucket nchain))))
-                (hash-section (make-bytevector hash-size 0)))
-           (bytevector-u32-set! hash-section 0 nbucket (endianness little))
-           (bytevector-u32-set! hash-section 4 nchain (endianness little))
-           (bytevector-u32-set! hash-section 8 0 (endianness little))
-           (let loop ((i 0))
-             (when (< i nchain)
-               (bytevector-u32-set! hash-section 
-                                    (+ (assoc-ref opts 'hash-header-size) 
-                                       (* (assoc-ref opts 'hash-entry-size) i))
-                                    i 
-                                    (endianness little))
-               (loop (+ i 1))))
-           hash-section))
+  (let* ((opts (append options '((hash-header-size . 8)
+                                 (hash-entry-size . 4)
+                                 (symbol-entry-size . 24))))
+         (symbol-count (/ (bytevector-length dynsym-table) (assoc-ref opts 'symbol-entry-size)))
+         (nbucket (next-prime (max 1 (quotient symbol-count 2))))
+         (nchain symbol-count)
+         (hash-size (+ (assoc-ref opts 'hash-header-size)
+                       (* (assoc-ref opts 'hash-entry-size) (+ nbucket nchain))))
+         (hash-section (make-bytevector hash-size 0))
+         (buckets (make-vector nbucket #xffffffff))
+         (chains (make-vector nchain #xffffffff)))
+
+    ; Helper function to get symbol name from dynsym table
+    (define (get-symbol-name index)
+      (let* ((entry-offset (* index (assoc-ref opts 'symbol-entry-size)))
+             (name-offset (bytevector-u32-ref dynsym-table entry-offset (endianness little))))
+        (let loop ((i 0))
+          (if (zero? (bytevector-u8-ref dynsym-table (+ name-offset i)))
+              (utf8->string (bytevector-slice dynsym-table name-offset (+ name-offset i)))
+              (loop (+ i 1))))))
+
+    ; SysV hash function
+    (define (elf-hash name)
+      (let loop ((h 0) (g 0) (s (string->list name)))
+        (if (null? s)
+            h
+            (let* ((h (logand #xffffffff (+ (* h 16) (char->integer (car s)))))
+                   (g (logand #xffffffff (* h #x80000000))))
+              (loop (logxor h (arithmetic-shift g -24)) g (cdr s))))))
+
+    ; Populate buckets and chains
+    (let loop ((i 1))  ; Start from 1 to skip the null symbol
+      (when (< i symbol-count)
+        (let* ((name (get-symbol-name i))
+               (hash (elf-hash name))
+               (bucket (modulo hash nbucket)))
+          (vector-set! chains i (vector-ref buckets bucket))
+          (vector-set! buckets bucket i))
+        (loop (+ i 1))))
+
+    ; Write hash table header
+    (bytevector-u32-set! hash-section 0 nbucket (endianness little))
+    (bytevector-u32-set! hash-section 4 nchain (endianness little))
+
+    ; Write buckets
+    (let loop ((i 0))
+      (when (< i nbucket)
+        (bytevector-u32-set! hash-section 
+                             (+ (assoc-ref opts 'hash-header-size) 
+                                (* (assoc-ref opts 'hash-entry-size) i))
+                             (vector-ref buckets i)
+                             (endianness little))
+        (loop (+ i 1))))
+
+    ; Write chains
+    (let loop ((i 0))
+      (when (< i nchain)
+        (bytevector-u32-set! hash-section 
+                             (+ (assoc-ref opts 'hash-header-size)
+                                (* (assoc-ref opts 'hash-entry-size) nbucket)
+                                (* (assoc-ref opts 'hash-entry-size) i))
+                             (vector-ref chains i)
+                             (endianness little))
+        (loop (+ i 1))))
+
+    hash-section))
+
+; Helper function to find the next prime number
+(define (next-prime n)
+  (let loop ((i (if (even? n) (+ n 1) n)))
+    (if (prime? i)
+        i
+        (loop (+ i 2)))))
+
+; Helper function to check if a number is prime
+(define (prime? n)
+  (let loop ((i 3))
+    (cond ((> (* i i) n) #t)
+          ((zero? (modulo n i)) #f)
+          (else (loop (+ i 2))))))
 
 (define (create-version-section)
   (let* ((version-bytes (string->utf8 *version-string*))
