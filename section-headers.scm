@@ -39,7 +39,7 @@
 
             ;; .text section
             (make-section-header 1 sht-progbits (logior shf-alloc shf-execinstr)
-                                 text-addr text-addr code-size 0 0 16 0)
+                                 text-addr text-addr code-size 0 0 1 0)
 
             ;; .data section
             (make-section-header 7 sht-progbits (logior shf-write shf-alloc)

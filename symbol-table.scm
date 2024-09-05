@@ -187,12 +187,16 @@
                                            (is-dynamic shn-dynamic)
                                            (is-function shn-text)
                                            (else shn-data))))
+                        (symbol-type (cond
+                                       (is-section stt-section)
+                                       (is-function stt-func)
+                                       ((or (string=? clean-name "_DYNAMIC")
+                                            (string=? clean-name "_GLOBAL_OFFSET_TABLE_"))
+                                        stt-object)
+                                       (else stt-notype)))
                         (entry (make-symbol-entry str-offset address 
                                                   (logior (ash stb-value 4)
-                                                          (cond
-                                                            (is-section stt-section)
-                                                            (is-function stt-func)
-                                                            (else stt-notype)))
+                                                          symbol-type)
                                                   0
                                                   section-index
                                                   (if is-function 0 0)))
@@ -221,7 +225,7 @@
                                    (stb-local . 0)
                                    (shn-data . 2)
                                    (shn-text . 1)
-                                   (shn-dynamic . 5)))  ; Changed to 5 for .dynamic section
+                                   (shn-dynamic . 3)))  ; Changed to 3 for .dynamic section
                 (opts (merge-options default-options options))
                 (symbol-table (create-symbol-table symbol-addresses label-positions))
                 (symbol-sizes (calculate-table-size symbol-table opts))
@@ -299,7 +303,7 @@
                                                                  (assoc-ref opts 'stb-global))
                                                                4)
                                                           (if is-function 
-                                                            (assoc-ref opts 'stt-func) 
+                                                            (assoc-ref opts 'stt-notype) 
                                                             (assoc-ref opts 'stt-notype)))
                                                   0
                                                   (if is-function 
