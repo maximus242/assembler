@@ -29,8 +29,7 @@
 
 ;; Define symbol addresses (these will be relative to the start of .data section)
 (define symbol-addresses
-  '((__dso_handle@LOCAL . 12768)
-    (buffer1    . 12800)
+  '((buffer1    . 12800)
     (buffer2    . 12832)
     (result     . 12864)
     (multiplier . 12896)
@@ -91,8 +90,7 @@
          ;; Create the shared object file
          (create-shared-object
            assembled-code
-           `((__dso_handle@LOCAL . ,__dso_handle)
-             (buffer1 . ,buffer1)
+           `((buffer1 . ,buffer1)
              (buffer2 . ,buffer2)
              (result . ,result)
              (multiplier . ,multiplier))
