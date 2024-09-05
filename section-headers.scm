@@ -46,20 +46,20 @@
                                  data-addr data-addr data-size 0 0 32 0)
 
             ;; .bss section
-            (make-section-header 13 sht-nobits (logior shf-write shf-alloc)
-                                 (+ data-addr data-size) (+ data-addr data-size) 0 0 0 32 0)
+            ;;(make-section-header 13 sht-nobits (logior shf-write shf-alloc)
+            ;;                     (+ data-addr data-size) (+ data-addr data-size) 0 0 0 32 0)
 
             ;; .rodata section
-            (make-section-header 18 sht-progbits shf-alloc
-                                 rodata-offset rodata-offset 0 0 0 8 0)
+            ;; (make-section-header 18 sht-progbits shf-alloc
+            ;;                      rodata-offset rodata-offset 0 0 0 8 0)
 
             ;; .dynamic section
             (make-section-header 63 sht-dynamic (logior shf-write shf-alloc)
-                                 dynamic-addr dynamic-addr dynamic-size 7 0 8 dynamic-entry-size)
+                                 dynamic-addr dynamic-addr dynamic-size 5 0 8 dynamic-entry-size)
 
             ;; .dynsym section
             (make-section-header 80 sht-dynsym shf-alloc
-                                 dynsym-addr dynsym-addr dynsym-size 7 2 8 24)
+                                 dynsym-addr dynsym-addr dynsym-size 5 1 8 24)
 
             ;; .dynstr section
             (make-section-header 72 sht-strtab shf-alloc
@@ -67,18 +67,18 @@
 
             ;; .rela.dyn section
             (make-section-header 88 sht-rela shf-alloc
-                                 rela-addr rela-addr rela-size 6 0 8 24)
+                                 rela-addr rela-addr rela-size 4 0 8 24)
 
             ;; .got section
             (make-section-header 98 sht-progbits (logior shf-write shf-alloc)
                                  got-addr got-addr got-size 0 0 8 got-entry-size)
 
             ;; .plt section
-            (make-section-header 103 sht-progbits (logior shf-alloc shf-execinstr)
-                                 plt-addr plt-addr plt-size 0 0 16 16)
+            ;; (make-section-header 103 sht-progbits (logior shf-alloc shf-execinstr)
+            ;;                      plt-addr plt-addr plt-size 0 0 16 16)
 
             ;; .symtab section
-            (make-section-header 26 sht-symtab 0 0 symtab-offset symtab-size 12 24 8 24)
+            (make-section-header 26 sht-symtab 0 0 symtab-offset symtab-size 9 15 8 24)
 
             ;; .strtab section
             (make-section-header 34 sht-strtab 0 0 strtab-offset strtab-size 0 0 1 0)
@@ -87,12 +87,12 @@
             (make-section-header 42 sht-strtab 0 0 shstrtab-addr shstrtab-size 0 0 1 0)
 
             ;; .rela.plt section
-            (make-section-header 126 sht-rela shf-alloc
-                                 rela-plt-addr rela-plt-addr rela-plt-size 6 16 8 24)
+            ;; (make-section-header 126 sht-rela shf-alloc
+            ;;                      rela-plt-addr rela-plt-addr rela-plt-size 6 16 8 24)
 
             ;; .plt.got section
-            (make-section-header 108 sht-progbits (logior shf-alloc shf-execinstr)
-                                 plt-got-addr plt-got-addr plt-got-size 0 0 8 8)
+            ;; (make-section-header 108 sht-progbits (logior shf-alloc shf-execinstr)
+            ;;                      plt-got-addr plt-got-addr plt-got-size 0 0 8 8)
 
             ;; .got.plt section
             (make-section-header 117 sht-progbits (logior shf-write shf-alloc)
@@ -100,21 +100,21 @@
 
             ;; .hash section
             (make-section-header 164 sht-hash shf-alloc
-                                 hash-offset hash-offset hash-size 6 0 8 4)
+                                 hash-offset hash-offset hash-size 4 0 8 4)
 
             ;; .gnu.version section
-            (make-section-header 136 #x6fffffff shf-alloc
-                                 gnu-version-addr gnu-version-addr gnu-version-size 6 0 2 2)
+            ;; (make-section-header 136 #x6fffffff shf-alloc
+            ;;                      gnu-version-addr gnu-version-addr gnu-version-size 6 0 2 2)
 
             ;; .gnu.version_r section
             ;;(make-section-header 149 #x6ffffffe shf-alloc
             ;;                     gnu-version-r-addr gnu-version-r-addr gnu-version-r-size 7 1 4 0)
             ;; .gnu.version_d section
-            (make-section-header 170 #x6ffffffd shf-alloc
-                                 gnu-version-d-offset gnu-version-d-offset gnu-version-d-size 7 1 4 0)
+            ;; (make-section-header 170 #x6ffffffd shf-alloc
+            ;;                      gnu-version-d-offset gnu-version-d-offset gnu-version-d-size 7 1 4 0)
 
-            (make-section-header 185 1 (logior shf-alloc shf-execinstr)
-                                 init-offset init-offset init-size 0 0 4 0)
+            ;; (make-section-header 185 1 (logior shf-alloc shf-execinstr)
+            ;;                      init-offset init-offset init-size 0 0 4 0)
 
             )))
 

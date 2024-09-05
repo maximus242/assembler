@@ -41,11 +41,11 @@
           rela-offset rela-size got-offset hash-offset
           gnu-version-offset gnu-version-d-offset gnu-version-d-size
           plt-offset plt-size jmprel-offset jmprel-size got-plt-offset)
-  (let* ((num-entries 19)  ;; Adjusted for all possible entries
+  (let* ((num-entries 9)  ;; Adjusted for the new number of entries
          (section (make-bytevector (* num-entries ENTRY_SIZE) 0)))
     (format #t "Creating dynamic section with num-entries=~a~%" num-entries)
     
-    ;; Log initial parameters
+    ;; Log initial parameters (keeping this for consistency with the original function)
     (format #t "Parameters: jmprel-offset=~a, jmprel-size=~a~%" jmprel-offset jmprel-size)
     
     (set-dynamic-entry! section 0 DT_HASH hash-offset)
@@ -56,24 +56,7 @@
     (set-dynamic-entry! section 5 DT_RELA rela-offset)
     (set-dynamic-entry! section 6 DT_RELASZ rela-size)
     (set-dynamic-entry! section 7 DT_RELAENT RELAENT_SIZE)
-    (set-dynamic-entry! section 8 DT_PLTGOT got-plt-offset)
-    
-    ;; Set DT_JMPREL and DT_PLTRELSZ
-    (set-dynamic-entry! section 9 DT_PLTRELSZ jmprel-size)
-    (set-dynamic-entry! section 10 DT_PLTREL DT_RELA)
-    (set-dynamic-entry! section 11 DT_JMPREL jmprel-offset)
-    
-    ;; Set DT_INIT and DT_FINI to 0 if not used
-    (set-dynamic-entry! section 12 DT_INIT #x1052)
-    (set-dynamic-entry! section 13 DT_FINI 0)
-    
-    ;; Set GNU version entries
-    (set-dynamic-entry! section 14 DT_VERSYM gnu-version-offset)
-    (set-dynamic-entry! section 15 DT_VERDEF gnu-version-d-offset)
-    (set-dynamic-entry! section 16 DT_VERDEFNUM 1)
-    
-    ;; Set DT_NULL to mark the end of the dynamic section
-    (set-dynamic-entry! section 17 DT_NULL 0)
+    (set-dynamic-entry! section 8 DT_NULL 0)
     
     ;; Final logging
     (format #t "Dynamic section creation complete.~%")

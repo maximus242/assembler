@@ -69,8 +69,8 @@
 
 ;; Section Header Constants
 (define section-header-size 64)
-(define num-sections 21)
-(define shstrtab-index 13)
+(define num-sections 13)
+(define shstrtab-index 10)
 (define sht-null 0)
 (define sht-progbits 1)
 (define sht-symtab 2)
@@ -97,7 +97,7 @@
 
 ;; Other Constants
 (define dynamic-entry-size 16)
-(define num-dynamic-entries 18)
+(define num-dynamic-entries 9)
 (define got-entry-size 8)
 (define text-addr #x1000)
 (define shstrtab-addr #x3f94)
