@@ -62,7 +62,7 @@
                                  text-addr text-addr code-size 0 0 1 0)
 
             ;; .eh_frame section
-            (make-section-header 58 sht-progbits (logior shf-alloc shf-write)
+            (make-section-header 58 sht-progbits shf-alloc
                                  eh-frame-addr eh-frame-addr eh-frame-size 0 0 8 0)
 
             ;; .dynamic section
