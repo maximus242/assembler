@@ -222,8 +222,8 @@
              (cons '.text@LOCAL #x1000)
              (cons '.data@LOCAL #x3130)  ; Changed from #x31c0
              (cons '.dynamic@LOCAL #x3000)
-             (cons '.dynsym@LOCAL #x01c8)
-             (cons '.dynstr@LOCAL #x0258)
+             (cons '.dynsym@LOCAL #x0230)
+             (cons '.dynstr@LOCAL #x02c0)
              (cons '.rela.dyn@LOCAL #x0298)
              (cons '.got@LOCAL #x3090)   ; Changed from #x3120
              (cons '.symtab@LOCAL #x0)

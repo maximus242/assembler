@@ -19,6 +19,7 @@
                #:use-module (linker)
                #:use-module (validate-relocations)
                #:use-module (data-section)
+               #:use-module (note-gnu-build-id-section)
                #:export (create-shared-object
                           custom-assert
                           verify-dynamic-section
@@ -190,10 +191,15 @@
          (dynstr-size (assoc-ref layout 'dynstr-size))
          (init-section (create-init-section))
          (rodata-offset #x2000)
+         (note-gnu-build-id-address #x1c8)
+         (note-gnu-build-id-size #x24)
+         (hash-offset (align-to (+ note-gnu-build-id-address note-gnu-build-id-size) word-size))
          (dynamic-offset (align-to dynamic-addr word-size))
          (dynamic-size (assoc-ref layout 'dynamic-size))
          (version-section (assoc-ref layout 'version-section))
-         (dynsym-offset (align-to #x1C8 word-size))
+         (hash-table (create-hash-section dynsymtab-bv dynstrtab))
+         (hash-size (bytevector-length hash-table))
+         (dynsym-offset (align-to (+ hash-offset hash-size) word-size))
          (dynstr-offset (align-to (+ dynsym-offset dynsym-size) word-size))
          (rela-offset (align-to (+ dynstr-offset dynstr-size) word-size))
          (relocation-table (create-relocation-table symtab-hash))
@@ -221,10 +227,6 @@
                              got-plt-offset
                              dynsym-indices))
          (rela-plt-size (bytevector-length rela-plt-section))
-
-         (hash-offset (align-to (+ rela-plt-offset rela-plt-size) word-size))
-         (hash-table (create-hash-section dynsymtab-bv dynstrtab))
-         (hash-size (bytevector-length hash-table))
          (gnu-version-offset (align-to (+ hash-offset hash-size) 4))
          (gnu-version-r-size 32)  ; Since we're creating an empty .gnu.version_r section
          (gnu-version-size (* 2 num-dynamic-entries))
@@ -280,8 +282,8 @@
                             got-size
                             data-addr
                             dynamic-addr
-                            (+ dynamic-addr (- dynsym-offset dynamic-offset))
-                            (+ dynamic-addr (- dynstr-offset dynamic-offset))
+                            dynsym-offset
+                            dynstr-offset
                             rela-addr
                             (+ dynamic-addr (- got-offset dynamic-offset))
                             (+ dynamic-addr (- plt-offset dynamic-offset))
@@ -307,8 +309,8 @@
                             code-offset
                             init-offset
                             init-size
-                            #x2000  ; Hardcoded .note.gnu.build-id address
-                            #x24    ; Hardcoded .note.gnu.build-id size
+                            note-gnu-build-id-address
+                            note-gnu-build-id-size
                             #x2000  ; Hardcoded .eh_frame address
                             #x100   ; Hardcoded .eh_frame size
                             ))
@@ -337,6 +339,8 @@
          (total-size (+ section-headers-offset section-headers-size))
          (text-section-offset (calculate-text-section-offset elf-header-size program-headers-size))
          (entry-point (calculate-entry-point text-addr text-section-offset))
+         (build-id "ff868e73a156d910e45c2590bb78b1224345b530")
+         (note-gnu-build-id-section (create-note-gnu-build-id-section build-id))
          (elf-header (create-elf-header
                        entry-point
                        program-headers-offset
@@ -361,6 +365,12 @@
       ;; Copy program headers
       (bytevector-copy! program-headers 0 elf-file program-headers-offset program-headers-size)
 
+      ;; Copy the .note.gnu.build-id section into the ELF file
+      (bytevector-copy! note-gnu-build-id-section 0 elf-file note-gnu-build-id-address note-gnu-build-id-size)
+
+      ;; Copy hash table (.hash)
+      (bytevector-copy! hash-table 0 elf-file hash-offset hash-size)
+
       ;; Resolve and copy code section
       (let* ((resolved-code (link-code code symtab-hash label-positions assembled-relocation-table data-addr))
              (code-offset (assoc-ref layout 'code-offset)))
@@ -380,9 +390,6 @@
 
       ;; Copy relocation table (.rela.dyn)
       (bytevector-copy! relocation-table 0 elf-file rela-offset relocation-table-size)
-
-      ;; Copy hash table (.hash)
-      (bytevector-copy! hash-table 0 elf-file hash-offset hash-size)
 
       ;; Copy data section (.data)
       (bytevector-copy! data-section 0 elf-file data-addr (bytevector-length data-section))
