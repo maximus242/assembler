@@ -403,6 +403,12 @@
          (buckets (make-vector nbucket 0))
          (chains (make-vector nchain 0)))
 
+    (format #t "Creating hash section:~%")
+    (format #t "  Symbol count: ~a~%" symbol-count)
+    (format #t "  Number of buckets: ~a~%" nbucket)
+    (format #t "  Number of chains: ~a~%" nchain)
+    (format #t "  Hash section size: ~a bytes~%" hash-size)
+
     ; Write number of buckets and chains
     (bytevector-u32-set! hash-section 0 nbucket (endianness little))
     (bytevector-u32-set! hash-section 4 nchain (endianness little))
@@ -414,13 +420,30 @@
                (hash (elf-hash name))
                (bucket (modulo hash nbucket))
                (chain-index (vector-ref buckets bucket)))
+          (format #t "Symbol ~a: name=~a, hash=~a, bucket=~a~%" i name hash bucket)
           (if (= chain-index 0)
-              (vector-set! buckets bucket i)
+              (begin
+                (vector-set! buckets bucket i)
+                (format #t "  Added to empty bucket ~a~%" bucket))
               (let chain-loop ((prev chain-index))
                 (if (= (vector-ref chains prev) 0)
-                    (vector-set! chains prev i)
+                    (begin
+                      (vector-set! chains prev i)
+                      (format #t "  Added to chain at index ~a~%" prev))
                     (chain-loop (vector-ref chains prev)))))
           (vector-set! chains i 0))
+        (loop (+ i 1))))
+
+    (format #t "Bucket contents:~%")
+    (let loop ((i 0))
+      (when (< i nbucket)
+        (format #t "  Bucket ~a: ~a~%" i (vector-ref buckets i))
+        (loop (+ i 1))))
+
+    (format #t "Chain contents:~%")
+    (let loop ((i 0))
+      (when (< i nchain)
+        (format #t "  Chain ~a: ~a~%" i (vector-ref chains i))
         (loop (+ i 1))))
 
     ; Write bucket array
@@ -444,6 +467,7 @@
                              (endianness little))
         (loop (+ i 1))))
 
+    (format #t "Hash section created successfully.~%")
     hash-section))
 
 ; Helper function to get symbol name from dynsym and dynstr tables

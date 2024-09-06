@@ -16,7 +16,7 @@
 
 (define (calculate-entry-point text-addr text-section-offset)
   "Calculate the entry point based on the text address and offset within the .text section."
-  (+ text-addr text-section-offset))
+  text-addr)
 
 (define (calculate-code-offset elf-header-size program-headers)
   "Calculate the code offset based on the size of the ELF header and program headers."
