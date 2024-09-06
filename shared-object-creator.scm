@@ -223,7 +223,7 @@
          (rela-plt-size (bytevector-length rela-plt-section))
 
          (hash-offset (align-to (+ rela-plt-offset rela-plt-size) word-size))
-         (hash-table (create-hash-section dynsymtab-bv))
+         (hash-table (create-hash-section dynsymtab-bv dynstrtab))
          (hash-size (bytevector-length hash-table))
          (gnu-version-offset (align-to (+ hash-offset hash-size) 4))
          (gnu-version-r-size 32)  ; Since we're creating an empty .gnu.version_r section

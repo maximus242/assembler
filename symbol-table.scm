@@ -374,58 +374,65 @@
             (quotient n m)
             (- (quotient (+ n 1) m) 1)))))
 
+; ELF hash function
+(define (elf-hash name)
+  (let loop ((h 0) (i 0))
+    (if (< i (string-length name))
+        (let* ((h (logand #xffffffff (* h 33)))
+               (h (logand #xffffffff (+ h (char->integer (string-ref name i))))))
+          (loop h (+ i 1)))
+        h)))
+
+; Helper function to get symbol name from dynsym and dynstr tables
+(define (get-symbol-name dynsym-table dynstr-table index)
+  (let* ((entry-offset (* index 24)) ; 24-byte entries in dynsym
+         (name-offset (bytevector-u32-ref dynsym-table entry-offset (endianness little))))
+    (let loop ((i 0))
+      (if (zero? (bytevector-u8-ref dynstr-table (+ name-offset i)))
+          (utf8->string (bytevector-slice dynstr-table name-offset (+ name-offset i)))
+          (loop (+ i 1))))))
+
+; Helper function to slice a bytevector
 (define (bytevector-slice bv start end)
   (let* ((length (- end start))
          (result (make-bytevector length)))
     (bytevector-copy! bv start result 0 length)
     result))
 
-(define* (create-hash-section dynsym-table #:optional (options '()))
+(define* (create-hash-section dynsym-table dynstr-table #:optional (options '()))
   (let* ((opts (append options '((hash-header-size . 8)
                                  (hash-entry-size . 4)
                                  (symbol-entry-size . 24))))
          (symbol-count (/ (bytevector-length dynsym-table) (assoc-ref opts 'symbol-entry-size)))
-         (nbucket (next-prime (max 1 (quotient symbol-count 2))))
+         (nbucket (next-prime (max 1 (min symbol-count 7)))) ; Adjust bucket count
          (nchain symbol-count)
          (hash-size (+ (assoc-ref opts 'hash-header-size)
                        (* (assoc-ref opts 'hash-entry-size) (+ nbucket nchain))))
          (hash-section (make-bytevector hash-size 0))
-         (buckets (make-vector nbucket #xffffffff))
-         (chains (make-vector nchain #xffffffff)))
+         (buckets (make-vector nbucket 0))
+         (chains (make-vector nchain 0)))
 
-    ; Helper function to get symbol name from dynsym table
-    (define (get-symbol-name index)
-      (let* ((entry-offset (* index (assoc-ref opts 'symbol-entry-size)))
-             (name-offset (bytevector-u32-ref dynsym-table entry-offset (endianness little))))
-        (let loop ((i 0))
-          (if (zero? (bytevector-u8-ref dynsym-table (+ name-offset i)))
-              (utf8->string (bytevector-slice dynsym-table name-offset (+ name-offset i)))
-              (loop (+ i 1))))))
-
-    ; SysV hash function
-    (define (elf-hash name)
-      (let loop ((h 0) (g 0) (s (string->list name)))
-        (if (null? s)
-            h
-            (let* ((h (logand #xffffffff (+ (* h 16) (char->integer (car s)))))
-                   (g (logand #xffffffff (* h #x80000000))))
-              (loop (logxor h (arithmetic-shift g -24)) g (cdr s))))))
-
-    ; Populate buckets and chains
-    (let loop ((i 1))  ; Start from 1 to skip the null symbol
-      (when (< i symbol-count)
-        (let* ((name (get-symbol-name i))
-               (hash (elf-hash name))
-               (bucket (modulo hash nbucket)))
-          (vector-set! chains i (vector-ref buckets bucket))
-          (vector-set! buckets bucket i))
-        (loop (+ i 1))))
-
-    ; Write hash table header
+    ; Write number of buckets and chains
     (bytevector-u32-set! hash-section 0 nbucket (endianness little))
     (bytevector-u32-set! hash-section 4 nchain (endianness little))
 
-    ; Write buckets
+    ; Hash each symbol and add to appropriate bucket
+    (let loop ((i 1)) ; Start from 1 to skip the null symbol
+      (when (< i symbol-count)
+        (let* ((name (get-symbol-name dynsym-table dynstr-table i))
+               (hash (elf-hash name))
+               (bucket (modulo hash nbucket))
+               (chain-index (vector-ref buckets bucket)))
+          (if (= chain-index 0)
+              (vector-set! buckets bucket i)
+              (let chain-loop ((prev chain-index))
+                (if (= (vector-ref chains prev) 0)
+                    (vector-set! chains prev i)
+                    (chain-loop (vector-ref chains prev)))))
+          (vector-set! chains i 0))
+        (loop (+ i 1))))
+
+    ; Write bucket array
     (let loop ((i 0))
       (when (< i nbucket)
         (bytevector-u32-set! hash-section 
@@ -435,7 +442,7 @@
                              (endianness little))
         (loop (+ i 1))))
 
-    ; Write chains
+    ; Write chain array
     (let loop ((i 0))
       (when (< i nchain)
         (bytevector-u32-set! hash-section 
@@ -448,19 +455,46 @@
 
     hash-section))
 
-; Helper function to find the next prime number
+; Helper function to get symbol name from dynsym and dynstr tables
+(define (get-symbol-name dynsym-table dynstr-table index)
+  (let* ((entry-offset (* index 24)) ; 24-byte entries in dynsym
+         (name-offset (bytevector-u32-ref dynsym-table entry-offset (endianness little))))
+    (let loop ((i 0))
+      (if (zero? (bytevector-u8-ref dynstr-table (+ name-offset i)))
+          (utf8->string (bytevector-slice dynstr-table name-offset (+ name-offset i)))
+          (loop (+ i 1))))))
+
+; ELF hash function (unchanged)
+(define (elf-hash name)
+  (let loop ((h 0) (i 0))
+    (if (< i (string-length name))
+        (let* ((h (logand #xffffffff (* h 33)))
+               (h (logand #xffffffff (+ h (char->integer (string-ref name i))))))
+          (loop h (+ i 1)))
+        h)))
+
+; Helper function to find the next prime number (unchanged)
 (define (next-prime n)
   (let loop ((i (if (even? n) (+ n 1) n)))
     (if (prime? i)
         i
         (loop (+ i 2)))))
 
-; Helper function to check if a number is prime
+; Helper function to check if a number is prime (unchanged)
 (define (prime? n)
-  (let loop ((i 3))
-    (cond ((> (* i i) n) #t)
-          ((zero? (modulo n i)) #f)
-          (else (loop (+ i 2))))))
+  (if (< n 2)
+      #f
+      (let loop ((i 2))
+        (cond ((> (* i i) n) #t)
+              ((zero? (modulo n i)) #f)
+              (else (loop (+ i 1)))))))
+
+; Helper function to slice a bytevector (unchanged)
+(define (bytevector-slice bv start end)
+  (let* ((length (- end start))
+         (result (make-bytevector length)))
+    (bytevector-copy! bv start result 0 length)
+    result))
 
 (define (create-version-section)
   (let* ((version-bytes (string->utf8 *version-string*))
