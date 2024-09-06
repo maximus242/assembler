@@ -374,22 +374,6 @@
             (quotient n m)
             (- (quotient (+ n 1) m) 1)))))
 
-; Helper function to get symbol name from dynsym and dynstr tables
-(define (get-symbol-name dynsym-table dynstr-table index)
-  (let* ((entry-offset (* index 24)) ; 24-byte entries in dynsym
-         (name-offset (bytevector-u32-ref dynsym-table entry-offset (endianness little))))
-    (let loop ((i 0))
-      (if (zero? (bytevector-u8-ref dynstr-table (+ name-offset i)))
-          (utf8->string (bytevector-slice dynstr-table name-offset (+ name-offset i)))
-          (loop (+ i 1))))))
-
-; Helper function to slice a bytevector
-(define (bytevector-slice bv start end)
-  (let* ((length (- end start))
-         (result (make-bytevector length)))
-    (bytevector-copy! bv start result 0 length)
-    result))
-
 (define* (create-hash-section dynsym-table dynstr-table #:optional (options '()))
   (let* ((opts (append options '((hash-header-size . 8)
                                  (hash-entry-size . 4)

@@ -307,6 +307,10 @@
                             code-offset
                             init-offset
                             init-size
+                            #x2000  ; Hardcoded .note.gnu.build-id address
+                            #x24    ; Hardcoded .note.gnu.build-id size
+                            #x2000  ; Hardcoded .eh_frame address
+                            #x100   ; Hardcoded .eh_frame size
                             ))
          (program-headers (create-program-headers 
                             elf-header-size
