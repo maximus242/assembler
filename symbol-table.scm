@@ -189,7 +189,7 @@
                                            (else shn-data))))
                         (symbol-type (cond
                                        (is-section stt-section)
-                                       (is-function stt-func)
+                                       (is-function stt-notype)
                                        ((or (string=? clean-name "_DYNAMIC")
                                             (string=? clean-name "_GLOBAL_OFFSET_TABLE_"))
                                         stt-object)
@@ -374,15 +374,6 @@
             (quotient n m)
             (- (quotient (+ n 1) m) 1)))))
 
-; ELF hash function
-(define (elf-hash name)
-  (let loop ((h 0) (i 0))
-    (if (< i (string-length name))
-        (let* ((h (logand #xffffffff (* h 33)))
-               (h (logand #xffffffff (+ h (char->integer (string-ref name i))))))
-          (loop h (+ i 1)))
-        h)))
-
 ; Helper function to get symbol name from dynsym and dynstr tables
 (define (get-symbol-name dynsym-table dynstr-table index)
   (let* ((entry-offset (* index 24)) ; 24-byte entries in dynsym
@@ -464,14 +455,14 @@
           (utf8->string (bytevector-slice dynstr-table name-offset (+ name-offset i)))
           (loop (+ i 1))))))
 
-; ELF hash function (unchanged)
 (define (elf-hash name)
-  (let loop ((h 0) (i 0))
-    (if (< i (string-length name))
-        (let* ((h (logand #xffffffff (* h 33)))
-               (h (logand #xffffffff (+ h (char->integer (string-ref name i))))))
-          (loop h (+ i 1)))
-        h)))
+  (let loop ((h 0) (chars (string->list name)))
+    (if (null? chars)
+        h
+        (let* ((h (logand #xffffffff (+ (arithmetic-shift h 4) (char->integer (car chars)))))
+               (g (logand h #xf0000000)))
+          (loop (logand #xffffffff (logxor (logand h (lognot g)) (arithmetic-shift g -24)))
+                (cdr chars))))))
 
 ; Helper function to find the next prime number (unchanged)
 (define (next-prime n)
