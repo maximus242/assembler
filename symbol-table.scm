@@ -237,7 +237,7 @@
                                    (stb-local . 0)
                                    (shn-data . 2)
                                    (shn-text . 1)
-                                   (shn-dynamic . 3)))  ; Changed to 3 for .dynamic section
+                                   (shn-dynamic . 8)))
                 (opts (merge-options default-options options))
                 (symbol-table (create-symbol-table symbol-addresses label-positions))
                 (symbol-sizes (calculate-table-size symbol-table opts))
