@@ -4,7 +4,7 @@
   #:export (create-got-plt-section))
 
 (define (create-got-plt-section function-labels dynamic-addr plt-addr)
-  (let* ((num-entries (length function-labels))
+  (let* ((num-entries 0)
          (got-plt-size (* (+ num-entries 3) 8))  ; 3 reserved entries + num_entries
          (got-plt (make-bytevector got-plt-size 0)))
     
@@ -21,20 +21,12 @@
       ; Each GOT entry points to the corresponding PLT entry (plt-addr + 16*i)
       (bytevector-u64-set! got-plt (* i 8) (+ plt-addr (* i 16)) (endianness little)))
     
-    ; Resize the GOT.PLT to match the exact size of example_file.so's section (8 bytes)
-    (make-bytevector 8 0)))
+    got-plt))
 
-(define (print-got-plt-section got-plt function-labels)
+(define (print-got-plt-section got-plt)
   (let ((size (bytevector-length got-plt)))
     (format #t "GOT.PLT Section (size: ~a bytes):~%" size)
-    (format #t "  Reserved entries:~%")
     (do ((i 0 (+ i 8)))
-        ((= i 24))
+        ((>= i size))
       (let ((value (bytevector-u64-ref got-plt i (endianness little))))
-        (format #t "    Entry ~a: 0x~16,'0x~%" (/ i 8) value)))
-    (format #t "  Function entries:~%")
-    (do ((i 24 (+ i 8))
-         (labels function-labels (cdr labels)))
-        ((or (>= i size) (null? labels)))
-      (let ((value (bytevector-u64-ref got-plt i (endianness little))))
-        (format #t "    ~a: 0x~16,'0x~%" (caar labels) value)))))
+        (format #t "  0x~4,'0x: 0x~16,'0x~%" i value)))))

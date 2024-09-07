@@ -187,7 +187,7 @@
                           (shn-data (assoc-ref opts 'shn-data))
                           (shn-dynamic (assoc-ref opts 'shn-dynamic))
                           (stt-notype (assoc-ref opts 'stt-notype))
-                          (shn-got-local 11)
+                          (shn-got-local 10)
                           (null-terminator-size (assoc-ref opts 'null-terminator-size))
                           (symbol-entry-size (assoc-ref opts 'symbol-entry-size))
                           (section-index (if is-section

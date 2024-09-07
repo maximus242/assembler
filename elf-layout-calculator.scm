@@ -246,9 +246,9 @@
              (cons '.symtab@LOCAL #x0)
              (cons '.strtab@LOCAL #x0)
              (cons '.shstrtab@LOCAL #x0)
-             (cons '.got.plt@LOCAL #x3110) ; Changed from #x31a0
+             (cons '.got.plt@LOCAL #x3000) ; Changed from #x31a0
              (cons '.hash@LOCAL #x0310)
-             (cons '_GLOBAL_OFFSET_TABLE_@LOCAL #x3110) ; Changed to match .got.plt
+             (cons '_GLOBAL_OFFSET_TABLE_@LOCAL #x3000) ; Changed to match .got.plt
              (cons '_DYNAMIC@LOCAL #x2f00)))
          (combined-symbol-addresses (append symbol-addresses unique-symbol-addresses))
          (symtab-size (calculate-symtab-size combined-symbol-addresses label-positions))

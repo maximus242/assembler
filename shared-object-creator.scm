@@ -217,7 +217,6 @@
          (plt-size (bytevector-length plt-section))
          (plt-got-offset (align-to (+ plt-offset plt-size) word-size))
          (plt-got-size (* (length (hash-map->list cons label-positions)) 8))
-         (data-addr (align-to #x3090 word-size))
          (rela-plt-offset (align-to (+ rela-offset relocation-table-size) word-size))
          (rela-addr (+ dynamic-addr (- rela-offset dynamic-offset)))
 
@@ -241,6 +240,7 @@
                             dynamic-addr
                             plt-offset))
          (got-plt-size (bytevector-length got-plt-section))
+         (data-addr (align-to (+ got-plt-offset got-plt-size) word-size))
          (plt-got-section (create-plt-got-section 
                             (hash-map->list cons label-positions)
                             got-plt-offset))
