@@ -75,7 +75,7 @@
 
             ;; .got.plt section
             (make-section-header 82 sht-progbits (logior shf-write shf-alloc)
-                                 plt-got-addr plt-got-addr plt-got-size 0 0 8 8)
+                                 got-plt-addr got-plt-addr got-plt-size 0 0 8 8)
 
             ;; .data section
             (make-section-header 91 sht-progbits (logior shf-write shf-alloc)

@@ -177,7 +177,7 @@
          (init-size (assoc-ref layout 'init-size))
          (section-headers-offset (assoc-ref layout 'section-headers-offset))
          (shstrtab-addr (assoc-ref layout 'shstrtab-addr))
-         (dynamic-addr #x3000)
+         (dynamic-addr #x2f00)
          (bss-size (assoc-ref layout 'bss-size))
          (symtab-offset (assoc-ref layout 'symtab-offset))
          (strtab-offset (assoc-ref layout 'strtab-offset))
@@ -206,9 +206,8 @@
          (relocation-table-size (bytevector-length relocation-table))
          (code-offset (assoc-ref layout 'code-offset))
          (got-offset (align-to (+ dynamic-offset dynamic-size) word-size))
-         (got-plt-offset (align-to (+ got-offset got-size) word-size))
-         (got-plt-size (* (+ (length (hash-map->list cons label-positions)) 3) 8))  ; 3 reserved entries + function entries
          (got-size (assoc-ref layout 'got-size))
+         (got-plt-offset (align-to (+ got-offset got-size) word-size))
          (init-offset (+ text-addr code-size))
          (init-size 16)
          (fini-size 16)
@@ -218,7 +217,7 @@
          (plt-size (bytevector-length plt-section))
          (plt-got-offset (align-to (+ plt-offset plt-size) word-size))
          (plt-got-size (* (length (hash-map->list cons label-positions)) 8))
-         (data-addr (align-to (+ got-plt-offset got-plt-size) word-size))
+         (data-addr (align-to #x3090 word-size))
          (rela-plt-offset (align-to (+ rela-offset relocation-table-size) word-size))
          (rela-addr (+ dynamic-addr (- rela-offset dynamic-offset)))
 
@@ -241,7 +240,7 @@
                             (hash-map->list cons label-positions)
                             dynamic-addr
                             plt-offset))
-
+         (got-plt-size (bytevector-length got-plt-section))
          (plt-got-section (create-plt-got-section 
                             (hash-map->list cons label-positions)
                             got-plt-offset))
@@ -295,7 +294,7 @@
                             plt-got-size
                             rela-plt-offset
                             rela-plt-size
-                            (+ dynamic-addr (- got-plt-offset dynamic-offset))
+                            got-plt-offset
                             got-plt-size
                             rodata-offset
                             (+ dynamic-addr (- gnu-version-offset dynamic-offset))
@@ -312,7 +311,7 @@
                             note-gnu-build-id-address
                             note-gnu-build-id-size
                             #x2000  ; Hardcoded .eh_frame address
-                            #x100   ; Hardcoded .eh_frame size
+                            #x0   ; Hardcoded .eh_frame size
                             ))
          (program-headers (create-program-headers 
                             elf-header-size
@@ -333,6 +332,7 @@
                             plt-size
                             (+ data-addr data-segment-size)
                             zero-load-size
+                            got-plt-size
                             alignment))
          (program-headers-size (bytevector-length program-headers))
          (num-program-headers (/ program-headers-size program-header-size))
@@ -377,6 +377,9 @@
              (code-offset (assoc-ref layout 'code-offset)))
         (bytevector-copy! resolved-code 0 elf-file code-offset (bytevector-length resolved-code)))
 
+      ;; Copy Global Offset Table for PLT (.got.plt)
+      (bytevector-copy! got-plt-section 0 elf-file got-plt-offset got-plt-size)
+
       ;; Copy dynamic section
       (bytevector-copy! dynamic-section 0 elf-file dynamic-offset dynamic-size)
 
@@ -416,16 +419,13 @@
         (bytevector-copy! got-section 0 elf-file got-offset got-size))
 
       ;; Copy Procedure Linkage Table (.plt)
-      (bytevector-copy! plt-section 0 elf-file plt-offset plt-size)
+      ;;(bytevector-copy! plt-section 0 elf-file plt-offset plt-size)
 
       ;; Copy .plt.got section
-      (bytevector-copy! plt-got-section 0 elf-file plt-got-offset plt-got-size)
+      ;;(bytevector-copy! plt-got-section 0 elf-file plt-got-offset plt-got-size)
 
       ;; Copy relocation entries for PLT (.rela.plt)
-      (bytevector-copy! rela-plt-section 0 elf-file rela-plt-offset rela-plt-size)
-
-      ;; Copy Global Offset Table for PLT (.got.plt)
-      (bytevector-copy! got-plt-section 0 elf-file got-plt-offset got-plt-size)
+      ;;(bytevector-copy! rela-plt-section 0 elf-file rela-plt-offset rela-plt-size)
 
       ;; Copy section header string table (.shstrtab)
       (bytevector-copy! shstrtab 0 elf-file (- section-headers-offset shstrtab-size) shstrtab-size)

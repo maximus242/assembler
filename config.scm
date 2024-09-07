@@ -34,6 +34,7 @@
     program-header-size
     num-program-headers
     pt-load
+    pt-note
     pt-dynamic
     pt-phdr
     pt-gnu-relro
@@ -91,6 +92,7 @@
 (define num-program-headers 5)
 (define pt-load 1)
 (define pt-dynamic 2)
+(define pt-note 4)
 (define pt-phdr 6)
 (define pt-gnu-relro #x6474e552)
 (define pf-x #b001)

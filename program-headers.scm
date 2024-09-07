@@ -68,6 +68,7 @@
           plt-size
           total-size
           zero-load-size
+          got-plt-size
           alignment)
 
   (format #t "\n--- Input Parameters ---\n")
@@ -148,8 +149,8 @@
                 #x1000                      ; Offset: Start of file
                 text-addr                ; Virtual address: Address of text segment
                 text-addr                ; Physical address: Same as virtual address
-                first-load-size          ; File size: Size of first loadable segment
-                first-load-size          ; Memory size: Same as file size
+                code-size
+                code-size
                 alignment)               ; Alignment: Required alignment
 
               ; Third LOAD segment (RW) - for .data
@@ -159,8 +160,8 @@
                 data-segment-start       ; Offset: Start of data segment in file
                 data-segment-start       ; Virtual address: Start of data segment in memory
                 data-segment-start       ; Physical address: Same as virtual address
-                (- dynamic-offset data-segment-start) ; File size: Size of data segment
-                (+ (- dynamic-offset data-segment-start) bss-size) ; Memory size: File size + BSS size
+                #x0
+                #x0
                 alignment)               ; Alignment: Required alignment
 
               ; Fourth LOAD segment (RWX) - starting from .dynamic, includes .plt and ends with .bss
@@ -170,8 +171,8 @@
                 dynamic-offset           ; Offset: Start of dynamic section
                 dynamic-addr             ; Virtual address: Address of dynamic section
                 dynamic-addr             ; Physical address: Same as virtual address
-                #x1000 ; File size: Total size of dynamic section
-                #x1000 ; Memory size: Same as file size
+                (+ dynamic-size got-size got-plt-size data-size)
+                (+ dynamic-size got-size got-plt-size data-size)
                 alignment)               ; Alignment: Required alignment
 
               ; PT_DYNAMIC
@@ -185,6 +186,18 @@
                 dynamic-size             ; Memory size: Same as file size
                 #x08)               ; Alignment: Required alignment
 
+              ; NOTE
+              (make-program-header
+                pt-note ; Type: Loadable segment
+                pf-r                     ; Flags: Read permission
+                #x1c8                      ; Offset: File offset, 0 for NOBITS
+                #x1c8                    ; Virtual address: Hardcoded start address for .bss
+                #x1c8                    ; Physical address: Same as virtual address
+                #x24                     ; File size: 0 because .bss is NOBITS
+                #x24                     ; Memory size: Hardcoded size for .bss in memory
+                #x4                      ; Alignment: Usually 0x1000 for page alignment
+                )
+
               ; GNU_RELRO
               (make-program-header 
                 pt-gnu-relro             ; Type: GNU read-only after relocation
@@ -194,20 +207,8 @@
                 dynamic-addr             ; Physical address: Same as virtual address
                 (+ dynamic-size got-size); File size: Size of read-only after relocation section
                 (+ dynamic-size got-size); Memory size: Same as file size
-                1)                       ; Alignment: 1 byte alignment
+                1))))                    ; Alignment: 1 byte alignment
 
-              ; BSS
-              (make-program-header
-                pt-load                  ; Type: Loadable segment
-                pf-r                     ; Flags: Read permission
-                #x0                      ; Offset: File offset, 0 for NOBITS
-                #x5000                   ; Virtual address: Hardcoded start address for .bss
-                #x5000                   ; Physical address: Same as virtual address
-                #x0                      ; File size: 0 because .bss is NOBITS
-                #x0                      ; Memory size: Hardcoded size for .bss in memory
-                #x1000                   ; Alignment: Usually 0x1000 for page alignment
-                )
-              )))
 
       (format #t "\n--- Generated Program Headers ---\n")
       (for-each (lambda (ph index)
