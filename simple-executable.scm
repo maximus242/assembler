@@ -29,10 +29,10 @@
 
 ;; Define symbol addresses (these will be relative to the start of .data section)
 (define symbol-addresses
-  '((buffer1    . #x3130)
-    (buffer2    . #x3150)
-    (result     . #x3170)
-    (multiplier . #x3190)
+  '((buffer1    . #x3020)  ; Start of .data section
+    (buffer2    . #x3040)  ; 32 bytes after buffer1
+    (result     . #x3060)  ; 32 bytes after buffer2
+    (multiplier . #x3080)  ; 32 bytes after result
     ))
 
 (define example-code

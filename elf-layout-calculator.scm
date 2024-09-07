@@ -237,18 +237,18 @@
          (unique-symbol-addresses
            (list
              (cons '.text@LOCAL #x1000)
-             (cons '.data@LOCAL #x3130)  ; Changed from #x31c0
-             (cons '.dynamic@LOCAL #x3000)
-             (cons '.dynsym@LOCAL #x0230)
-             (cons '.dynstr@LOCAL #x02c0)
-             (cons '.rela.dyn@LOCAL #x0298)
-             (cons '.got@LOCAL #x3090)   ; Changed from #x3120
+             (cons '.data@LOCAL #x3020)
+             (cons '.dynamic@LOCAL #x2f00)
+             (cons '.dynsym@LOCAL #x220)
+             (cons '.dynstr@LOCAL #x2b0)
+             (cons '.rela.dyn@LOCAL #x2e8)
+             (cons '.got@LOCAL #x2fe0)
              (cons '.symtab@LOCAL #x0)
              (cons '.strtab@LOCAL #x0)
              (cons '.shstrtab@LOCAL #x0)
-             (cons '.got.plt@LOCAL #x3000) ; Changed from #x31a0
-             (cons '.hash@LOCAL #x0310)
-             (cons '_GLOBAL_OFFSET_TABLE_@LOCAL #x3000) ; Changed to match .got.plt
+             (cons '.got.plt@LOCAL #x3000)
+             (cons '.hash@LOCAL #x1f0)
+             (cons '_GLOBAL_OFFSET_TABLE_@LOCAL #x3000)
              (cons '_DYNAMIC@LOCAL #x2f00)))
          (combined-symbol-addresses (append symbol-addresses unique-symbol-addresses))
          (symtab-size (calculate-symtab-size combined-symbol-addresses label-positions))

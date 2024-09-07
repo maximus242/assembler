@@ -240,7 +240,7 @@
                             dynamic-addr
                             plt-offset))
          (got-plt-size (bytevector-length got-plt-section))
-         (data-addr (align-to (+ got-plt-offset got-plt-size) word-size))
+         (data-addr (align-to (+ got-plt-offset got-plt-size 2) word-size))
          (plt-got-section (create-plt-got-section 
                             (hash-map->list cons label-positions)
                             got-plt-offset))

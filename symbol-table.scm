@@ -107,7 +107,6 @@
            (cons (make-bytevector table-size 0)
                  (make-bytevector string-table-size 0)))
 
-
          (define section-index-table
            (alist->hash-table
              '((".note.gnu.build-id" . 1)
@@ -235,8 +234,8 @@
                                    (stt-section . 3)
                                    (stb-global . 1)
                                    (stb-local . 0)
-                                   (shn-data . 2)
-                                   (shn-text . 1)
+                                   (shn-data . 11)
+                                   (shn-text . 6)
                                    (shn-dynamic . 8)))
                 (opts (merge-options default-options options))
                 (symbol-table (create-symbol-table symbol-addresses label-positions))
