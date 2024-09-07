@@ -20,8 +20,6 @@
                           symbol-entry-address
                           create-version-section))
 
-(define *version-string* "VERS_1.0")
-
 (define-record-type <symbol-entry>
   (make-symbol-entry name address info other shndx size)
   symbol-entry?
@@ -73,18 +71,15 @@
               symbols)))
 
 (define (calculate-string-table-size symbol-table)
-  (+ 1 (string-length *version-string*) 1
-     (hash-fold 
-       (lambda (key value acc) 
-         (+ acc (string-length (symbol->string key)) 1))
-       0 
-       symbol-table)))
+  (hash-fold 
+    (lambda (key value acc) 
+      (+ acc (string-length (symbol->string key)) 1))
+    1  ; Start with 1 for the initial null byte
+    symbol-table))
 
 (define (write-initial-data string-table opts)
   (let ((initial-offset (assoc-ref opts 'initial-string-offset)))
-    (bytevector-copy! (string->utf8 *version-string*) 0 string-table initial-offset (string-length *version-string*))
-    (bytevector-u8-set! string-table (+ initial-offset (string-length *version-string*)) 0)
-    (+ initial-offset (string-length *version-string*) 1)))
+    initial-offset))
 
 (define* (create-symtab-and-strtab symbol-addresses label-positions #:optional (options '()))
          (format #t "create-symtab-and-strtab called with:~%")
@@ -497,10 +492,3 @@
          (result (make-bytevector length)))
     (bytevector-copy! bv start result 0 length)
     result))
-
-(define (create-version-section)
-  (let* ((version-bytes (string->utf8 *version-string*))
-         (version-section-size (+ (bytevector-length version-bytes) 1))
-         (version-section (make-bytevector version-section-size 0)))
-    (bytevector-copy! version-bytes 0 version-section 0 (bytevector-length version-bytes))
-    version-section))

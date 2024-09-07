@@ -135,30 +135,30 @@
     ;; such as dependencies on other versions if any (but is omitted here for simplicity).
 
     bv))
-
-(define (create-gnu-version-d-section)
-  (let ((bv (make-bytevector 28 0)))
-    (bytevector-u16-set! bv 0 1 (endianness little))  ; Version (1)
-    (bytevector-u16-set! bv 2 1 (endianness little))  ; Flags (1 for BASE)
-    (bytevector-u16-set! bv 4 1 (endianness little))  ; Version index (1)
-    (bytevector-u16-set! bv 6 1 (endianness little))  ; Cnt (1)
-    (bytevector-u32-set! bv 8 #xb027790a (endianness big))  ; Hash
-    (bytevector-u32-set! bv 12 20 (endianness little))  ; Offset to verdaux
-    (bytevector-u32-set! bv 16 0 (endianness little))  ; Offset to next (0)
-
-    ; Verdaux entry
-    (bytevector-u32-set! bv 20 1 (endianness little))  ; Name offset in .dynstr
-    (bytevector-u32-set! bv 24 0 (endianness little))  ; Offset to next aux (0)
-    bv))
-
-(define (create-gnu-version-section dynsym-count)
-  (let ((version-section (make-bytevector (* 2 dynsym-count) 0)))
-    (do ((i 0 (+ i 1)))
-      ((= i dynsym-count) version-section)
-      (bytevector-u16-set! version-section (* i 2) 
-                           (if (= i 0) 0 1)  ; 0 for local, 1 for global
-                           (endianness little)))))
-
+;;
+;;(define (create-gnu-version-d-section)
+;;  (let ((bv (make-bytevector 28 0)))
+;;    (bytevector-u16-set! bv 0 1 (endianness little))  ; Version (1)
+;;    (bytevector-u16-set! bv 2 1 (endianness little))  ; Flags (1 for BASE)
+;;    (bytevector-u16-set! bv 4 1 (endianness little))  ; Version index (1)
+;;    (bytevector-u16-set! bv 6 1 (endianness little))  ; Cnt (1)
+;;    (bytevector-u32-set! bv 8 #xb027790a (endianness big))  ; Hash
+;;    (bytevector-u32-set! bv 12 20 (endianness little))  ; Offset to verdaux
+;;    (bytevector-u32-set! bv 16 0 (endianness little))  ; Offset to next (0)
+;;
+;;    ; Verdaux entry
+;;    (bytevector-u32-set! bv 20 1 (endianness little))  ; Name offset in .dynstr
+;;    (bytevector-u32-set! bv 24 0 (endianness little))  ; Offset to next aux (0)
+;;    bv))
+;;
+;;(define (create-gnu-version-section dynsym-count)
+;;  (let ((version-section (make-bytevector (* 2 dynsym-count) 0)))
+;;    (do ((i 0 (+ i 1)))
+;;      ((= i dynsym-count) version-section)
+;;      (bytevector-u16-set! version-section (* i 2) 
+;;                           (if (= i 0) 0 1)  ; 0 for local, 1 for global
+;;                           (endianness little)))))
+;;
 (define (create-shared-object code data-sections output-file symbol-addresses label-positions assembled-relocation-table)
   (let* ((layout (calculate-elf-layout code data-sections symbol-addresses label-positions))
          (program-headers-offset (assoc-ref layout 'program-headers-offset))
@@ -196,7 +196,7 @@
          (hash-offset (align-to (+ note-gnu-build-id-address note-gnu-build-id-size) word-size))
          (dynamic-offset (align-to dynamic-addr word-size))
          (dynamic-size (assoc-ref layout 'dynamic-size))
-         (version-section (assoc-ref layout 'version-section))
+         ;; (version-section (assoc-ref layout 'version-section))
          (hash-table (create-hash-section dynsymtab-bv dynstrtab))
          (hash-size (bytevector-length hash-table))
          (dynsym-offset (align-to (+ hash-offset hash-size) word-size))
@@ -400,15 +400,15 @@
       ;; Copy string table (.strtab)
       (bytevector-copy! strtab 0 elf-file strtab-offset strtab-size)
 
-      ;; Create and copy .gnu.version section
-      (let* ((dynsym-count (/ (bytevector-length symtab-bv) 24))
-             (gnu-version-output (create-gnu-version-section dynsym-count))
-             (gnu-version-size (* 2 dynsym-count)))
-        (bytevector-copy! gnu-version-output 0 elf-file gnu-version-offset gnu-version-size))
+      ;;;; Create and copy .gnu.version section
+      ;;(let* ((dynsym-count (/ (bytevector-length symtab-bv) 24))
+      ;;       (gnu-version-output (create-gnu-version-section dynsym-count))
+      ;;       (gnu-version-size (* 2 dynsym-count)))
+      ;;  (bytevector-copy! gnu-version-output 0 elf-file gnu-version-offset gnu-version-size))
 
-      ;; Create and copy .gnu.version_d section
-      (let ((gnu-version-d (create-gnu-version-d-section)))
-        (bytevector-copy! gnu-version-d 0 elf-file gnu-version-d-offset (bytevector-length gnu-version-d)))
+      ;;;; Create and copy .gnu.version_d section
+      ;;(let ((gnu-version-d (create-gnu-version-d-section)))
+      ;;  (bytevector-copy! gnu-version-d 0 elf-file gnu-version-d-offset (bytevector-length gnu-version-d)))
 
       ;; Copy Global Offset Table (.got)
       (let ((got-section (create-got-section got-size)))
