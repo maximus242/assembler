@@ -234,7 +234,7 @@
          (gnu-version-d-size 32)
          (gnu-version-size (* 2 num-dynamic-entries))
          (gnu-version-d-offset (align-to (+ gnu-version-offset gnu-version-size) word-size))
-
+         (zero-load-size (+ rela-offset relocation-table-size))
          (data-section (create-data-section data-sections))
 
          (got-plt-section (create-got-plt-section 
@@ -332,6 +332,7 @@
                             plt-offset
                             plt-size
                             (+ data-addr data-segment-size)
+                            zero-load-size
                             alignment))
          (program-headers-size (bytevector-length program-headers))
          (num-program-headers (/ program-headers-size program-header-size))

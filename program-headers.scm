@@ -66,7 +66,8 @@
           got-size 
           plt-offset 
           plt-size
-          total-size 
+          total-size
+          zero-load-size
           alignment)
 
   (format #t "\n--- Input Parameters ---\n")
@@ -135,8 +136,8 @@
                 #x0                      ; Offset: Start of file
                 #x0 ; Virtual address: Address of text segment
                 #x0 ; Physical address: Same as virtual address
-                #x1000 ; File size: Size of first loadable segment
-                #x1000 ; Memory size: Same as file size
+                zero-load-size
+                zero-load-size
                 alignment)               ; Alignment: Required alignment
 
 
