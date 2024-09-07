@@ -126,6 +126,11 @@
                (".shstrtab" . 14))))
 
          (define (process-table symbol-table table string-table opts initial-str-offset symbol-addresses)
+           (format #t "process-table input:~%")
+           (format #t "  symbol-table: ~S~%" symbol-table)
+           (format #t "  initial-str-offset: ~A~%" initial-str-offset)
+           (format #t "  symbol-addresses: ~S~%" symbol-addresses)
+
            (let* ((symbols (hash-map->list cons symbol-table))
                   (sorted-symbols 
                     (sort symbols
@@ -134,24 +139,26 @@
                                   (name-b (symbol->string (car b)))
                                   (index-a (list-index (lambda (addr) (equal? (car addr) (car a))) symbol-addresses))
                                   (index-b (list-index (lambda (addr) (equal? (car addr) (car b))) symbol-addresses)))
+                              (format #t "Comparing symbols: ~A (index ~A) and ~A (index ~A)~%" 
+                                      name-a index-a name-b index-b)
                               (cond
-                                ;; Both local or both global, sort by original order
                                 ((eq? (string-contains name-a "@LOCAL")
                                       (string-contains name-b "@LOCAL"))
                                  (cond
                                    ((and index-a index-b) (< index-a index-b))
                                    (index-a #t)
                                    (index-b #f)
-                                   (else (string<? name-a name-b))))  ; fallback to alphabetical order
-                                ;; a is local, b is global
+                                   (else (string<? name-a name-b))))
                                 ((string-contains name-a "@LOCAL") #t)
-                                ;; a is global, b is local
                                 (else #f)))))))
+             (format #t "Sorted symbols: ~S~%" sorted-symbols)
              (let loop ((symbols sorted-symbols)
                         (index 1)
                         (str-offset initial-str-offset))
                (if (null? symbols)
-                 (cons table string-table)
+                 (begin
+                   (format #t "Finished processing symbols~%")
+                   (cons table string-table))
                  (let* ((symbol (car symbols))
                         (name (symbol->string (car symbol)))
                         (value (cdr symbol))
@@ -164,47 +171,54 @@
                         (clean-name (if is-local
                                       (string-trim-suffix name "@LOCAL")
                                       name))
-                        (name-bytes (string->utf8 clean-name))
-                        (stb-value (if is-local
-                                     (assoc-ref opts 'stb-local)
-                                     (assoc-ref opts 'stb-global)))
-                        (stt-func (assoc-ref opts 'stt-func))
-                        (stt-object (assoc-ref opts 'stt-object))
-                        (stt-section (assoc-ref opts 'stt-section))
-                        (shn-text (assoc-ref opts 'shn-text))
-                        (shn-data (assoc-ref opts 'shn-data))
-                        (shn-dynamic (assoc-ref opts 'shn-dynamic))
-                        (stt-notype (assoc-ref opts 'stt-notype))
-                        (shn-got-local 11)
-                        (null-terminator-size (assoc-ref opts 'null-terminator-size))
-                        (symbol-entry-size (assoc-ref opts 'symbol-entry-size))
-                        (section-index (if is-section
-                                         (hash-ref section-index-table clean-name 0)
-                                         (cond
-                                           (is-got-local shn-got-local)
-                                           (is-dynamic shn-dynamic)
-                                           (is-function shn-text)
-                                           (else shn-data))))
-                        (symbol-type (cond
-                                       (is-section stt-section)
-                                       (is-function stt-notype)
-                                       ((or (string=? clean-name "_DYNAMIC")
-                                            (string=? clean-name "_GLOBAL_OFFSET_TABLE_"))
-                                        stt-object)
-                                       (else stt-notype)))
-                        (entry (make-symbol-entry str-offset address 
-                                                  (logior (ash stb-value 4)
-                                                          symbol-type)
-                                                  0
-                                                  section-index
-                                                  (if is-function 0 0)))
-                        (entry-offset (* index symbol-entry-size)))
-                   (bytevector-copy! name-bytes 0 string-table str-offset (bytevector-length name-bytes))
-                   (bytevector-u8-set! string-table (+ str-offset (bytevector-length name-bytes)) 0)
-                   (write-symbol-entry! table entry-offset opts entry)
-                   (loop (cdr symbols)
-                         (+ index 1)
-                         (+ str-offset (bytevector-length name-bytes) null-terminator-size)))))))
+                        (name-bytes (string->utf8 clean-name)))
+                   (format #t "Processing symbol: ~A~%" clean-name)
+                   (format #t "  address: ~A, is-function: ~A, is-local: ~A~%" 
+                           address is-function is-local)
+                   (format #t "  is-section: ~A, is-dynamic: ~A, is-got-local: ~A~%" 
+                           is-section is-dynamic is-got-local)
+                   (let* ((stb-value (if is-local
+                                       (assoc-ref opts 'stb-local)
+                                       (assoc-ref opts 'stb-global)))
+                          (stt-func (assoc-ref opts 'stt-func))
+                          (stt-object (assoc-ref opts 'stt-object))
+                          (stt-section (assoc-ref opts 'stt-section))
+                          (shn-text (assoc-ref opts 'shn-text))
+                          (shn-data (assoc-ref opts 'shn-data))
+                          (shn-dynamic (assoc-ref opts 'shn-dynamic))
+                          (stt-notype (assoc-ref opts 'stt-notype))
+                          (shn-got-local 11)
+                          (null-terminator-size (assoc-ref opts 'null-terminator-size))
+                          (symbol-entry-size (assoc-ref opts 'symbol-entry-size))
+                          (section-index (if is-section
+                                           (hash-ref section-index-table clean-name 0)
+                                           (cond
+                                             (is-got-local shn-got-local)
+                                             (is-dynamic shn-dynamic)
+                                             (is-function shn-text)
+                                             (else shn-data))))
+                          (symbol-type (cond
+                                         (is-section stt-section)
+                                         (is-function stt-notype)
+                                         ((or (string=? clean-name "_DYNAMIC")
+                                              (string=? clean-name "_GLOBAL_OFFSET_TABLE_"))
+                                          stt-object)
+                                         (else stt-notype)))
+                          (entry (make-symbol-entry str-offset address 
+                                                    (logior (ash stb-value 4)
+                                                            symbol-type)
+                                                    0
+                                                    section-index
+                                                    (if is-function 0 0)))
+                          (entry-offset (* index symbol-entry-size)))
+                     (format #t "  section-index: ~A, symbol-type: ~A~%" section-index symbol-type)
+                     (format #t "  entry-offset: ~A, str-offset: ~A~%" entry-offset str-offset)
+                     (bytevector-copy! name-bytes 0 string-table str-offset (bytevector-length name-bytes))
+                     (bytevector-u8-set! string-table (+ str-offset (bytevector-length name-bytes)) 0)
+                     (write-symbol-entry! table entry-offset opts entry)
+                     (loop (cdr symbols)
+                           (+ index 1)
+                           (+ str-offset (bytevector-length name-bytes) null-terminator-size))))))))
 
          (let* ((default-options '((symbol-entry-size . 24)
                                    (st-name-offset . 0)
@@ -377,7 +391,7 @@
                                         (hash-entry-size . 4)
                                         (symbol-entry-size . 24))))
                 (symbol-count (/ (bytevector-length dynsym-table) (assoc-ref opts 'symbol-entry-size)))
-                (nbucket (next-prime (max 1 (min symbol-count 7)))) ; Adjust bucket count
+                (nbucket (next-prime (max 1 (min symbol-count 3)))) ; Adjust bucket count
                 (nchain symbol-count)
                 (hash-size (+ (assoc-ref opts 'hash-header-size)
                               (* (assoc-ref opts 'hash-entry-size) (+ nbucket nchain))))
