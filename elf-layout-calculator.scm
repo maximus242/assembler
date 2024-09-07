@@ -98,7 +98,15 @@
   (bytevector-length (create-relocation-table symbol-addresses)))
 
 (define (calculate-got-size symbol-addresses)
-  (* (length symbol-addresses) got-entry-size 4))
+  (let* ((num-symbols (length symbol-addresses))  ;; Number of symbols
+         (got-entry-size 8)                      ;; Assuming each GOT entry is 8 bytes
+         (calculated-size (* num-symbols got-entry-size)))  ;; Final size
+    ;; Logging
+    (format #t "Calculating GOT size:~%")
+    (format #t "  Number of symbols: ~a~%" num-symbols)
+    (format #t "  Size of each GOT entry: ~a bytes~%" got-entry-size)
+    (format #t "  Calculated GOT size: ~a bytes~%" calculated-size)
+    calculated-size))
 
 (define (calculate-plt-size symbol-addresses)
   (* (length symbol-addresses) plt-entry-size))
@@ -110,15 +118,24 @@
   (align-to (+ data-offset data-size) alignment))
 
 (define (calculate-dynamic-size)
-  (let* ((calculated-size (* num-dynamic-entries dynamic-entry-size))
-         (hex-size (number->string calculated-size 16)))
+  (let* ((num-dynamic-entries 9)  ;; Example number of entries
+         (dynamic-entry-size 16)  ;; Each dynamic entry is 16 bytes
+         (target-size #xe0)       ;; Target size to match after alignment
+         (calculated-size (* num-dynamic-entries dynamic-entry-size))
+         (padding (- target-size calculated-size))  ;; Calculate padding required
+         (total-size (+ calculated-size padding))   ;; Total size with padding
+         (hex-size (number->string total-size 16))) ;; Convert to hex for display
     (format #t "Calculating dynamic size:~%")
     (format #t "  Number of dynamic entries: ~a~%" num-dynamic-entries)
     (format #t "  Size of each dynamic entry: 0x~a bytes~%" 
             (number->string dynamic-entry-size 16))
-    (format #t "  Calculated size: 0x~a bytes~%" hex-size)
-    (format #t "  Decimal size: ~a bytes~%" calculated-size)
-    calculated-size))
+    (format #t "  Calculated size (without padding): 0x~a bytes~%"
+            (number->string calculated-size 16))
+    (format #t "  Padding to add: 0x~a bytes~%" 
+            (number->string padding 16))
+    (format #t "  Total size (with padding): 0x~a bytes~%" hex-size)
+    (format #t "  Decimal size (with padding): ~a bytes~%" total-size)
+    total-size))
 
 (define (calculate-dynsym-offset dynamic-offset dynamic-size)
   (align-to (+ dynamic-offset dynamic-size) word-size))
@@ -232,7 +249,7 @@
              (cons '.got.plt@LOCAL #x3110) ; Changed from #x31a0
              (cons '.hash@LOCAL #x0310)
              (cons '_GLOBAL_OFFSET_TABLE_@LOCAL #x3110) ; Changed to match .got.plt
-             (cons '_DYNAMIC@LOCAL #x3000)))
+             (cons '_DYNAMIC@LOCAL #x2f00)))
          (combined-symbol-addresses (append symbol-addresses unique-symbol-addresses))
          (symtab-size (calculate-symtab-size combined-symbol-addresses label-positions))
          (strtab-size (calculate-strtab-size combined-symbol-addresses label-positions))

@@ -36,13 +36,25 @@
     (bytevector-u64-set! section (+ offset VALUE_OFFSET) value (endianness little))
     (format #t "Set entry: index=~a, tag=~a, value=~a~%" index tag value)))
 
+(define (add-padding-to-align section size desired-size)
+  (let ((padding (- desired-size size)))
+    (if (> padding 0)
+        (let ((padded-section (make-bytevector (+ size padding) 0)))
+          ;; Copy original section to the padded section
+          (bytevector-copy! section 0 padded-section 0 size)
+          padded-section)
+        section)))
+
 (define (create-dynamic-section
           dynstr-offset dynsym-offset strtab-size dynsym-size 
           rela-offset rela-size got-offset hash-offset
           gnu-version-offset gnu-version-d-offset gnu-version-d-size
           plt-offset plt-size jmprel-offset jmprel-size got-plt-offset)
   (let* ((num-entries 9)  ;; Adjusted for the new number of entries
-         (section (make-bytevector (* num-entries ENTRY_SIZE) 0)))
+         (section-size (* num-entries ENTRY_SIZE)) ;; Initial section size
+         (section (make-bytevector section-size 0))
+         (final-size #xE0)) ;; Desired size with padding (0xE0 in hex) TODO Refactor once working
+    
     (format #t "Creating dynamic section with num-entries=~a~%" num-entries)
     
     ;; Log initial parameters (keeping this for consistency with the original function)
@@ -58,6 +70,7 @@
     (set-dynamic-entry! section 7 DT_RELAENT RELAENT_SIZE)
     (set-dynamic-entry! section 8 DT_NULL 0)
     
-    ;; Final logging
-    (format #t "Dynamic section creation complete.~%")
-    section))
+    ;; Add padding to align the section to the final size (0xE0)
+    (let ((padded-section (add-padding-to-align section section-size final-size)))
+      (format #t "Dynamic section creation complete. Size with padding: ~a bytes~%" (bytevector-length padded-section))
+      padded-section)))
