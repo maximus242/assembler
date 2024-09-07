@@ -39,7 +39,7 @@
                    (address (if (pair? value) (car value) value))
                    (entry-offset (* index reloc-entry-size))
                    (symbol-index (+ symbol-index-start index))
-                   (got-entry (+ got-base (* index 32))) ; Each GOT entry is 8 bytes in size
+                   (got-entry (+ got-base (* index 8))) ; Each GOT entry is 8 bytes in size
                    (r-info (logior (ash symbol-index 32) reloc-type)))
               
               (bytevector-u64-set! table 
