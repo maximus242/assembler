@@ -1,13 +1,25 @@
 .data
     .align 32
 buffer1:
-    .byte 0, 0, 128, 63, 0, 0, 0, 64, 0, 0, 64, 64, 0, 0, 128, 64
-    .byte 0, 0, 160, 64, 0, 0, 192, 64, 0, 0, 224, 64, 0, 0, 0, 65
+    .byte 0, 0, 128, 63  # 1.0
+    .byte 0, 0, 0, 64    # 2.0
+    .byte 0, 0, 64, 64   # 3.0
+    .byte 0, 0, 128, 64  # 4.0
+    .byte 0, 0, 160, 64  # 5.0
+    .byte 0, 0, 192, 64  # 6.0
+    .byte 0, 0, 224, 64  # 7.0
+    .byte 0, 0, 0, 65    # 8.0
 
     .align 32
 buffer2:
-    .byte 0, 0, 0, 63, 0, 0, 64, 63, 0, 0, 128, 63, 0, 0, 160, 63
-    .byte 0, 0, 192, 63, 0, 0, 224, 63, 0, 0, 0, 64, 0, 0, 16, 64
+    .byte 0, 0, 0, 65    # 8.0
+    .byte 0, 0, 224, 64  # 7.0
+    .byte 0, 0, 192, 64  # 6.0
+    .byte 0, 0, 160, 64  # 5.0
+    .byte 0, 0, 128, 64  # 4.0
+    .byte 0, 0, 64, 64   # 3.0
+    .byte 0, 0, 0, 64    # 2.0
+    .byte 0, 0, 128, 63  # 1.0
 
     .align 32
 multiplier:
@@ -32,25 +44,26 @@ perform_operations:
     lea buffer2@GOTPCREL(%rip), %rsi
     lea result@GOTPCREL(%rip), %rdx
     lea multiplier@GOTPCREL(%rip), %rax
+
+    # Dereference GOT entries to get the actual addresses
+    mov (%rdi), %rdi     # Now %rdi contains the actual address of buffer1
+    mov (%rsi), %rsi     # Now %rsi contains the actual address of buffer2
+    mov (%rdx), %rdx     # Now %rdx contains the actual address of result
+    mov (%rax), %rax     # Now %rax contains the actual address of multiplier
     
-    # Dereference GOT entries
-    mov (%rdi), %rdi
-    mov (%rsi), %rsi
-    mov (%rdx), %rdx
-    mov (%rax), %rax
-    
-    # SIMD operations (using unaligned loads/stores)
+    # Addition
     vmovaps (%rdi), %ymm0
     vmovaps (%rsi), %ymm1
-    vaddps %ymm2, %ymm1, %ymm1
-    vmovaps (%rax), %ymm3
-    vfmadd132ps %ymm3, %ymm3, %ymm2
-    vmovaps %ymm2, (%rdx)
-    
-    # XOR operation
-    vxorps %ymm2, %ymm1, %ymm2
-    vmovaps %ymm2, (%rdx)
-    
+    vaddps %ymm1, %ymm0, %ymm0
+    vmovaps %ymm0, (%rdx)
+   
+    # Multiplication
+    vxorps %ymm1, %ymm1, %ymm1
+    vmovaps (%rax), %ymm2
+    vfmadd132ps %ymm0, %ymm1, %ymm2
+    vmovaps %ymm0, (%rdx)
+
+
     # End of function
     xor %rax, %rax
     pop %rbp
