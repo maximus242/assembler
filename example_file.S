@@ -1,12 +1,15 @@
 .data
+    .align 32
 buffer1:
     .byte 0, 0, 128, 63, 0, 0, 0, 64, 0, 0, 64, 64, 0, 0, 128, 64
     .byte 0, 0, 160, 64, 0, 0, 192, 64, 0, 0, 224, 64, 0, 0, 0, 65
 
+    .align 32
 buffer2:
     .byte 0, 0, 0, 63, 0, 0, 64, 63, 0, 0, 128, 63, 0, 0, 160, 63
     .byte 0, 0, 192, 63, 0, 0, 224, 63, 0, 0, 0, 64, 0, 0, 16, 64
 
+    .align 32
 multiplier:
     .float 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0
 
@@ -19,7 +22,6 @@ result:
 .globl multiplier
 .globl result
 
-.globl perform_operations
 .text
 perform_operations:
     push %rbp
