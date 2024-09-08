@@ -44,25 +44,25 @@
     (lea rdi (rip buffer1@GOTPCREL))
     (lea rsi (rip buffer2@GOTPCREL))
     (lea rdx (rip result@GOTPCREL))
-    (lea r8 (rip multiplier@GOTPCREL))
+    (lea rax (rip multiplier@GOTPCREL))
 
     ; Dereference GOT entries
     (mov rdi (rdi))
     (mov rsi (rsi))
     (mov rdx (rdx))
-    (mov r8 (r8))
+    (mov rax (rax))
 
-    ; SIMD operations
-    (vmovaps ymm0 (rdi))
-    (vmovaps ymm1 (rsi))
-    (vaddps ymm2 ymm1 ymm1)
-    (vmovaps ymm3 (r8))
-    (vfmadd132ps ymm2 ymm3 ymm0)
-    (vmovaps (rdx) ymm2)
+    ; Addition
+    (vmovaps (rdi) ymm0)
+    (vmovaps (rsi) ymm1)
+    (vaddps ymm1 ymm0 ymm0)
+    (vmovaps ymm0 (rdx))
 
-    ; XOR operation
-    (vxorps ymm2 ymm1 ymm2)
-    (vmovaps (rdx) ymm2)
+    ; Multiplication
+    (vxorps ymm1 ymm1 ymm1)
+    (vmovaps (rax) ymm2)
+    (vfmadd132ps ymm0 ymm1 ymm2)
+    (vmovaps ymm0 (rdx))
 
     ; End of function
     (xor eax eax)

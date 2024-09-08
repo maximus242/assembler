@@ -115,16 +115,19 @@
 
 (define (encode-vmovaps dest src)
   (cond
+    ;; Case 1: Destination is a single-element list (memory operand)
     ((and (list? dest) (= (length dest) 1))
      (let ((dest-reg (car dest))
            (src-code (ymm-register->code src)))
        (u8-list->bytevector 
-        (list #xC5 #xFC #x29 
+        (list #xC5 #xFC #x28 
               (logior #x00 
                       (ash src-code 3) 
                       (if (>= (register->code dest-reg) 8)
                           (- (register->code dest-reg) 8)
                           (register->code dest-reg)))))))
+    
+    ;; Case 2: Source is a single-element list (memory operand)
     ((and (list? src) (= (length src) 1))
      (let ((dest-code (ymm-register->code dest))
            (src-reg (car src)))
@@ -132,26 +135,34 @@
            (begin
              (add-relocation 'rip-relative src-reg)
              (bytevector-append
-              (u8-list->bytevector (list #xC5 #xFC #x28 #x05))
+              (u8-list->bytevector (list #xC5 #xFC #x29 #x05))
               (make-bytevector 4 0)))
            (u8-list->bytevector 
-            (list #xC5 #xFC #x28 
+            (list #xC5 #xFC #x29 
                   (logior #x00 
                           (ash dest-code 3) 
                           (if (>= (register->code src-reg) 8)
                               (- (register->code src-reg) 8)
                               (register->code src-reg))))))))
-    ((symbol? src)
+    
+    ;; Case 3: Both operands are registers
+    ((and (symbol? dest) (symbol? src))
      (let ((dest-code (ymm-register->code dest))
            (src-code (ymm-register->code src)))
        (u8-list->bytevector (list #xC5 #xFC #x28 (logior #xC0 (ash src-code 3) dest-code)))))
+    
+    ;; Error case: Invalid operands
     (else (error "Invalid operands for vmovaps" dest src))))
 
 (define (encode-vaddps dest src1 src2)
   (let ((dest-code (ymm-register->code dest))
         (src1-code (ymm-register->code src1))
         (src2-code (ymm-register->code src2)))
-    (u8-list->bytevector (list #xC5 #xF4 #x58 (logior #xC0 (ash src2-code 3) dest-code)))))
+    (u8-list->bytevector 
+     (list #xC5 
+           (logxor #xFC (ash src1-code 3))
+           #x58 
+           (logior #xC0 (ash src2-code 3) dest-code)))))
 
 (define (encode-vfmadd132ps dest src1 src2)
   (let ((dest-code (ymm-register->code dest))
