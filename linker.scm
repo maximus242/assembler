@@ -31,7 +31,7 @@
 
   (let* ((symbols (extract-symbols relocation-table))
          (base-address #x0)
-         (address-step 32))
+         (address-step 8))
     (map (lambda (symbol index)
            (cons symbol (+ base-address (* index address-step))))
          symbols
@@ -174,6 +174,7 @@
   (log-message "link-code: Inputs:")
   (log-message "code:")
   (log-bytevector code)
+  (define got-offset #x2fe0)
   (log-message "symbol-addresses:")
   (define got-relocation-table (process-relocation-table relocation-table))
   (log-message "GOT RELOCATION TABLE LINKER: ~a" got-relocation-table)
@@ -193,4 +194,4 @@
   (let ((symbol-table (if (hash-table? symbol-addresses)
                           symbol-addresses
                           (alist->hash-table symbol-addresses))))
-    (resolve-references code symbol-table label-positions relocation-table #x1000 data-addr got-relocation-table)))
+    (resolve-references code symbol-table label-positions relocation-table #x1000 got-offset got-relocation-table)))
