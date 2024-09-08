@@ -48,7 +48,7 @@ perform_operations:
     vmovaps %ymm2, (%rdx)
     
     # XOR operation
-    vxorps %ymm1, %ymm2, %ymm2
+    vxorps %ymm2, %ymm1, %ymm2
     vmovaps %ymm2, (%rdx)
     
     # End of function
