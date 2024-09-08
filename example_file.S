@@ -31,20 +31,20 @@ perform_operations:
     lea buffer1@GOTPCREL(%rip), %rdi
     lea buffer2@GOTPCREL(%rip), %rsi
     lea result@GOTPCREL(%rip), %rdx
-    lea multiplier@GOTPCREL(%rip), %r8
+    lea multiplier@GOTPCREL(%rip), %rax
     
     # Dereference GOT entries
     mov (%rdi), %rdi
     mov (%rsi), %rsi
     mov (%rdx), %rdx
-    mov (%r8), %r8
+    mov (%rax), %rax
     
     # SIMD operations (using unaligned loads/stores)
     vmovaps (%rdi), %ymm0
     vmovaps (%rsi), %ymm1
-    vaddps %ymm1, %ymm1, %ymm2
-    vmovaps (%r8), %ymm3
-    vfmadd132ps %ymm0, %ymm3, %ymm2
+    vaddps %ymm2, %ymm1, %ymm1
+    vmovaps (%rax), %ymm3
+    vfmadd132ps %ymm3, %ymm3, %ymm2
     vmovaps %ymm2, (%rdx)
     
     # XOR operation
@@ -52,6 +52,6 @@ perform_operations:
     vmovaps %ymm2, (%rdx)
     
     # End of function
-    xor %eax, %eax
+    xor %rax, %rax
     pop %rbp
     ret
