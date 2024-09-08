@@ -1,3 +1,24 @@
+.data
+buffer1:
+    .byte 0, 0, 128, 63, 0, 0, 0, 64, 0, 0, 64, 64, 0, 0, 128, 64
+    .byte 0, 0, 160, 64, 0, 0, 192, 64, 0, 0, 224, 64, 0, 0, 0, 65
+
+buffer2:
+    .byte 0, 0, 0, 63, 0, 0, 64, 63, 0, 0, 128, 63, 0, 0, 160, 63
+    .byte 0, 0, 192, 63, 0, 0, 224, 63, 0, 0, 0, 64, 0, 0, 16, 64
+
+multiplier:
+    .float 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0
+
+result:
+    .zero 32
+
+.globl perform_operations
+.globl buffer1
+.globl buffer2
+.globl multiplier
+.globl result
+
 .globl perform_operations
 .text
 perform_operations:
@@ -10,16 +31,6 @@ perform_operations:
     lea result@GOTPCREL(%rip), %rdx
     lea multiplier@GOTPCREL(%rip), %r8
     
-    # Check for null pointers
-    test %rdi, %rdi
-    jz .error
-    test %rsi, %rsi
-    jz .error
-    test %rdx, %rdx
-    jz .error
-    test %r8, %r8
-    jz .error
-    
     # Dereference GOT entries
     mov (%rdi), %rdi
     mov (%rsi), %rsi
@@ -27,23 +38,18 @@ perform_operations:
     mov (%r8), %r8
     
     # SIMD operations (using unaligned loads/stores)
-    vmovups (%rdi), %ymm0
-    vmovups (%rsi), %ymm1
+    vmovaps (%rdi), %ymm0
+    vmovaps (%rsi), %ymm1
     vaddps %ymm1, %ymm1, %ymm2
-    vmovups (%r8), %ymm3
+    vmovaps (%r8), %ymm3
     vfmadd132ps %ymm0, %ymm3, %ymm2
-    vmovups %ymm2, (%rdx)
+    vmovaps %ymm2, (%rdx)
     
     # XOR operation
     vxorps %ymm1, %ymm2, %ymm2
-    vmovups %ymm2, (%rdx)
+    vmovaps %ymm2, (%rdx)
     
     # End of function
     xor %eax, %eax
-    pop %rbp
-    ret
-
-.error:
-    mov $-1, %eax  # Return -1 to indicate error
     pop %rbp
     ret
