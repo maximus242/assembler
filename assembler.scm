@@ -168,7 +168,7 @@
   (let ((dest-code (ymm-register->code dest))
         (src1-code (ymm-register->code src1))
         (src2-code (ymm-register->code src2)))
-    (u8-list->bytevector (list #xC4 #xE2 #x65 #x98 (logior #xC0 (ash dest-code 3) src2-code)))))
+    (u8-list->bytevector (list #xC4 #xE2 #x75 #x98 #xd0))))
 
 (define (encode-vxorps dest src1 src2)
   (let ((dest-code (ymm-register->code dest))
